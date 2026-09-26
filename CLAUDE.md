@@ -44,14 +44,19 @@ Pipeline por aviso:
 3. Deduplicar: mismo modelo y año, km a <2%, precio a <10%, misma zona; casos dudosos por hash de fotos. Mostrar el precio más bajo y todos los links.
 4. Historial: precio y estado por pasada (bajas de precio, días publicado, vendidos).
 
-## Estado actual
+## Estado actual (septiembre 2026)
 
-- `packages/core`: esquema zod de la ficha (`Seguimiento`, con `modeloPortal` = modelo como aparece en los filtros de los portales, ej. "V40" para un V40 CC), `evaluar(aviso, ficha)` → `calza` / `advertencia` / `fuera`, y `leerTitulo(titulo)` (motor, tracción y Cross Country sin IA). Se importa con extensión `.ts` (Turbopack no resuelve `.js` → `.ts`).
-- `apps/web`: Next.js 16 + Tailwind + shadcn/ui (base-nova) con la paleta del mockup. Pantalla Seguimientos: chat con Gemini (AI SDK v7: `instructions`, `isStepCount`, `toUIMessageStream`) y herramienta `crear_seguimiento`. No guarda nada todavía. Lee el `.env` de la raíz (`GOOGLE_GENERATIVE_AI_API_KEY`, `GEMINI_MODELO` opcional, por defecto `gemini-flash-latest`). `pnpm dev` desde la raíz; en el panel de Claude se usa `.claude/launch.json` con puerto automático (el 3000 lo ocupa Docker).
-- `apps/worker/src/fuentes/chileautos/`: lector de Chileautos (`consulta.ts` arma la URL, `lector.ts` lee el árbol JSON, `recolector.ts` recorre páginas y detalles con Patchright). Tests con `pnpm test`. Workflow manual "Chileautos · prueba del lector" (`chileautos-prueba.yml`): sin proxy, 38 avisos del V40 CC en 3 páginas + 3 detalles, 16 MB, 48 s.
-- `apps/worker/src/fase0.ts` + `probes/`: pruebas previas (ya corridas, ver abajo).
-- **Pendiente inmediato:** crear el proyecto de Supabase (org personal "ralevi02"; tiene 2 proyectos pausados) y las tablas; API key de Gemini en `.env` y como secreto; normalización con Gemini Flash (hoy `evaluar` no distingue un V40 base de un V40 CC: eso lo decide la normalización); worker con cron que guarde en Supabase.
-- El repo es público (github.com/ralevi02/watch-car). Los secretos (`PROXY_URL`, `ML_ACCESS_TOKEN`, luego `GEMINI_API_KEY` y los de Supabase) van como GitHub Secrets. Ojo: en un repo público los artefactos y logs de Actions son visibles; pasarlo a privado antes de la fase 2.
+Las tres fases están en código. Supabase `watch-car` (id `ssmtlqtpzzhkhibkcfhi`, São Paulo, org personal "ralevi02") con migraciones en `supabase/migrations`. Ver README para la puesta en marcha.
+
+- `packages/core`: ficha `Seguimiento` (con `modeloPortal`), `evaluar` (compara también el modelo: un V40 base queda fuera de una ficha de V40 CC; modelo "por confirmar" entra con advertencia), `leerTitulo`, esquema `Normalizacion`, `esMismoAuto` (reglas), `mismaFoto`/`distanciaHash` (dHash) e `identificarLink`. Se importa con extensión `.ts`.
+- `packages/ia`: Gemini con respaldo. La capa gratis da 20 consultas diarias por modelo en `gemini-3.8-flash` (= `gemini-flash-latest`); chat con flash y respaldo flash-lite, normalización con flash-lite en lotes de 20. `gemini-2.5-*` ya no está disponible para cuentas nuevas. `thinkingLevel: "minimal"` no existe en ese modelo; se usa `"low"`.
+- `packages/db`: tipos (regenerar tras cada migración) y `clienteServicio()`.
+- `apps/worker`: `pasada.ts` genérica (`FUENTE`=chileautos | facebook | kavak | yapo | mercadolibre) → `guardar.ts` (crudos, avisos, precios, detalles, no vistos) → `fotos.ts` (dHash con sharp) → normalización → deduplicación → evaluación → push (`web-push`). También procesa links compartidos (`compartidos.ts`). `reconectar.ts` para Facebook. `prueba-lector.ts` prueba un lector sin tocar Supabase.
+- `apps/web`: Next.js 16 + shadcn (base-nova). Login con link mágico o código (proxy.ts con `getClaims`), Seguimientos (chat + guardar), Resultados agrupados por auto (atajos, alertas, historial de precios, favorito/descartar/nota), Fuentes (portales, cuentas de Facebook, pasadas, push), reconexión con vista en vivo, `/compartir` (share target) y OAuth de MercadoLibre. Solo ven datos los usuarios en la tabla `duenos` (`privado.es_dueno()`).
+- Facebook se reconecta con GitHub Actions + noVNC + túnel de Cloudflare (decisión de Raimundo: Browserbase gratis no acepta proxy propio y con proxy cuesta USD 20/mes). Link y clave enmascarados en los logs; solo quedan en Supabase.
+- Secretos en GitHub ya cargados: `GOOGLE_GENERATIVE_AI_API_KEY`, `VAPID_PRIVATE_KEY`; variable `VAPID_PUBLIC_KEY`. Faltan: `SUPABASE_SECRET_KEY`, `PROXY_URL`, `ML_CLIENT_ID`/`ML_CLIENT_SECRET`, variable `APP_URL`.
+- **Pendiente:** clave secreta de Supabase; desplegar en Vercel; configurar Auth (URLs y plantilla con `{{ .Token }}`); primer login y agregar el usuario a `duenos`; proxy y cuenta secundaria de Facebook; app de MercadoLibre. No probado aún contra la página real de Facebook con sesión (el lector guarda capturas y tarjetas ilegibles para ajustarlo en la primera corrida). Sentry no está configurado.
+- El repo es público: pasarlo a privado sería más seguro con Facebook activo (los minutos de Actions alcanzan).
 
 ## Lo que ya se sabe de cada fuente
 
@@ -75,7 +80,13 @@ Pipeline por aviso:
 - Con cuenta secundaria: misma IP fija siempre, 2–4 pasadas al día, pausas y scroll humanos, detectar muro de login y checkpoints.
 - Fase 0 (septiembre 2026): sin sesión y desde IP de datacenter redirige directo a `/login`, incluso las páginas públicas. Falta probar desde IP residencial (proxy).
 
-**MercadoLibre:** API oficial; categoría autos en Chile probablemente `MLC1744`. `/sites/MLC/search` sin token responde 403 (fase 0). Falta probar con token.
+**MercadoLibre:** el sitio pide iniciar sesión incluso para ver la lista (redirige a `/gz/account-verification`). Se usa la API oficial con OAuth (`MLC1744`); `/sites/MLC/search` sin token responde 403. Falta confirmar que con token la búsqueda responda.
+
+**Kavak:** `/cl/usados/<marca>/<modelo>`; tarjetas `a[href*="/cl/venta/"]` con `data-testid="card-product-<id>"` y textos "Volvo • V40" / "2016 • 87.000 km • versión • caja" / "$" / "9.368.900" / región. También publica en Chileautos como "Automotora KAVAK": la deduplicación los junta.
+
+**Yapo:** sigue activo. `/autos-usados/<marca>/<modelo>` (20 por página; página N = `/autos-usados.N/...`; `?order=` no cambia el orden). Tarjetas `/autos-usados/<slug>/<id>` con vendedor, "$ 11,870,000", región, año, "75,000 km", caja, título y descripción completa.
+
+**Facebook:** sin sesión redirige a login también desde IP residencial (probado en septiembre 2026).
 
 ## Conocimiento del dominio (del análisis de Volvo)
 

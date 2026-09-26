@@ -59,6 +59,8 @@ jobs:
           APP_URL: ${{ vars.APP_URL }}
           ML_CLIENT_ID: ${{ secrets.ML_CLIENT_ID }}
           ML_CLIENT_SECRET: ${{ secrets.ML_CLIENT_SECRET }}
+          # Kavak y Yapo bloquean las IPs de GitHub: con proxy residencial funcionan.
+          PROXY_URL: ${{ secrets.PROXY_URL }}
           TIPO: ${{ github.event_name == 'schedule' && 'corta' || 'prueba' }}
           MAX_PAGINAS: "3"
           HEADLESS: "0"

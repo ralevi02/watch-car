@@ -29,11 +29,28 @@ export async function recolectarLista(
       if (n > 1) await pausa(4000, 8000);
       const resp = await page.goto(op.url(n), { waitUntil: "domcontentloaded", timeout: 45_000 });
       await pausa(2500, 4500);
+      let status = resp?.status();
+      // Con 403 suele haber una verificación automática (Cloudflare u otra) que recarga la página.
+      if (status === 403) {
+        const paso = await page
+          .waitForResponse((x) => x.url().split("?")[0] === page.url().split("?")[0] && x.status() < 400 && x.request().resourceType() === "document", { timeout: 20_000 })
+          .then(() => true)
+          .catch(() => false);
+        if (paso) {
+          status = 200;
+          await pausa(2000, 3500);
+        }
+      }
       const titulo = await page.title().catch(() => "");
       const texto = await page.evaluate(() => document.body?.innerText.slice(0, 4000) ?? "").catch(() => "");
-      r.bloqueo = detectarBloqueo(resp?.status(), titulo, texto);
-      if (r.bloqueo) break;
-      if (resp?.status() === 404) break;
+      r.bloqueo = detectarBloqueo(status, titulo, texto);
+      if (r.bloqueo) {
+        const c = await capturar(page, `${op.nombre.toLowerCase()}-bloqueo`);
+        if (c) r.capturas.push(c);
+        r.errores.push(`${op.nombre}: página «${titulo.slice(0, 80)}» · ${texto.replace(/\s+/g, " ").slice(0, 160)}`);
+        break;
+      }
+      if (status === 404) break;
       await scrollHumano(page, 3);
       const avisos = await op.leer(page);
       r.paginasLeidas++;
