@@ -32,6 +32,11 @@ export const Seguimiento = z.object({
   modelo: z.string().min(1),
   /** Cómo se publica a veces el mismo modelo (ej. "V40 CC", "V40 Cross", "V40"). */
   alias: z.array(z.string()).default([]),
+  /** Cómo se llama el modelo en los filtros de los portales, sin versión (ej. "V40" para un V40 Cross Country). */
+  modeloPortal: z
+    .string()
+    .optional()
+    .describe("Modelo como aparece en los filtros de los portales, sin versión. Ej: 'V40' para un V40 Cross Country. Vacío = igual a modelo"),
   anio: Rango.default({}),
   km: Rango.default({}),
   /** En pesos chilenos. */
@@ -108,6 +113,7 @@ export const EJEMPLO_V40CC: Seguimiento = Seguimiento.parse({
   marca: "Volvo",
   modelo: "V40 Cross Country",
   alias: ["V40 CC", "V40 Cross", "V40"],
+  modeloPortal: "V40",
   anio: { min: 2017 },
   km: { max: 120000, maxConAdvertencia: 150000 },
   precio: { max: 14000000 },

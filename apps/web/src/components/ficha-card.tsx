@@ -47,6 +47,7 @@ export function FichaCard({ ficha }: { ficha: Seguimiento }) {
         <CardTitle className="font-heading text-xl font-bold">{ficha.nombre}</CardTitle>
         <CardDescription>
           {ficha.marca} {ficha.modelo}
+          {ficha.modeloPortal && ficha.modeloPortal !== ficha.modelo && ` · se busca como "${ficha.modeloPortal}"`}
         </CardDescription>
         {ficha.alias.length > 0 && (
           <div className="flex flex-wrap gap-1.5 pt-1">
