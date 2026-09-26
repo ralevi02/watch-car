@@ -85,3 +85,27 @@ export function esMismoAuto(a: HuellaAuto, b: HuellaAuto): boolean {
   if (a.region && b.region && a.region !== b.region) return false;
   return true;
 }
+
+/** Bits distintos entre dos dHash hex de 64 bits. */
+export function distanciaHash(a: string, b: string): number {
+  if (a.length !== b.length) return 64;
+  let d = 0;
+  for (let i = 0; i < a.length; i += 8) {
+    let x = (parseInt(a.slice(i, i + 8), 16) ^ parseInt(b.slice(i, i + 8), 16)) >>> 0;
+    while (x) {
+      d += x & 1;
+      x >>>= 1;
+    }
+  }
+  return d;
+}
+
+/**
+ * Caso dudoso resuelto por foto: mismo modelo y año con la foto principal casi
+ * igual (el mismo auto republicado por otro vendedor o en otro portal).
+ */
+export function mismaFoto(a: HuellaAuto & { fotoHash?: string | null }, b: HuellaAuto & { fotoHash?: string | null }, umbral = 6): boolean {
+  if (!a.fotoHash || !b.fotoHash || !a.modelo || !b.modelo) return false;
+  if (modeloCanonico(a.modelo) !== modeloCanonico(b.modelo) || !a.anio || a.anio !== b.anio) return false;
+  return distanciaHash(a.fotoHash, b.fotoHash) <= umbral;
+}

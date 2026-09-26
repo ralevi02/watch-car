@@ -16,6 +16,8 @@ export interface AvisoPortal {
   vendedor?: string;
   region?: string;
   destacado: boolean;
+  /** Foto principal (para deduplicar por foto). */
+  foto?: string;
 }
 
 /** Lo que se lee al abrir un aviso: descripción y pares etiqueta → valor. */

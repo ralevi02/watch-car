@@ -64,6 +64,8 @@ export interface ResultadoAuto {
   primeraVez: string;
   enlaces: EnlaceAviso[];
   marca: { estado: string | null; nota: string | null } | null;
+  /** Cambios de precio del aviso principal, del más antiguo al más nuevo. */
+  historial: { precio: number; fecha: string }[];
 }
 
 const HORAS_NUEVO = 48;
@@ -121,6 +123,7 @@ export async function leerResultados(busquedaId: string | undefined, filtro: Fil
         primeraVez: a.primera_vez,
         enlaces: [enlace],
         marca: marcaDe.get(clave) ?? null,
+        historial: [],
       });
       continue;
     }
@@ -135,6 +138,11 @@ export async function leerResultados(busquedaId: string | undefined, filtro: Fil
   }
 
   const todos = [...porAuto.values()];
+  const principales = todos.map((r) => r.avisoPrincipal);
+  const { data: precios } = principales.length
+    ? await supabase.from("precios").select("aviso_id, precio, visto_en").in("aviso_id", principales).order("visto_en")
+    : { data: [] };
+  for (const r of todos) r.historial = (precios ?? []).filter((p) => p.aviso_id === r.avisoPrincipal).map((p) => ({ precio: p.precio, fecha: p.visto_en }));
   const bajo = (r: ResultadoAuto) => r.precio !== null && r.precioInicial !== null && r.precio < r.precioInicial;
   const visibles = todos.filter((r) => {
     const descartado = r.marca?.estado === "descartado";
@@ -177,7 +185,8 @@ export async function leerFuentesYPasadas() {
       .order("inicio", { ascending: false })
       .limit(20),
   ]);
-  return { fuentes: fuentes ?? [], pasadas: pasadas ?? [] };
+  const { data: secretos } = await supabase.from("secretos_app").select("nombre");
+  return { fuentes: fuentes ?? [], pasadas: pasadas ?? [], mlConectado: (secretos ?? []).some((x) => x.nombre === "mercadolibre") };
 }
 
 export async function leerFacebook() {

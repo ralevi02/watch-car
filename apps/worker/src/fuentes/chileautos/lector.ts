@@ -52,12 +52,13 @@ export const AvisoLista = z.object({
   region: z.string().optional(),
   /** Aviso pagado que Chileautos muestra arriba ("showcase"); puede repetirse entre páginas. */
   destacado: z.boolean(),
+  foto: z.string().optional(),
 });
 export type AvisoLista = z.infer<typeof AvisoLista>;
 
 const Tarjeta = z.looseObject({
   action: z.looseObject({
-    data: z.looseObject({ url: z.string(), prefetchTitle: z.string().optional() }),
+    data: z.looseObject({ url: z.string(), prefetchTitle: z.string().optional(), prefetchImage: z.string().optional() }),
     tracking: z.looseObject({ additionalAttributes: z.record(z.string(), z.string()).optional() }).optional(),
   }),
 });
@@ -99,6 +100,7 @@ export function leerLista(arbol: unknown): LecturaLista {
       vendedor: vendedor[0],
       region: a["tracking/item/state"] ?? vendedor[1],
       destacado: /gtsViewType=showcase/.test(data.url),
+      foto: data.prefetchImage,
     };
     const r = AvisoLista.safeParse(candidato);
     if (r.success) {

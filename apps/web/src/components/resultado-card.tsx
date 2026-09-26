@@ -77,6 +77,12 @@ export function ResultadoCard({ r, destacado }: { r: ResultadoAuto; destacado?: 
         {bajo && <span className="text-sm text-muted-foreground line-through">${miles(r.precioInicial!)}</span>}
       </div>
 
+      {r.historial.length > 1 && (
+        <p className="mt-1 text-xs text-muted-foreground">
+          Historial: {r.historial.map((h) => `$${miles(h.precio)} (${new Date(h.fecha).toLocaleDateString("es-CL", { day: "numeric", month: "short" })})`).join(" → ")}
+        </p>
+      )}
+
       {r.veredicto === "advertencia" && r.motivos.length > 0 && (
         <ul className="mt-2 list-inside list-disc text-sm text-advertencia">
           {r.motivos.map((m) => (

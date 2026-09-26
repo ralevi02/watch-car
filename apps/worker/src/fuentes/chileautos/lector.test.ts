@@ -76,6 +76,7 @@ test("lee las tarjetas de la lista", () => {
     vendedor: "Particular",
     region: "Metropolitana de Santiago",
     destacado: true,
+    foto: undefined,
   });
   assert.equal(t3?.km, 75000);
   assert.equal(t3?.tipoVendedor, "Vehículo Usado");

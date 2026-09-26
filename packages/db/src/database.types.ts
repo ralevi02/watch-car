@@ -62,6 +62,8 @@ export type Database = {
           cross_country: boolean | null
           descripcion: string | null
           estado: string
+          foto_hash: string | null
+          foto_url: string | null
           fuente_id: string
           id: string
           id_externo: string
@@ -98,6 +100,8 @@ export type Database = {
           cross_country?: boolean | null
           descripcion?: string | null
           estado?: string
+          foto_hash?: string | null
+          foto_url?: string | null
           fuente_id: string
           id?: string
           id_externo: string
@@ -134,6 +138,8 @@ export type Database = {
           cross_country?: boolean | null
           descripcion?: string | null
           estado?: string
+          foto_hash?: string | null
+          foto_url?: string | null
           fuente_id?: string
           id?: string
           id_externo?: string
@@ -616,6 +622,24 @@ export type Database = {
           },
         ]
       }
+      secretos_app: {
+        Row: {
+          actualizado_en: string
+          nombre: string
+          secreto_id: string
+        }
+        Insert: {
+          actualizado_en?: string
+          nombre: string
+          secreto_id: string
+        }
+        Update: {
+          actualizado_en?: string
+          nombre?: string
+          secreto_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -625,6 +649,11 @@ export type Database = {
         Args: { p_cuenta: string; p_sesion: string }
         Returns: undefined
       }
+      guardar_secreto_app: {
+        Args: { p_nombre: string; p_valor: string }
+        Returns: undefined
+      }
+      leer_secreto_app: { Args: { p_nombre: string }; Returns: string }
       leer_sesion_facebook: { Args: { p_cuenta: string }; Returns: string }
     }
     Enums: {

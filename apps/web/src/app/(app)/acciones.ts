@@ -169,3 +169,11 @@ export async function compartirLink(entrada: string): Promise<Resultado & { fuen
   revalidatePath("/compartir");
   return { ok: true, fuente: link.fuente };
 }
+
+// ── Fase 3 ──────────────────────────────────────────────────────────────────
+
+export async function cambiarFuente(id: "kavak" | "yapo" | "mercadolibre" | "chileautos", activa: boolean) {
+  const supabase = await crearClienteServidor();
+  await supabase.from("fuentes").update({ activa }).eq("id", id);
+  revalidatePath("/fuentes");
+}

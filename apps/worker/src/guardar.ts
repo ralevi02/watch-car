@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { esMismoAuto, evaluar, leerTitulo, modeloCanonico, type AvisoNormalizado, type Seguimiento } from "@radar/core";
+import { esMismoAuto, evaluar, leerTitulo, mismaFoto, modeloCanonico, type AvisoNormalizado, type Seguimiento } from "@radar/core";
 import type { ClienteDb, Json, TablesInsert } from "@radar/db";
 import type { AvisoPortal, DetallePortal, ResultadoRecoleccion } from "./fuentes/tipos.js";
 import { normalizar, type EntradaNormalizacion } from "./normalizar.js";
@@ -25,6 +25,7 @@ export function datosDeLista(a: AvisoPortal) {
     traccion: t.traccion ?? null,
     // Si el título no lo dice, no se sabe: muchos CC se publican como modelo base.
     cross_country: t.crossCountry ? true : null,
+    foto_url: a.foto ?? null,
   };
 }
 
@@ -273,25 +274,28 @@ export async function normalizarPendientes(db: ClienteDb, FUENTE: string, idsExt
 }
 
 /**
- * Junta avisos que son el mismo auto (reglas de esMismoAuto) bajo un solo
- * registro de autos, para mostrar el precio más bajo y todos los links.
+ * Junta avisos que son el mismo auto (reglas de esMismoAuto o foto casi igual)
+ * bajo un solo registro de autos, para mostrar el precio más bajo y todos los links.
  */
 export async function deduplicar(db: ClienteDb, avisoIds: string[]): Promise<number> {
   let juntados = 0;
   for (const id of avisoIds) {
-    const [a] = await leer(db.from("avisos").select("id, auto_id, modelo, anio, km, precio, region").eq("id", id), "leer para deduplicar");
-    if (!a?.anio || !a.km || !a.modelo) continue;
+    const [a] = await leer(db.from("avisos").select("id, auto_id, modelo, anio, km, precio, region, foto_hash").eq("id", id), "leer para deduplicar");
+    if (!a?.anio || !a.modelo || (!a.km && !a.foto_hash)) continue;
     const candidatos = await leer(
       db
         .from("avisos")
-        .select("id, auto_id, modelo, anio, km, precio, region, primera_vez")
+        .select("id, auto_id, modelo, anio, km, precio, region, foto_hash, primera_vez")
         .eq("anio", a.anio)
         .neq("id", a.id)
         .in("estado", ["activo", "posible_vendido"])
         .order("primera_vez", { ascending: true }),
       "candidatos",
     );
-    const igual = candidatos.find((c) => c.auto_id && c.auto_id !== a.auto_id && esMismoAuto(a, c));
+    // Primero las reglas; los casos dudosos (sin km, otra región) se resuelven por la foto.
+    const igual = candidatos.find(
+      (c) => c.auto_id && c.auto_id !== a.auto_id && (esMismoAuto(a, c) || mismaFoto({ ...a, fotoHash: a.foto_hash }, { ...c, fotoHash: c.foto_hash })),
+    );
     if (!igual?.auto_id) continue;
     const autoViejo = a.auto_id;
     await escribir(db.from("avisos").update({ auto_id: igual.auto_id }).eq("id", a.id), "juntar auto");

@@ -32,17 +32,20 @@ async function leerGrilla(page: Page) {
       /fuera de tu búsqueda|outside your search|resultados relacionados/i.test(e.textContent ?? ""),
     );
     const vistos = new Set<string>();
-    const out: { id: string; texto: string }[] = [];
+    const out: { id: string; texto: string; foto?: string }[] = [];
     for (const a of document.querySelectorAll<HTMLAnchorElement>('a[href*="/marketplace/item/"]')) {
       if (fin && fin.compareDocumentPosition(a) & Node.DOCUMENT_POSITION_FOLLOWING) continue;
       const id = a.href.match(/\/marketplace\/item\/(\d+)/)?.[1];
       if (!id || vistos.has(id)) continue;
       vistos.add(id);
-      out.push({ id, texto: a.innerText });
+      out.push({ id, texto: a.innerText, foto: a.querySelector("img")?.getAttribute("src") ?? undefined });
     }
     return out;
   });
-  return crudas.map((c) => ({ c, aviso: leerTarjeta(c.id, c.texto) }));
+  return crudas.map((c) => {
+    const aviso = leerTarjeta(c.id, c.texto);
+    return { c, aviso: aviso ? { ...aviso, foto: c.foto } : null };
+  });
 }
 
 /**

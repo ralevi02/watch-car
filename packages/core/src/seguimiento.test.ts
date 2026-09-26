@@ -52,3 +52,15 @@ test("reconoce links compartidos", async () => {
   assert.equal(identificarLink("https://auto.mercadolibre.cl/MLC-1234567-volvo-v40-_JM")?.id, "MLC1234567");
   assert.equal(identificarLink("hola"), null);
 });
+
+test("deduplica por foto en casos dudosos", async () => {
+  const { distanciaHash, mismaFoto } = await import("./index.ts");
+  assert.equal(distanciaHash("ffffffffffffffff", "ffffffffffffffff"), 0);
+  assert.equal(distanciaHash("ffffffffffffffff", "fffffffffffffff0"), 4);
+  assert.equal(distanciaHash("0000000000000000", "ffffffffffffffff"), 64);
+  const a = { modelo: "V40 Cross Country", anio: 2017, fotoHash: "a1b2c3d4e5f60718" };
+  assert.ok(mismaFoto(a, { ...a, fotoHash: "a1b2c3d4e5f60719" }));
+  assert.ok(!mismaFoto(a, { ...a, anio: 2018 }));
+  assert.ok(!mismaFoto(a, { ...a, fotoHash: "5e4d3c2b1a09f8e7" }));
+  assert.ok(!mismaFoto(a, { ...a, fotoHash: null }));
+});

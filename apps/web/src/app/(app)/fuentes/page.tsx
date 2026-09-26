@@ -2,6 +2,7 @@ import { ExternalLink, LogOut } from "lucide-react";
 import { salir } from "@/app/(app)/acciones";
 import { BotonPush } from "@/components/boton-push";
 import { CuentasFacebook } from "@/components/cuentas-facebook";
+import { InterruptorFuente } from "@/components/interruptor-fuente";
 import { Encabezado } from "@/components/encabezado";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -17,8 +18,9 @@ const ESTADO: Record<string, { texto: string; clase: string }> = {
 const fecha = (s: string) =>
   new Date(s).toLocaleString("es-CL", { timeZone: "America/Santiago", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
 
-export default async function Fuentes() {
-  const [{ fuentes, pasadas }, facebook] = await Promise.all([leerFuentesYPasadas(), leerFacebook()]);
+export default async function Fuentes({ searchParams }: PageProps<"/fuentes">) {
+  const sp = await searchParams;
+  const [{ fuentes, pasadas, mlConectado }, facebook] = await Promise.all([leerFuentesYPasadas(), leerFacebook()]);
   const ultima = (id: string) => pasadas.find((p) => p.fuente_id === id);
 
   return (
@@ -35,15 +37,27 @@ export default async function Fuentes() {
                   <div>
                     <p className="font-medium">{f.nombre}</p>
                     <p className="text-sm text-muted-foreground">
-                      {f.activa ? (u ? `Última pasada: ${fecha(u.inicio)}` : "Sin pasadas todavía") : f.id === "facebook" ? "Desactivado" : "Próximamente"}
+                      {f.activa ? (u ? `Última pasada: ${fecha(u.inicio)}` : "Sin pasadas todavía") : f.id === "mercadolibre" && !mlConectado ? "Falta conectar tu cuenta de MercadoLibre" : "Desactivado"}
                     </p>
                   </div>
-                  {f.activa ? <Badge className={ESTADO[u?.estado ?? "ok"]?.clase}>{u ? ESTADO[u.estado]?.texto : "Activa"}</Badge> : <Badge variant="outline">Pronto</Badge>}
+                  <div className="flex items-center gap-2">
+                    {f.activa && u && <Badge className={ESTADO[u.estado]?.clase}>{ESTADO[u.estado]?.texto}</Badge>}
+                    {f.id === "mercadolibre" && !mlConectado ? (
+                      <a href="/api/mercadolibre/conectar" className="rounded-lg border border-border px-2.5 py-1 text-sm font-medium text-primary">
+                        Conectar
+                      </a>
+                    ) : f.id !== "facebook" ? (
+                      <InterruptorFuente id={f.id as "chileautos" | "kavak" | "yapo" | "mercadolibre"} activa={f.activa} />
+                    ) : null}
+                  </div>
                 </li>
               );
             })}
           </ul>
-          <p className="text-xs text-muted-foreground">Chileautos se revisa cada 3 horas entre 8:00 y 23:00; Facebook, 3 veces al día.</p>
+          <p className="text-xs text-muted-foreground">Chileautos se revisa cada 3 horas entre 8:00 y 23:00; Facebook, 3 veces al día; Kavak, Yapo y MercadoLibre, 2 veces al día.</p>
+          {sp.ml === "ok" && <p className="text-sm text-primary">MercadoLibre quedó conectado.</p>}
+          {sp.ml === "error" && <p className="text-sm text-destructive">No se pudo conectar MercadoLibre. Intenta de nuevo.</p>}
+          {sp.ml === "falta-config" && <p className="text-sm text-destructive">Falta ML_CLIENT_ID en la configuración de la app.</p>}
         </section>
 
         <CuentasFacebook {...facebook} />

@@ -16,13 +16,17 @@ import { procesarCompartidos } from "./compartidos.js";
 import { recolectarChileautos } from "./fuentes/chileautos/recolector.js";
 import { cargarSesion, elegirCuenta, leerConfig, registrarUso } from "./fuentes/facebook/cuentas.js";
 import { recolectarFacebook } from "./fuentes/facebook/recolector.js";
+import { recolectarKavak } from "./fuentes/kavak/recolector.js";
+import { crearRecolectorML } from "./fuentes/mercadolibre/recolector.js";
+import { recolectarYapo } from "./fuentes/yapo/recolector.js";
+import { hashearFotos } from "./fotos.js";
 import type { Recolector, ResultadoRecoleccion } from "./fuentes/tipos.js";
 import { aNormalizado, datosDeLista, deduplicar, evaluarAvisos, guardarPasada, normalizarPendientes, type ResumenEvaluacion, type ResumenGuardado } from "./guardar.js";
 import { abrirNavegador, pausa, type Sesion } from "./lib/navegador.js";
 import { enviarPush, type Notificacion } from "./push.js";
 
 const FUENTE = process.env.FUENTE || "chileautos";
-const NOMBRE: Record<string, string> = { chileautos: "Chileautos", facebook: "Facebook" };
+const NOMBRE: Record<string, string> = { chileautos: "Chileautos", facebook: "Facebook", kavak: "Kavak", yapo: "Yapo", mercadolibre: "MercadoLibre" };
 const TIPO = process.env.TIPO === "corta" || process.env.TIPO === "completa" ? process.env.TIPO : "prueba";
 const MAX_PAGINAS = Number(process.env.MAX_PAGINAS || 5);
 const DETALLES = Number(process.env.DETALLES || (FUENTE === "facebook" ? 4 : 5));
@@ -44,6 +48,13 @@ interface Preparada {
 
 async function preparar(db: ClienteDb): Promise<Preparada | { noCorre: string }> {
   if (FUENTE === "chileautos") return { recolectar: recolectarChileautos };
+  if (FUENTE === "kavak" || FUENTE === "yapo" || FUENTE === "mercadolibre") {
+    const { data: f } = await db.from("fuentes").select("activa").eq("id", FUENTE).single();
+    if (!f?.activa) return { noCorre: `${NOMBRE[FUENTE]} está desactivado en Fuentes.` };
+    if (FUENTE === "kavak") return { recolectar: recolectarKavak };
+    if (FUENTE === "yapo") return { recolectar: recolectarYapo };
+    return { recolectar: crearRecolectorML(db) };
+  }
   if (FUENTE !== "facebook") return { noCorre: `Fuente desconocida: ${FUENTE}` };
 
   const { activa, config } = await leerConfig(db);
@@ -141,6 +152,7 @@ async function main() {
         if (r.avisos.length) {
           const ids = r.avisos.map((a) => a.id);
           g = await guardarPasada(db, FUENTE, b.id, b.ficha, r, pasada.id);
+          await hashearFotos(db, g.nuevosIds);
           const n = await normalizarPendientes(db, FUENTE, ids);
           normalizados = n.normalizados;
           if (n.error) avisosPasada.push(n.error);
@@ -185,8 +197,8 @@ async function main() {
           });
         }
       }
-      if (estado === "bloqueo" && FUENTE === "chileautos") {
-        notificaciones.push({ titulo: "Chileautos bloqueó la pasada", cuerpo: `${r?.bloqueo}. Se reintenta en la próxima; si se repite, hay que activar el proxy.`, etiqueta: "bloqueo-chileautos" });
+      if (estado === "bloqueo" && FUENTE !== "facebook") {
+        notificaciones.push({ titulo: `${NOMBRE[FUENTE] ?? FUENTE} bloqueó la pasada`, cuerpo: `${r?.bloqueo}. Se reintenta en la próxima; si se repite, hay que activar el proxy.`, etiqueta: `bloqueo-${FUENTE}` });
       }
 
       const detalle: Json = {
