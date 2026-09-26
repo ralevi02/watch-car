@@ -1,1 +1,1 @@
-export * from "./seguimiento.js";
+export * from "./seguimiento.ts";
