@@ -1,0 +1,69 @@
+name: Chileautos · prueba del lector
+
+on:
+  workflow_dispatch:
+    inputs:
+      max_paginas:
+        description: "Máximo de páginas de resultados"
+        type: string
+        default: "3"
+      detalles:
+        description: "Cuántos avisos abrir para leer el detalle"
+        type: string
+        default: "3"
+      bloquear_terceros:
+        description: "Cortar publicidad y analítica (menos tráfico)"
+        type: boolean
+        default: true
+      usar_proxy:
+        description: "Usar el proxy guardado en el secreto PROXY_URL"
+        type: boolean
+        default: false
+      ficha_json:
+        description: "Ficha en JSON (vacío = V40 Cross Country de ejemplo)"
+        type: string
+        default: ""
+
+permissions:
+  contents: read
+
+jobs:
+  prueba:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: pnpm
+
+      # Solo el worker y lo que usa (sin la app web).
+      - name: Instalar dependencias
+        run: pnpm install --frozen-lockfile --filter "@radar/worker..."
+
+      - name: Tests del lector
+        run: pnpm --filter @radar/worker test
+
+      # Los runners de GitHub traen Google Chrome instalado; Patchright lo usa con channel "chrome".
+      - name: Correr la prueba
+        working-directory: apps/worker
+        env:
+          PROXY_URL: ${{ inputs.usar_proxy && secrets.PROXY_URL || '' }}
+          MAX_PAGINAS: ${{ inputs.max_paginas }}
+          DETALLES: ${{ inputs.detalles }}
+          BLOQUEAR_TERCEROS: ${{ inputs.bloquear_terceros && '1' || '0' }}
+          FICHA_JSON: ${{ inputs.ficha_json }}
+          HEADLESS: "0"
+        run: xvfb-run -a pnpm chileautos:prueba
+
+      - name: Guardar resultados
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: chileautos-prueba
+          path: apps/worker/out
+          retention-days: 14

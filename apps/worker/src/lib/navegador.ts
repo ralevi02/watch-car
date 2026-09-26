@@ -28,7 +28,25 @@ export interface Sesion {
 
 const RECURSOS_BLOQUEADOS = new Set(["image", "media", "font"]);
 
-export async function abrirNavegador(): Promise<Sesion> {
+export interface OpcionesNavegador {
+  /**
+   * Si se indica, solo se dejan pasar pedidos a estos dominios (y sus
+   * subdominios). Corta publicidad y analítica de terceros, que es casi todo
+   * el peso de las páginas.
+   */
+  soloDominios?: string[];
+}
+
+const dominioPermitido = (url: string, dominios: string[]) => {
+  try {
+    const host = new URL(url).hostname;
+    return dominios.some((d) => host === d || host.endsWith(`.${d}`));
+  } catch {
+    return true;
+  }
+};
+
+export async function abrirNavegador(op: OpcionesNavegador = {}): Promise<Sesion> {
   await mkdir(CAPTURAS, { recursive: true });
   const perfil = await mkdtemp(join(tmpdir(), "radar-perfil-"));
   const proxy = leerProxy(process.env.PROXY_URL);
@@ -46,10 +64,15 @@ export async function abrirNavegador(): Promise<Sesion> {
   });
 
   // Ahorra tráfico del proxy: sin imágenes, videos ni fuentes.
-  if (process.env.BLOQUEAR_RECURSOS !== "0") {
-    await context.route("**/*", (route) =>
-      RECURSOS_BLOQUEADOS.has(route.request().resourceType()) ? route.abort() : route.continue(),
-    );
+  const bloquearRecursos = process.env.BLOQUEAR_RECURSOS !== "0";
+  const dominios = op.soloDominios;
+  if (bloquearRecursos || dominios) {
+    await context.route("**/*", (route) => {
+      const req = route.request();
+      if (bloquearRecursos && RECURSOS_BLOQUEADOS.has(req.resourceType())) return route.abort();
+      if (dominios && !dominioPermitido(req.url(), dominios)) return route.abort();
+      return route.continue();
+    });
   }
 
   let bytes = 0;

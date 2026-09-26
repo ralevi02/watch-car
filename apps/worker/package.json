@@ -5,6 +5,8 @@
   "type": "module",
   "scripts": {
     "fase0": "tsx src/fase0.ts",
+    "chileautos:prueba": "tsx src/chileautos-prueba.ts",
+    "test": "tsx --test src/fuentes/chileautos/lector.test.ts",
     "typecheck": "tsc -p tsconfig.json"
   },
   "dependencies": {
