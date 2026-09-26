@@ -7,11 +7,7 @@
   },
   "scripts": {
     "fase0": "pnpm --filter @radar/worker fase0",
-    "typecheck": "pnpm -r typecheck"
-  },
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "esbuild"
-    ]
+    "typecheck": "pnpm -r typecheck",
+    "dev": "pnpm --filter @radar/web dev"
   }
 }
