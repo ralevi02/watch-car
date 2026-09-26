@@ -12,9 +12,9 @@ on:
         type: string
         default: "3"
       bloquear_terceros:
-        description: "Cortar publicidad y analítica (menos tráfico)"
+        description: "Cortar publicidad y analítica (menos tráfico; solo importa con proxy)"
         type: boolean
-        default: true
+        default: false
       usar_proxy:
         description: "Usar el proxy guardado en el secreto PROXY_URL"
         type: boolean

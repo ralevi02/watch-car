@@ -4,7 +4,7 @@
  * resultado.json y resumen.md, y el resumen en la página de la corrida.
  *
  * Variables: FICHA_JSON (ficha en JSON), MAX_PAGINAS (3), DETALLES (3),
- * BLOQUEAR_TERCEROS ("1" por defecto).
+ * BLOQUEAR_TERCEROS ("1" = cortar publicidad; por defecto no).
  */
 import { appendFile, mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
@@ -16,7 +16,7 @@ import { DOMINIOS_CHILEAUTOS, recolectarChileautos } from "./fuentes/chileautos/
 const ficha = process.env.FICHA_JSON ? Seguimiento.parse(JSON.parse(process.env.FICHA_JSON)) : EJEMPLO_V40CC;
 const maxPaginas = Number(process.env.MAX_PAGINAS || 3);
 const cuantosDetalles = Number(process.env.DETALLES || 3);
-const bloquearTerceros = process.env.BLOQUEAR_TERCEROS !== "0";
+const bloquearTerceros = process.env.BLOQUEAR_TERCEROS === "1";
 const DIR = join(OUT, "chileautos");
 
 /** Lectura mínima sin IA, para evaluar contra la ficha. Gemini la reemplazará. */

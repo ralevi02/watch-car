@@ -46,20 +46,24 @@ Pipeline por aviso:
 
 ## Estado actual
 
-- `packages/core/src/seguimiento.ts`: esquema zod de la ficha (`Seguimiento`) y `evaluar(aviso, ficha)` → `calza` / `advertencia` / `fuera`. Probado con el ejemplo `EJEMPLO_V40CC` (125.000 km → advertencia; 160.000 → fuera).
-- `apps/worker/src/fase0.ts` + `probes/`: pruebas previas contra Chileautos, Facebook sin sesión y la API de MercadoLibre. Escribe `out/report.json`, `out/resumen.md`, capturas, y el resumen en `$GITHUB_STEP_SUMMARY`.
-- **Pendiente inmediato:**
-  1. Mover `fase0-pruebas.yml` (está en la raíz) a `.github/workflows/fase0-pruebas.yml`, commitear y pushear. Hay además un commit local sin pushear que agrega `.gitignore` y `.env.example`.
-  2. Correr el workflow "Fase 0 · pruebas previas" en Actions (primero sin proxy) y leer el resumen.
-- El repo es público (github.com/ralevi02/watch-car). Los secretos (`PROXY_URL`, `ML_ACCESS_TOKEN`) van como GitHub Secrets.
+- `packages/core`: esquema zod de la ficha (`Seguimiento`, con `modeloPortal` = modelo como aparece en los filtros de los portales, ej. "V40" para un V40 CC), `evaluar(aviso, ficha)` → `calza` / `advertencia` / `fuera`, y `leerTitulo(titulo)` (motor, tracción y Cross Country sin IA). Se importa con extensión `.ts` (Turbopack no resuelve `.js` → `.ts`).
+- `apps/web`: Next.js 16 + Tailwind + shadcn/ui (base-nova) con la paleta del mockup. Pantalla Seguimientos: chat con Gemini (AI SDK v7: `instructions`, `isStepCount`, `toUIMessageStream`) y herramienta `crear_seguimiento`. No guarda nada todavía. Lee el `.env` de la raíz (`GOOGLE_GENERATIVE_AI_API_KEY`, `GEMINI_MODELO` opcional, por defecto `gemini-flash-latest`). `pnpm dev` desde la raíz; en el panel de Claude se usa `.claude/launch.json` con puerto automático (el 3000 lo ocupa Docker).
+- `apps/worker/src/fuentes/chileautos/`: lector de Chileautos (`consulta.ts` arma la URL, `lector.ts` lee el árbol JSON, `recolector.ts` recorre páginas y detalles con Patchright). Tests con `pnpm test`. Workflow manual "Chileautos · prueba del lector" (`chileautos-prueba.yml`): sin proxy, 38 avisos del V40 CC en 3 páginas + 3 detalles, 16 MB, 48 s.
+- `apps/worker/src/fase0.ts` + `probes/`: pruebas previas (ya corridas, ver abajo).
+- **Pendiente inmediato:** crear el proyecto de Supabase (org personal "ralevi02"; tiene 2 proyectos pausados) y las tablas; API key de Gemini en `.env` y como secreto; normalización con Gemini Flash (hoy `evaluar` no distingue un V40 base de un V40 CC: eso lo decide la normalización); worker con cron que guarde en Supabase.
+- El repo es público (github.com/ralevi02/watch-car). Los secretos (`PROXY_URL`, `ML_ACCESS_TOKEN`, luego `GEMINI_API_KEY` y los de Supabase) van como GitHub Secrets. Ojo: en un repo público los artefactos y logs de Actions son visibles; pasarlo a privado antes de la fase 2.
 
 ## Lo que ya se sabe de cada fuente
 
-**Chileautos**
-- Bloquea IPs de datacenter (WebFetch falló); desde un navegador residencial funciona.
-- Detalle de aviso por ID: `https://www.chileautos.cl/vehiculos/detalles/volvo/<ID>/` (IDs tipo `CL-AD-20184300`).
-- Formato de URL de búsqueda no confirmado: la fase 0 prueba `/vehiculos/volvo/v40/` y `/vehiculos/?q=(And.Marca.Volvo._.Modelo.V40.)`.
-- La paginación no respondió a `?offset=` ni a clicks por JS en pruebas manuales; mejor capturar el JSON interno que pide la página (la fase 0 registra esas llamadas).
+**Chileautos** (verificado en septiembre 2026)
+- Tiene DataDome y AWS WAF. Desde GitHub Actions **sin proxy** funciona con Patchright + Chrome real (xvfb). WebFetch y clientes HTTP simples quedan bloqueados.
+- Una vez, cortando publicidad con una lista de dominios permitidos, DataDome respondió 403 ("Please enable JS and disable any ad blocker"). Sin cortar nada no pasó. Si se corta publicidad, dejar pasar `captcha-delivery.com` y `datadome.co`. Nunca resolver captchas: si aparece uno, se reporta como bloqueo.
+- Búsqueda por URL con la sintaxis de carsales: `/vehiculos/?q=(And.(C.Marca.Volvo._.Modelo.V40.)_.Ano.range(2017..)._.Precio.range(..14000000)._.Kilometraje.range(..150000).)`. Marca y modelo van juntos con `C.`; otros aspectos: `Propietario.Particular`/`Agencia`, `Región`, `Transmisión`, `Combustible`, `Distintivo` (versión). `/vehiculos/volvo/v40/` también sirve, sin filtros.
+- Orden (`sort`): `topdeal` (destacado), `Price`/`~Price`, `Odometer`/`~Odometer`, `Year`/`~Year`, `MakeModel`. No hay orden por fecha de publicación: lo nuevo se detecta comparando IDs.
+- La página es un árbol JSON de componentes (server-driven UI) en `__NEXT_DATA__` → `props.pageProps.initialRoot.wide` (`compact` es la versión móvil, duplicada). Unos 16 `ListingCard` por página más 2 destacados ("showcase", pueden repetirse). En cada tarjeta, `action.tracking.additionalAttributes` trae `tracking/item/networkId`, `year`, `price`, `adtype` (Particular / Vehículo Usado), `state` (región), y `keyDetails` los textos: carrocería, caja, combustible, km.
+- La paginación **no tiene URL**: el botón "Siguiente" hace POST a `/_api/search-core/?event=search-pagination-changed` (el estado va en `msid`) y la respuesta es el mismo árbol JSON con la página nueva. El worker hace clic y lee esa respuesta. `?offset=` no funciona.
+- Detalle: `/vehiculos/detalles/<slug>/<ID>/` (IDs `CL-AD-…` particulares, `CP-AD-…`/`GI-AD-…` automotoras). Mismo árbol JSON; "Comentarios del vendedor" es el texto siguiente a ese título; la ficha técnica son `Grid` de 2 celdas (etiqueta, valor): Versión, Tracción, Comuna, Color exterior, etc. A veces la descripción trae otro precio que el publicado (alerta "precio distinto").
+- Peso: unos 4 MB por página cargada aunque se bloqueen imágenes (casi todo publicidad). Las páginas siguientes llegan como JSON.
 
 **Facebook Marketplace**
 - Búsqueda: `/marketplace/santiago/search/?query=volvo%20v40&minYear=2017&minPrice=X&maxPrice=Y&exact=false&sortBy=creation_time_descend`.
@@ -69,8 +73,9 @@ Pipeline por aviso:
 - Muchos V40 CC / V60 CC se publican con el nombre del modelo base: buscar también "V40" / "V60" y clasificar con IA.
 - Existen páginas públicas indexables, ej. `/marketplace/santiagocl/volvo-v40/`, que la fase 0 prueba sin sesión.
 - Con cuenta secundaria: misma IP fija siempre, 2–4 pasadas al día, pausas y scroll humanos, detectar muro de login y checkpoints.
+- Fase 0 (septiembre 2026): sin sesión y desde IP de datacenter redirige directo a `/login`, incluso las páginas públicas. Falta probar desde IP residencial (proxy).
 
-**MercadoLibre:** API oficial; categoría autos en Chile probablemente `MLC1744`. Confirmar si la búsqueda requiere token.
+**MercadoLibre:** API oficial; categoría autos en Chile probablemente `MLC1744`. `/sites/MLC/search` sin token responde 403 (fase 0). Falta probar con token.
 
 ## Conocimiento del dominio (del análisis de Volvo)
 
