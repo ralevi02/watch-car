@@ -1,0 +1,9 @@
+# Nunca subir secretos locales ni artefactos.
+.env
+.env.*
+!.env.example
+node_modules
+**/node_modules
+apps/worker/out
+.claude
+**/.next
