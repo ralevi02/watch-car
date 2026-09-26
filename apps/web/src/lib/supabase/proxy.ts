@@ -5,6 +5,14 @@ const PUBLICAS = ["/login", "/auth", "/manifest.webmanifest", "/sw.js", "/icons"
 
 /** Refresca la sesión en cada pedido y manda al login si no hay usuario. */
 export async function actualizarSesion(request: NextRequest) {
+  // Si Supabase manda el link a la raíz (Site URL) en vez de /auth/confirm, no perder el código.
+  const { pathname, searchParams } = request.nextUrl;
+  if (pathname === "/" && (searchParams.has("code") || searchParams.has("token_hash"))) {
+    const url = request.nextUrl.clone();
+    url.pathname = "/auth/confirm";
+    return NextResponse.redirect(url);
+  }
+
   let respuesta = NextResponse.next({ request });
   const supabase = createServerClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!, {
     cookies: {
