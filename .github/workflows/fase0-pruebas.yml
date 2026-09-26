@@ -1,0 +1,51 @@
+name: Fase 0 · pruebas previas
+
+on:
+  workflow_dispatch:
+    inputs:
+      usar_proxy:
+        description: "Usar el proxy guardado en el secreto PROXY_URL"
+        type: boolean
+        default: false
+      fuentes:
+        description: "Qué probar (separado por comas)"
+        type: string
+        default: "chileautos,facebook,mercadolibre"
+
+permissions:
+  contents: read
+
+jobs:
+  pruebas:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Instalar dependencias
+        run: pnpm install --frozen-lockfile
+
+      # Los runners de GitHub traen Google Chrome instalado; Patchright lo usa con channel "chrome".
+      - name: Correr pruebas
+        working-directory: apps/worker
+        env:
+          PROXY_URL: ${{ inputs.usar_proxy && secrets.PROXY_URL || '' }}
+          ML_ACCESS_TOKEN: ${{ secrets.ML_ACCESS_TOKEN }}
+          SOLO: ${{ inputs.fuentes }}
+          HEADLESS: "0"
+        run: xvfb-run -a pnpm fase0
+
+      - name: Guardar resultados y capturas
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fase0-resultados
+          path: apps/worker/out
+          retention-days: 14
