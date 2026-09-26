@@ -15,7 +15,7 @@ import { detectarMuro } from "./fuentes/facebook/lector.js";
 import { abrirNavegador, esperar } from "./lib/navegador.js";
 
 const ID = process.env.RECONEXION_ID;
-const ESPERA_MAXIMA_MS = 15 * 60_000;
+const ESPERA_MAXIMA_MS = 25 * 60_000;
 const RUN = process.env.GITHUB_RUN_ID ? `${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}` : null;
 
 async function main() {
@@ -55,7 +55,7 @@ async function main() {
       if (estado !== "lista") break;
     }
     if (estado === "lista") {
-      await actualizar({ estado: "vencida", url: null, clave: null, error: "Pasaron 15 minutos sin confirmar el inicio de sesión." });
+      await actualizar({ estado: "vencida", url: null, clave: null, error: "Pasaron 25 minutos sin confirmar el inicio de sesión." });
       return;
     }
     if (estado !== "guardando") {
