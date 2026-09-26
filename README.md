@@ -22,7 +22,7 @@ Todo corre en la nube: la app en Vercel, la base en Supabase y los buscadores en
 | --- | --- | --- |
 | Chileautos · pasadas | Cada 3 h de 8:00 a 23:00 | `SUPABASE_SECRET_KEY` |
 | Facebook · pasadas | 10:40, 15:40 y 20:40 | `SUPABASE_SECRET_KEY`, `PROXY_URL` y una cuenta secundaria conectada |
-| Kavak, Yapo y MercadoLibre · pasadas | 12:10 y 19:10 | `SUPABASE_SECRET_KEY` (MercadoLibre además `ML_CLIENT_ID`, `ML_CLIENT_SECRET` y conectar la cuenta en la app) |
+| Kavak, Yapo y MercadoLibre · pasadas | 12:10 y 19:10 | `SUPABASE_SECRET_KEY`; Kavak y Yapo además `PROXY_URL` (bloquean las IPs de GitHub); MercadoLibre además `ML_CLIENT_ID`, `ML_CLIENT_SECRET` y conectar la cuenta en la app |
 | Facebook · reconectar | Lo lanza la app | `SUPABASE_SECRET_KEY`, `PROXY_URL` |
 | Prueba de un lector | A mano | Nada (no toca Supabase) |
 

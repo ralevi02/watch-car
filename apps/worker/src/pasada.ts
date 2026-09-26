@@ -51,6 +51,8 @@ async function preparar(db: ClienteDb): Promise<Preparada | { noCorre: string }>
   if (FUENTE === "kavak" || FUENTE === "yapo" || FUENTE === "mercadolibre") {
     const { data: f } = await db.from("fuentes").select("activa").eq("id", FUENTE).single();
     if (!f?.activa) return { noCorre: `${NOMBRE[FUENTE]} está desactivado en Fuentes.` };
+    // Probado en septiembre 2026: Kavak (CloudFront) y Yapo (Cloudflare) bloquean las IPs de GitHub.
+    if (FUENTE !== "mercadolibre" && !process.env.PROXY_URL) return { noCorre: `${NOMBRE[FUENTE]} bloquea las IPs de GitHub: se necesita PROXY_URL.` };
     if (FUENTE === "kavak") return { recolectar: recolectarKavak };
     if (FUENTE === "yapo") return { recolectar: recolectarYapo };
     return { recolectar: crearRecolectorML(db) };

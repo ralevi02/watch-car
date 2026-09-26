@@ -82,9 +82,9 @@ Las tres fases están en código. Supabase `watch-car` (id `ssmtlqtpzzhkhibkcfhi
 
 **MercadoLibre:** el sitio pide iniciar sesión incluso para ver la lista (redirige a `/gz/account-verification`). Se usa la API oficial con OAuth (`MLC1744`); `/sites/MLC/search` sin token responde 403. Falta confirmar que con token la búsqueda responda.
 
-**Kavak:** `/cl/usados/<marca>/<modelo>`; tarjetas `a[href*="/cl/venta/"]` con `data-testid="card-product-<id>"` y textos "Volvo • V40" / "2016 • 87.000 km • versión • caja" / "$" / "9.368.900" / región. También publica en Chileautos como "Automotora KAVAK": la deduplicación los junta.
+**Kavak:** desde GitHub Actions sin proxy, CloudFront responde 403 "Request blocked": necesita proxy residencial. `/cl/usados/<marca>/<modelo>`; tarjetas `a[href*="/cl/venta/"]` con `data-testid="card-product-<id>"` y textos "Volvo • V40" / "2016 • 87.000 km • versión • caja" / "$" / "9.368.900" / región. También publica en Chileautos como "Automotora KAVAK": la deduplicación los junta.
 
-**Yapo:** sigue activo. `/autos-usados/<marca>/<modelo>` (20 por página; página N = `/autos-usados.N/...`; `?order=` no cambia el orden). Tarjetas `/autos-usados/<slug>/<id>` con vendedor, "$ 11,870,000", región, año, "75,000 km", caja, título y descripción completa.
+**Yapo:** sigue activo. Desde GitHub Actions sin proxy muestra la verificación de Cloudflare ("Un momento…") que no se resuelve sola: necesita proxy residencial (no forzar captchas). `/autos-usados/<marca>/<modelo>` (20 por página; página N = `/autos-usados.N/...`; `?order=` no cambia el orden). Tarjetas `/autos-usados/<slug>/<id>` con vendedor, "$ 11,870,000", región, año, "75,000 km", caja, título y descripción completa.
 
 **Facebook:** sin sesión redirige a login también desde IP residencial (probado en septiembre 2026).
 
