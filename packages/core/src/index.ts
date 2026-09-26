@@ -1,2 +1,3 @@
 export * from "./seguimiento.ts";
 export * from "./titulo.ts";
+export * from "./normalizacion.ts";

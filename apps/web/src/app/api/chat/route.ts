@@ -1,4 +1,5 @@
-import { google, type GoogleLanguageModelOptions } from "@ai-sdk/google";
+import type { GoogleLanguageModelOptions } from "@ai-sdk/google";
+import { modeloChat } from "@radar/ia";
 import { convertToModelMessages, createUIMessageStreamResponse, isStepCount, streamText, toUIMessageStream } from "ai";
 import { herramientas, INSTRUCCIONES, type MensajeChat } from "@/lib/chat";
 
@@ -12,7 +13,7 @@ export async function POST(req: Request) {
   const { messages }: { messages: MensajeChat[] } = await req.json();
 
   const result = streamText({
-    model: google(process.env.GEMINI_MODELO || "gemini-flash-latest"),
+    model: modeloChat(),
     instructions: INSTRUCCIONES,
     messages: await convertToModelMessages(messages),
     tools: herramientas,

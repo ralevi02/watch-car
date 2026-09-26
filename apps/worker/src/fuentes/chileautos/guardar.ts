@@ -1,14 +1,15 @@
 import { createHash } from "node:crypto";
-import { evaluar, leerTitulo, type AvisoNormalizado, type Seguimiento } from "@radar/core";
+import { esMismoAuto, evaluar, leerTitulo, modeloCanonico, type AvisoNormalizado, type Seguimiento } from "@radar/core";
 import type { ClienteDb, Json, TablesInsert } from "@radar/db";
+import { normalizar, type EntradaNormalizacion } from "../../normalizar.js";
 import type { AvisoLista, DetalleChileautos } from "./lector.js";
 import type { ResultadoChileautos } from "./recolector.js";
 
 const FUENTE = "chileautos";
 
-const huella = (x: unknown) => createHash("sha256").update(JSON.stringify(x)).digest("hex").slice(0, 32);
+export const huella = (x: unknown) => createHash("sha256").update(JSON.stringify(x)).digest("hex").slice(0, 32);
 
-/** Lo que se puede sacar de la lista sin IA. La normalización con Gemini lo corrige después. */
+/** Lo que se puede sacar de la lista sin IA. La normalización lo completa después. */
 export function datosDeLista(a: AvisoLista) {
   const t = leerTitulo(a.titulo);
   return {
@@ -32,18 +33,17 @@ export function datosDeLista(a: AvisoLista) {
 
 export function datosDeDetalle(d: DetalleChileautos) {
   const traccion = d.datos["Tracción"];
-  const version = d.datos["Versión"];
   return {
     descripcion: d.descripcion ?? null,
     comuna: d.datos["Comuna"] ?? null,
-    version: version ?? null,
     ...(traccion && /4x4|awd|4wd/i.test(traccion) ? { traccion: "AWD" } : {}),
     ...(traccion && /4x2|2wd|fwd/i.test(traccion) ? { traccion: "FWD" } : {}),
-    ...(version && /cross\s*country/i.test(version) ? { cross_country: true } : {}),
   };
 }
 
 export function aNormalizado(x: {
+  modelo?: string | null;
+  por_confirmar?: string[] | null;
   anio: number | null;
   km: number | null;
   precio: number | null;
@@ -52,6 +52,8 @@ export function aNormalizado(x: {
   caja: string | null;
 }): AvisoNormalizado {
   return {
+    modelo: x.modelo ?? undefined,
+    porConfirmar: x.por_confirmar ?? undefined,
     anio: x.anio ?? undefined,
     km: x.km ?? undefined,
     precio: x.precio ?? undefined,
@@ -59,16 +61,6 @@ export function aNormalizado(x: {
     traccion: x.traccion === "AWD" || x.traccion === "FWD" ? x.traccion : undefined,
     caja: x.caja === "automatica" || x.caja === "manual" ? x.caja : undefined,
   };
-}
-
-export interface ResumenGuardado {
-  vistos: number;
-  nuevos: number;
-  bajasDePrecio: number;
-  noVistos: number;
-  veredictos: Record<"calza" | "advertencia" | "fuera", number>;
-  /** Avisos nuevos que calzan o entran con advertencia: los que merecen aviso push. */
-  nuevosInteresantes: { id: string; titulo: string; precio: number | null; url: string; veredicto: string }[];
 }
 
 type Respuesta<T> = PromiseLike<{ data: T | null; error: { message: string } | null }>;
@@ -85,7 +77,15 @@ async function escribir(p: Respuesta<unknown>, que: string): Promise<void> {
   if (error) throw new Error(`Supabase (${que}): ${error.message}`);
 }
 
-/** Guarda una pasada: crudos, avisos, precios, detalles, veredictos y avisos que dejaron de aparecer. */
+export interface ResumenGuardado {
+  vistos: number;
+  nuevos: number;
+  nuevosIds: string[];
+  bajasDePrecio: { id: string; titulo: string; url: string; antes: number; ahora: number }[];
+  noVistos: number;
+}
+
+/** Guarda una pasada: crudos, avisos, precios, detalles y avisos que dejaron de aparecer. */
 export async function guardarPasada(
   db: ClienteDb,
   busquedaId: string,
@@ -93,14 +93,7 @@ export async function guardarPasada(
   r: ResultadoChileautos,
   pasadaId: string,
 ): Promise<ResumenGuardado> {
-  const resumen: ResumenGuardado = {
-    vistos: r.avisos.length,
-    nuevos: 0,
-    bajasDePrecio: 0,
-    noVistos: 0,
-    veredictos: { calza: 0, advertencia: 0, fuera: 0 },
-    nuevosInteresantes: [],
-  };
+  const resumen: ResumenGuardado = { vistos: r.avisos.length, nuevos: 0, nuevosIds: [], bajasDePrecio: [], noVistos: 0 };
   const ids = r.avisos.map((a) => a.id);
 
   // 1. Crudos, para reprocesar sin volver al portal.
@@ -112,7 +105,7 @@ export async function guardarPasada(
     await escribir(db.from("avisos_crudos").upsert(crudos, { onConflict: "fuente_id,id_externo,tipo,hash", ignoreDuplicates: true }), "crudos");
   }
 
-  // 2. Avisos nuevos y existentes.
+  // 2. Avisos nuevos (cada uno con su auto; la deduplicación los junta después) y existentes.
   const existentes = ids.length
     ? await leer(db.from("avisos").select("id, id_externo, precio").eq("fuente_id", FUENTE).in("id_externo", ids), "leer avisos")
     : [];
@@ -151,6 +144,7 @@ export async function guardarPasada(
     if (conPrecio.length) await escribir(db.from("precios").insert(conPrecio.map((x) => ({ aviso_id: x.id, precio: x.precio! }))), "precios nuevos");
     for (const x of insertados) porExterno.set(x.id_externo, x);
     resumen.nuevos = insertados.length;
+    resumen.nuevosIds = insertados.map((x) => x.id);
   }
 
   for (const a of r.avisos) {
@@ -166,7 +160,7 @@ export async function guardarPasada(
     );
     if (a.precio !== undefined && e.precio !== null && a.precio !== e.precio) {
       await escribir(db.from("precios").insert({ aviso_id: e.id, precio: a.precio }), "cambio de precio");
-      if (a.precio < e.precio) resumen.bajasDePrecio++;
+      if (a.precio < e.precio) resumen.bajasDePrecio.push({ id: e.id, titulo: a.titulo, url: a.url, antes: e.precio, ahora: a.precio });
     }
   }
 
@@ -176,25 +170,7 @@ export async function guardarPasada(
     if (e) await escribir(db.from("avisos").update(datosDeDetalle(d)).eq("id", e.id), "detalle");
   }
 
-  // 4. Veredicto contra la ficha.
-  if (ids.length) {
-    const filas = await leer(
-      db.from("avisos").select("id, id_externo, titulo, url, anio, km, precio, motor, traccion, caja").eq("fuente_id", FUENTE).in("id_externo", ids),
-      "leer para evaluar",
-    );
-    const nuevosIds = new Set(nuevos.map((a) => a.id));
-    const resultados = filas.map((f) => {
-      const v = evaluar(aNormalizado(f), ficha);
-      resumen.veredictos[v.tipo]++;
-      if (nuevosIds.has(f.id_externo) && v.tipo !== "fuera") {
-        resumen.nuevosInteresantes.push({ id: f.id, titulo: f.titulo, precio: f.precio, url: f.url, veredicto: v.tipo });
-      }
-      return { busqueda_id: busquedaId, aviso_id: f.id, veredicto: v.tipo, motivos: v.tipo === "calza" ? [] : v.motivos, evaluado_en: ahora };
-    });
-    await escribir(db.from("resultados").upsert(resultados, { onConflict: "busqueda_id,aviso_id" }), "resultados");
-  }
-
-  // 5. Lo que dejó de aparecer. Solo si se leyeron todas las páginas sin errores.
+  // 4. Lo que dejó de aparecer. Solo si se leyeron todas las páginas sin errores.
   const completa = !r.bloqueo && r.errores.length === 0 && r.paginasLeidas >= r.paginasTotales;
   if (completa) {
     const previos = await leer(
@@ -221,5 +197,148 @@ export async function guardarPasada(
     }
   }
 
+  return resumen;
+}
+
+const COLUMNAS_ENTRADA = "id, titulo, precio, anio, km, caja, combustible, carroceria, region, comuna, tipo_vendedor, vendedor, traccion, descripcion, normalizado_hash";
+
+/**
+ * Normaliza con Gemini los avisos cuyo contenido cambió desde la última vez
+ * (nuevos, con detalle recién leído, etc.). Lo que viene estructurado del
+ * portal (año, km, precio, caja, región) no se pisa.
+ */
+export async function normalizarPendientes(db: ClienteDb, idsExternos: string[]): Promise<{ normalizados: number; error?: string }> {
+  if (!idsExternos.length) return { normalizados: 0 };
+  if (!process.env.GOOGLE_GENERATIVE_AI_API_KEY) return { normalizados: 0, error: "Falta GOOGLE_GENERATIVE_AI_API_KEY: no se normalizó" };
+  const filas = await leer(db.from("avisos").select(COLUMNAS_ENTRADA).eq("fuente_id", FUENTE).in("id_externo", idsExternos), "leer para normalizar");
+  const pendientes = filas
+    .map((f) => {
+      const entrada: EntradaNormalizacion = {
+        id: f.id,
+        titulo: f.titulo,
+        precio: f.precio,
+        anio: f.anio,
+        km: f.km,
+        caja: f.caja,
+        combustible: f.combustible,
+        carroceria: f.carroceria,
+        region: f.region,
+        comuna: f.comuna,
+        tipoVendedor: f.tipo_vendedor,
+        vendedor: f.vendedor,
+        traccion: f.traccion,
+        descripcion: f.descripcion,
+      };
+      return { entrada, hash: huella(entrada), anterior: f.normalizado_hash };
+    })
+    .filter((p) => p.hash !== p.anterior);
+  if (!pendientes.length) return { normalizados: 0 };
+
+  let normalizados: Awaited<ReturnType<typeof normalizar>>;
+  try {
+    normalizados = await normalizar(pendientes.map((p) => p.entrada));
+  } catch (e) {
+    // Sin IA la pasada sirve igual: se reintenta en la próxima.
+    return { normalizados: 0, error: `Gemini: ${e instanceof Error ? e.message.split("\n")[0] : String(e)}` };
+  }
+
+  const ahora = new Date().toISOString();
+  for (const p of pendientes) {
+    const n = normalizados.get(p.entrada.id);
+    if (!n) continue;
+    await escribir(
+      db
+        .from("avisos")
+        .update({
+          modelo: n.modelo,
+          version: n.version,
+          motor: n.motor,
+          ...(n.traccion ? { traccion: n.traccion } : {}),
+          ...(n.caja && !p.entrada.caja ? { caja: n.caja } : {}),
+          ...(n.comuna && !p.entrada.comuna ? { comuna: n.comuna } : {}),
+          cross_country: modeloCanonico(n.modelo).includes("cc"),
+          alertas: n.alertas,
+          alerta_detalle: n.alertaDetalle,
+          precio_descripcion: n.precioDescripcion,
+          por_confirmar: n.porConfirmar,
+          normalizado_en: ahora,
+          normalizado_hash: p.hash,
+        })
+        .eq("id", p.entrada.id),
+      "guardar normalización",
+    );
+  }
+  return { normalizados: normalizados.size };
+}
+
+/**
+ * Junta avisos que son el mismo auto (reglas de esMismoAuto) bajo un solo
+ * registro de autos, para mostrar el precio más bajo y todos los links.
+ */
+export async function deduplicar(db: ClienteDb, avisoIds: string[]): Promise<number> {
+  let juntados = 0;
+  for (const id of avisoIds) {
+    const [a] = await leer(db.from("avisos").select("id, auto_id, modelo, anio, km, precio, region").eq("id", id), "leer para deduplicar");
+    if (!a?.anio || !a.km || !a.modelo) continue;
+    const candidatos = await leer(
+      db
+        .from("avisos")
+        .select("id, auto_id, modelo, anio, km, precio, region, primera_vez")
+        .eq("anio", a.anio)
+        .neq("id", a.id)
+        .in("estado", ["activo", "posible_vendido"])
+        .order("primera_vez", { ascending: true }),
+      "candidatos",
+    );
+    const igual = candidatos.find((c) => c.auto_id && c.auto_id !== a.auto_id && esMismoAuto(a, c));
+    if (!igual?.auto_id) continue;
+    const autoViejo = a.auto_id;
+    await escribir(db.from("avisos").update({ auto_id: igual.auto_id }).eq("id", a.id), "juntar auto");
+    if (autoViejo) {
+      // El auto que quedó sin avisos se borra si no tiene marcas del usuario.
+      const { count } = await db.from("avisos").select("id", { count: "exact", head: true }).eq("auto_id", autoViejo);
+      const { count: marcas } = await db.from("marcas").select("auto_id", { count: "exact", head: true }).eq("auto_id", autoViejo);
+      if (!count && !marcas) await escribir(db.from("autos").delete().eq("id", autoViejo), "borrar auto huérfano");
+    }
+    juntados++;
+  }
+  return juntados;
+}
+
+export interface ResumenEvaluacion {
+  veredictos: Record<"calza" | "advertencia" | "fuera", number>;
+  /** Avisos nuevos que calzan o entran con advertencia: los que merecen aviso push. */
+  nuevosInteresantes: { id: string; titulo: string; precio: number | null; url: string; veredicto: string }[];
+}
+
+/** Veredicto de cada aviso contra la ficha, con los datos ya normalizados. */
+export async function evaluarAvisos(
+  db: ClienteDb,
+  busquedaId: string,
+  ficha: Seguimiento,
+  idsExternos: string[],
+  nuevosIds: string[],
+): Promise<ResumenEvaluacion> {
+  const resumen: ResumenEvaluacion = { veredictos: { calza: 0, advertencia: 0, fuera: 0 }, nuevosInteresantes: [] };
+  if (!idsExternos.length) return resumen;
+  const filas = await leer(
+    db
+      .from("avisos")
+      .select("id, titulo, url, modelo, por_confirmar, anio, km, precio, motor, traccion, caja")
+      .eq("fuente_id", FUENTE)
+      .in("id_externo", idsExternos),
+    "leer para evaluar",
+  );
+  const nuevos = new Set(nuevosIds);
+  const ahora = new Date().toISOString();
+  const resultados = filas.map((f) => {
+    const v = evaluar(aNormalizado(f), ficha);
+    resumen.veredictos[v.tipo]++;
+    if (nuevos.has(f.id) && v.tipo !== "fuera") {
+      resumen.nuevosInteresantes.push({ id: f.id, titulo: f.titulo, precio: f.precio, url: f.url, veredicto: v.tipo });
+    }
+    return { busqueda_id: busquedaId, aviso_id: f.id, veredicto: v.tipo, motivos: v.tipo === "calza" ? [] : v.motivos, evaluado_en: ahora };
+  });
+  await escribir(db.from("resultados").upsert(resultados, { onConflict: "busqueda_id,aviso_id" }), "resultados");
   return resumen;
 }

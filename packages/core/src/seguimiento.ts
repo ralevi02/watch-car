@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { modeloCalza } from "./normalizacion.ts";
 
 /**
  * La "ficha" de un seguimiento: lo que el chat arma a partir de lo que pides
@@ -58,6 +59,10 @@ export type Veredicto =
   | { tipo: "fuera"; motivos: string[] };
 
 export interface AvisoNormalizado {
+  /** Modelo según la normalización, ej. "V40" o "V40 Cross Country". */
+  modelo?: string;
+  /** Campos que la normalización marcó como dudosos. */
+  porConfirmar?: readonly string[];
   anio?: number;
   km?: number;
   precio?: number;
@@ -91,6 +96,11 @@ function revisarRango(
 export function evaluar(aviso: AvisoNormalizado, s: Seguimiento): Veredicto {
   const fuera: string[] = [];
   const adv: string[] = [];
+  if (aviso.modelo) {
+    const dudoso = aviso.porConfirmar?.includes("modelo");
+    if (dudoso) adv.push(`Modelo por confirmar (parece ${aviso.modelo})`);
+    else if (!modeloCalza(aviso.modelo, s.modelo)) fuera.push(`Es ${aviso.modelo}, no ${s.modelo}`);
+  }
   revisarRango(aviso.anio, s.anio, "Año", fuera, adv, String);
   revisarRango(aviso.km, s.km, "Km", fuera, adv);
   revisarRango(aviso.precio, s.precio, "Precio", fuera, adv, (n) => `$${fmt(n)}`);

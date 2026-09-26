@@ -1,5 +1,5 @@
 {
-  "name": "@radar/core",
+  "name": "@radar/ia",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -7,15 +7,14 @@
     ".": "./src/index.ts"
   },
   "scripts": {
-    "typecheck": "tsc -p tsconfig.json",
-    "test": "tsx --test src/seguimiento.test.ts"
+    "typecheck": "tsc -p tsconfig.json"
   },
   "dependencies": {
-    "zod": "^4.1.0"
+    "@ai-sdk/google": "^4.0.82",
+    "ai": "^7.0.116"
   },
   "devDependencies": {
     "@types/node": "^22.20.0",
-    "typescript": "^5.9.3",
-    "tsx": "^4.20.0"
+    "typescript": "^5.9.3"
   }
 }

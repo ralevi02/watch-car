@@ -57,8 +57,8 @@ export type Database = {
           caja: string | null
           carroceria: string | null
           combustible: string | null
+          alerta_detalle: string | null
           comuna: string | null
-          confianza: Json
           cross_country: boolean | null
           descripcion: string | null
           estado: string
@@ -71,7 +71,9 @@ export type Database = {
           motor: string | null
           normalizado_en: string | null
           normalizado_hash: string | null
+          por_confirmar: string[]
           precio: number | null
+          precio_descripcion: number | null
           precio_inicial: number | null
           primera_vez: string
           region: string | null
@@ -91,8 +93,8 @@ export type Database = {
           caja?: string | null
           carroceria?: string | null
           combustible?: string | null
+          alerta_detalle?: string | null
           comuna?: string | null
-          confianza?: Json
           cross_country?: boolean | null
           descripcion?: string | null
           estado?: string
@@ -105,7 +107,9 @@ export type Database = {
           motor?: string | null
           normalizado_en?: string | null
           normalizado_hash?: string | null
+          por_confirmar?: string[]
           precio?: number | null
+          precio_descripcion?: number | null
           precio_inicial?: number | null
           primera_vez?: string
           region?: string | null
@@ -125,8 +129,8 @@ export type Database = {
           caja?: string | null
           carroceria?: string | null
           combustible?: string | null
+          alerta_detalle?: string | null
           comuna?: string | null
-          confianza?: Json
           cross_country?: boolean | null
           descripcion?: string | null
           estado?: string
@@ -139,7 +143,9 @@ export type Database = {
           motor?: string | null
           normalizado_en?: string | null
           normalizado_hash?: string | null
+          por_confirmar?: string[]
           precio?: number | null
+          precio_descripcion?: number | null
           precio_inicial?: number | null
           primera_vez?: string
           region?: string | null

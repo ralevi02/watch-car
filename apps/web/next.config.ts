@@ -10,7 +10,7 @@ try {
 }
 
 const nextConfig: NextConfig = {
-  transpilePackages: ["@radar/core"],
+  transpilePackages: ["@radar/core", "@radar/ia", "@radar/db"],
   devIndicators: { position: "top-right" },
 };
 
