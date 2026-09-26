@@ -5,7 +5,7 @@ import { urlBusqueda } from "./consulta.js";
 import { leerDetalle, leerLista, leerPaginacion, type AvisoLista, type DetalleChileautos } from "./lector.js";
 
 /** Dominios que la página necesita para cargar y pasar el anti-bot. El resto (publicidad, analítica) se corta. */
-export const DOMINIOS_CHILEAUTOS = ["chileautos.cl", "csnstatic.com", "datadome.co", "awswaf.com"];
+export const DOMINIOS_CHILEAUTOS = ["chileautos.cl", "csnstatic.com", "datadome.co", "captcha-delivery.com", "awswaf.com"];
 
 export interface OpcionesRecoleccion {
   /** Tope de páginas de resultados por búsqueda (cada una trae unos 16 avisos más destacados). */
@@ -85,7 +85,18 @@ export async function recolectarChileautos(s: Sesion, ficha: Seguimiento, op: Op
   try {
     const resp = await page.goto(url, { waitUntil: "domcontentloaded", timeout: 45_000 });
     await pausa(2500, 4500);
-    r.bloqueo = await revisarBloqueo(page, resp?.status());
+    let status = resp?.status();
+    // Con un 403 el anti-bot hace una verificación automática en el navegador y
+    // recarga la página. Se le da tiempo; si termina en captcha, queda como bloqueo.
+    if (status === 403) {
+      const listo = await page
+        .waitForFunction(() => document.getElementById("__NEXT_DATA__") !== null, undefined, { timeout: 20_000 })
+        .then(() => true)
+        .catch(() => false);
+      if (listo) status = 200;
+      else r.errores.push("Llegó un 403 del anti-bot y la verificación automática no terminó en 20 s");
+    }
+    r.bloqueo = await revisarBloqueo(page, status);
     if (r.bloqueo) {
       const c = await capturar(page, "chileautos-bloqueo");
       if (c) r.capturas.push(c);
