@@ -1,8 +1,10 @@
 "use client";
 
 import { useChat } from "@ai-sdk/react";
-import { ArrowUp, LoaderCircle, RotateCcw } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import type { Seguimiento } from "@radar/core";
+import { ArrowUp, Check, LoaderCircle, RotateCcw } from "lucide-react";
+import { useEffect, useRef, useState, useTransition } from "react";
+import { guardarSeguimiento } from "@/app/(app)/acciones";
 import { FichaCard } from "@/components/ficha-card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -13,6 +15,33 @@ const EJEMPLOS = [
   "Volvo V60 Cross Country T5, hasta 16 millones, solo automático",
   "Mazda CX-5 2019 en adelante, hasta 15 millones, en la Región Metropolitana",
 ];
+
+function BotonGuardar({ ficha }: { ficha: Seguimiento }) {
+  const [pendiente, iniciar] = useTransition();
+  const [estado, setEstado] = useState<"listo" | "guardado" | string>("listo");
+  if (estado === "guardado")
+    return (
+      <span className="flex items-center gap-1.5 text-sm font-medium text-primary">
+        <Check className="size-4" /> Guardado: la próxima pasada ya lo busca
+      </span>
+    );
+  return (
+    <div className="flex flex-col gap-1">
+      <Button
+        onClick={() =>
+          iniciar(async () => {
+            const r = await guardarSeguimiento(ficha);
+            setEstado(r.ok ? "guardado" : r.error);
+          })
+        }
+        disabled={pendiente}
+      >
+        {pendiente && <LoaderCircle className="animate-spin" />} Guardar seguimiento
+      </Button>
+      {estado !== "listo" && <span className="text-xs text-destructive">{estado}</span>}
+    </div>
+  );
+}
 
 function Mensaje({ mensaje }: { mensaje: MensajeChat }) {
   if (mensaje.role === "user") {
@@ -46,7 +75,7 @@ function Mensaje({ mensaje }: { mensaje: MensajeChat }) {
                   </div>
                 );
               case "output-available":
-                return <FichaCard key={key} ficha={p.output.ficha} />;
+                return <FichaCard key={key} ficha={p.output.ficha} pie={<BotonGuardar ficha={p.output.ficha} />} />;
               case "output-error":
                 return (
                   <div key={key} className="text-sm text-destructive">
@@ -64,14 +93,14 @@ function Mensaje({ mensaje }: { mensaje: MensajeChat }) {
   );
 }
 
-export default function Seguimientos() {
+export function Chat({ conSeguimientos }: { conSeguimientos: boolean }) {
   const [texto, setTexto] = useState("");
   const { messages, sendMessage, status, error, regenerate } = useChat<MensajeChat>();
   const fin = useRef<HTMLDivElement>(null);
   const ocupado = status === "submitted" || status === "streaming";
 
   useEffect(() => {
-    fin.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+    if (messages.length) fin.current?.scrollIntoView({ behavior: "smooth", block: "end" });
   }, [messages, status]);
 
   function enviar(t: string) {
@@ -82,17 +111,12 @@ export default function Seguimientos() {
   }
 
   return (
-    <div className="mx-auto flex min-h-dvh w-full max-w-2xl flex-col">
-      <header className="sticky top-0 z-10 border-b border-border bg-background/95 px-4 pb-3 pt-[max(0.75rem,env(safe-area-inset-top))] backdrop-blur">
-        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Radar seminuevos</p>
-        <h1 className="font-heading text-2xl font-bold">Seguimientos</h1>
-      </header>
-
-      <main className="flex flex-1 flex-col gap-5 px-4 py-5">
+    <>
+      <div className="flex flex-1 flex-col gap-5 px-4 py-5">
         {messages.length === 0 && (
           <section className="flex flex-col gap-4">
             <p className="text-muted-foreground">
-              Cuéntame qué auto buscas, como se lo dirías a alguien. Armo la ficha y después la usamos para traer los avisos que calcen.
+              {conSeguimientos ? "¿Quieres seguir otro auto? " : ""}Cuéntame qué auto buscas, como se lo dirías a alguien. Armo la ficha y la guardas para que la app traiga los avisos que calcen.
             </p>
             <div className="flex flex-col gap-2">
               {EJEMPLOS.map((e) => (
@@ -128,14 +152,14 @@ export default function Seguimientos() {
           </div>
         )}
         <div ref={fin} />
-      </main>
+      </div>
 
       <form
         onSubmit={(e) => {
           e.preventDefault();
           enviar(texto);
         }}
-        className="sticky bottom-0 border-t border-border bg-background/95 px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3 backdrop-blur"
+        className="sticky bottom-[calc(4rem+env(safe-area-inset-bottom))] border-t border-border bg-background/95 px-4 py-3 backdrop-blur"
       >
         <div className="flex items-end gap-2">
           <Textarea
@@ -156,6 +180,6 @@ export default function Seguimientos() {
           </Button>
         </div>
       </form>
-    </div>
+    </>
   );
 }

@@ -16,6 +16,7 @@ const archivoNarrow = Archivo_Narrow({
 export const metadata: Metadata = {
   title: "Radar seminuevos",
   description: "Seguimiento de autos usados en Chile",
+  appleWebApp: { capable: true, title: "Radar", statusBarStyle: "default" },
 };
 
 export const viewport: Viewport = {

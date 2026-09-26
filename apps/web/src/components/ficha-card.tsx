@@ -34,7 +34,7 @@ function Fila({ etiqueta, children }: { etiqueta: string; children: React.ReactN
   );
 }
 
-export function FichaCard({ ficha }: { ficha: Seguimiento }) {
+export function FichaCard({ ficha, pie }: { ficha: Seguimiento; pie?: React.ReactNode }) {
   const motor = [
     ficha.motoresIncluidos.length ? `solo ${ficha.motoresIncluidos.join(", ")}` : null,
     ficha.motoresExcluidos.length ? `sin ${ficha.motoresExcluidos.join(", ")}` : null,
@@ -81,7 +81,7 @@ export function FichaCard({ ficha }: { ficha: Seguimiento }) {
           {ficha.notas && <Fila etiqueta="Notas">{ficha.notas}</Fila>}
         </dl>
       </CardContent>
-      <CardFooter className="text-xs text-muted-foreground">Todavía no se guarda: falta conectar Supabase.</CardFooter>
+      {pie && <CardFooter className="py-3">{pie}</CardFooter>}
     </Card>
   );
 }
