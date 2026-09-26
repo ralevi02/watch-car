@@ -9,7 +9,7 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { EJEMPLO_V40CC, evaluar, Seguimiento } from "@radar/core";
 import { OUT } from "./lib/navegador.js";
-import { datosDeDetalle, datosDeLista } from "./fuentes/chileautos/guardar.js";
+import { datosDeDetalle, datosDeLista } from "./guardar.js";
 import type { AvisoLista, DetalleChileautos } from "./fuentes/chileautos/lector.js";
 import { normalizar, type EntradaNormalizacion } from "./normalizar.js";
 

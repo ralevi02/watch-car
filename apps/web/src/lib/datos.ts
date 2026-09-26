@@ -179,3 +179,28 @@ export async function leerFuentesYPasadas() {
   ]);
   return { fuentes: fuentes ?? [], pasadas: pasadas ?? [] };
 }
+
+export async function leerFacebook() {
+  const supabase = await crearClienteServidor();
+  const [{ data: fuente }, { data: cuentas }] = await Promise.all([
+    supabase.from("fuentes").select("activa, config").eq("id", "facebook").single(),
+    supabase.from("cuentas_facebook").select("id, nombre, estado, sesion_guardada_en, ultima_ok, ultimo_error, pasadas_hoy, pasadas_fecha").order("orden").order("creada_en"),
+  ]);
+  const config = (fuente?.config ?? {}) as { rotacion?: boolean; pasadas_por_dia?: number };
+  return {
+    activa: fuente?.activa ?? false,
+    rotacion: config.rotacion ?? true,
+    pasadasPorDia: config.pasadas_por_dia ?? 3,
+    cuentas: cuentas ?? [],
+  };
+}
+
+export async function leerCompartidos() {
+  const supabase = await crearClienteServidor();
+  const { data } = await supabase
+    .from("compartidos")
+    .select("id, url, fuente_id, estado, error, creado_en, aviso_id, avisos(titulo, precio)")
+    .order("creado_en", { ascending: false })
+    .limit(15);
+  return data ?? [];
+}

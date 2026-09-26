@@ -30,7 +30,11 @@ export default async function Resultados({ searchParams }: PageProps<"/resultado
 
   return (
     <>
-      <Encabezado titulo="Resultados" />
+      <Encabezado titulo="Resultados">
+        <Link href="/compartir" className="rounded-full border border-border bg-card px-3 py-1.5 text-sm font-medium">
+          + Pegar link
+        </Link>
+      </Encabezado>
       <div className="flex flex-col gap-3 px-4 pt-3">
         {busquedas.length > 1 && (
           <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1">

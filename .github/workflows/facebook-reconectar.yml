@@ -1,0 +1,78 @@
+name: Facebook · reconectar
+
+# Lo lanza la app (botón "Reconectar" en Fuentes). Abre el Chrome del worker con
+# el mismo proxy en una pantalla virtual y lo expone por un link temporal con
+# clave. El link y la clave se enmascaran en los logs (el repo es público) y
+# solo quedan en Supabase, visibles para el dueño.
+
+on:
+  workflow_dispatch:
+    inputs:
+      reconexion_id:
+        description: "Id de la reconexión (la crea la app)"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+# Nunca a la vez que una pasada de Facebook.
+concurrency:
+  group: facebook
+  cancel-in-progress: false
+
+jobs:
+  reconectar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Instalar dependencias
+        run: pnpm install --frozen-lockfile --filter "@radar/worker..."
+
+      - name: Instalar vista remota (noVNC) y túnel (cloudflared)
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq x11vnc novnc websockify > /dev/null
+          curl -fsSL -o /tmp/cloudflared https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64
+          chmod +x /tmp/cloudflared
+
+      - name: Abrir pantalla virtual, vista remota y túnel
+        run: |
+          CLAVE=$(openssl rand -hex 4)
+          echo "::add-mask::$CLAVE"
+          Xvfb :99 -screen 0 540x960x24 -nolisten tcp > /dev/null 2>&1 &
+          sleep 2
+          x11vnc -display :99 -passwd "$CLAVE" -forever -shared -rfbport 5900 -quiet -bg -o /tmp/x11vnc.log
+          websockify --web /usr/share/novnc 6080 localhost:5900 > /tmp/websockify.log 2>&1 &
+          /tmp/cloudflared tunnel --no-autoupdate --url http://localhost:6080 > /tmp/cloudflared.log 2>&1 &
+          URL=""
+          for i in $(seq 1 45); do
+            URL=$(grep -oE 'https://[a-z0-9-]+\.trycloudflare\.com' /tmp/cloudflared.log | head -1 || true)
+            [ -n "$URL" ] && break
+            sleep 2
+          done
+          if [ -z "$URL" ]; then echo "No se pudo abrir el túnel"; exit 1; fi
+          echo "::add-mask::$URL"
+          echo "VNC_URL=$URL" >> "$GITHUB_ENV"
+          echo "VNC_CLAVE=$CLAVE" >> "$GITHUB_ENV"
+          echo "Túnel listo."
+
+      - name: Reconectar
+        working-directory: apps/worker
+        env:
+          DISPLAY: ":99"
+          RECONEXION_ID: ${{ inputs.reconexion_id }}
+          SUPABASE_URL: https://ssmtlqtpzzhkhibkcfhi.supabase.co
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+          PROXY_URL: ${{ secrets.PROXY_URL }}
+          HEADLESS: "0"
+        run: pnpm reconectar

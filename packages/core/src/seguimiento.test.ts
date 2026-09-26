@@ -36,3 +36,19 @@ test("deduplica por modelo, año, km, precio y región", async () => {
   assert.ok(!esMismoAuto(base, { ...base, anio: 2018 }));
   assert.ok(!esMismoAuto({ ...base, km: null }, base), "sin km no se arriesga");
 });
+
+test("reconoce links compartidos", async () => {
+  const { identificarLink } = await import("./index.ts");
+  assert.deepEqual(identificarLink("https://www.chileautos.cl/vehiculos/detalles/2017-volvo-v40/CL-AD-20869022/?gts=x"), {
+    fuente: "chileautos",
+    id: "CL-AD-20869022",
+    url: "https://www.chileautos.cl/vehiculos/detalles/2017-volvo-v40/CL-AD-20869022/",
+  });
+  assert.deepEqual(identificarLink("Mira este auto https://m.facebook.com/marketplace/item/123456789/?ref=share"), {
+    fuente: "facebook",
+    id: "123456789",
+    url: "https://www.facebook.com/marketplace/item/123456789/",
+  });
+  assert.equal(identificarLink("https://auto.mercadolibre.cl/MLC-1234567-volvo-v40-_JM")?.id, "MLC1234567");
+  assert.equal(identificarLink("hola"), null);
+});

@@ -253,6 +253,102 @@ export type Database = {
         }
         Relationships: []
       }
+      compartidos: {
+        Row: {
+          aviso_id: string | null
+          creado_en: string
+          error: string | null
+          estado: string
+          fuente_id: string | null
+          id: string
+          id_externo: string | null
+          procesado_en: string | null
+          texto: string | null
+          url: string
+        }
+        Insert: {
+          aviso_id?: string | null
+          creado_en?: string
+          error?: string | null
+          estado?: string
+          fuente_id?: string | null
+          id?: string
+          id_externo?: string | null
+          procesado_en?: string | null
+          texto?: string | null
+          url: string
+        }
+        Update: {
+          aviso_id?: string | null
+          creado_en?: string
+          error?: string | null
+          estado?: string
+          fuente_id?: string | null
+          id?: string
+          id_externo?: string | null
+          procesado_en?: string | null
+          texto?: string | null
+          url?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "compartidos_aviso_id_fkey"
+            columns: ["aviso_id"]
+            isOneToOne: false
+            referencedRelation: "avisos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "compartidos_fuente_id_fkey"
+            columns: ["fuente_id"]
+            isOneToOne: false
+            referencedRelation: "fuentes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cuentas_facebook: {
+        Row: {
+          creada_en: string
+          estado: string
+          id: string
+          nombre: string
+          orden: number
+          pasadas_fecha: string | null
+          pasadas_hoy: number
+          secreto_id: string | null
+          sesion_guardada_en: string | null
+          ultima_ok: string | null
+          ultimo_error: string | null
+        }
+        Insert: {
+          creada_en?: string
+          estado?: string
+          id?: string
+          nombre: string
+          orden?: number
+          pasadas_fecha?: string | null
+          pasadas_hoy?: number
+          secreto_id?: string | null
+          sesion_guardada_en?: string | null
+          ultima_ok?: string | null
+          ultimo_error?: string | null
+        }
+        Update: {
+          creada_en?: string
+          estado?: string
+          id?: string
+          nombre?: string
+          orden?: number
+          pasadas_fecha?: string | null
+          pasadas_hoy?: number
+          secreto_id?: string | null
+          sesion_guardada_en?: string | null
+          ultima_ok?: string | null
+          ultimo_error?: string | null
+        }
+        Relationships: []
+      }
       duenos: {
         Row: {
           creado_en: string
@@ -434,6 +530,50 @@ export type Database = {
         }
         Relationships: []
       }
+      reconexiones: {
+        Row: {
+          actualizada_en: string
+          clave: string | null
+          creada_en: string
+          cuenta_id: string
+          error: string | null
+          estado: string
+          id: string
+          run_url: string | null
+          url: string | null
+        }
+        Insert: {
+          actualizada_en?: string
+          clave?: string | null
+          creada_en?: string
+          cuenta_id: string
+          error?: string | null
+          estado?: string
+          id?: string
+          run_url?: string | null
+          url?: string | null
+        }
+        Update: {
+          actualizada_en?: string
+          clave?: string | null
+          creada_en?: string
+          cuenta_id?: string
+          error?: string | null
+          estado?: string
+          id?: string
+          run_url?: string | null
+          url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reconexiones_cuenta_id_fkey"
+            columns: ["cuenta_id"]
+            isOneToOne: false
+            referencedRelation: "cuentas_facebook"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       resultados: {
         Row: {
           aviso_id: string
@@ -481,7 +621,11 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      guardar_sesion_facebook: {
+        Args: { p_cuenta: string; p_sesion: string }
+        Returns: undefined
+      }
+      leer_sesion_facebook: { Args: { p_cuenta: string }; Returns: string }
     }
     Enums: {
       [_ in never]: never

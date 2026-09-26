@@ -28,6 +28,8 @@ export async function actualizarSesion(request: NextRequest) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     url.search = "";
+    // Para volver a donde iba (ej. un link compartido) después de entrar.
+    if (request.nextUrl.pathname !== "/") url.searchParams.set("next", request.nextUrl.pathname + request.nextUrl.search);
     return NextResponse.redirect(url);
   }
   return respuesta;

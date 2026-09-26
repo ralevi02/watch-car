@@ -35,6 +35,10 @@ export interface OpcionesNavegador {
    * el peso de las páginas.
    */
   soloDominios?: string[];
+  /** Argumentos extra para Chrome (ej. tamaño de ventana en la reconexión). */
+  args?: string[];
+  /** false = cargar imágenes y fuentes (la reconexión las necesita para el login). */
+  bloquearRecursos?: boolean;
 }
 
 const dominioPermitido = (url: string, dominios: string[]) => {
@@ -61,10 +65,11 @@ export async function abrirNavegador(op: OpcionesNavegador = {}): Promise<Sesion
     locale: "es-CL",
     timezoneId: "America/Santiago",
     proxy,
+    args: op.args,
   });
 
   // Ahorra tráfico del proxy: sin imágenes, videos ni fuentes.
-  const bloquearRecursos = process.env.BLOQUEAR_RECURSOS !== "0";
+  const bloquearRecursos = op.bloquearRecursos ?? process.env.BLOQUEAR_RECURSOS !== "0";
   const dominios = op.soloDominios;
   if (bloquearRecursos || dominios) {
     await context.route("**/*", (route) => {

@@ -16,6 +16,8 @@ function Formulario() {
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState<string | null>(params.get("error"));
   const supabase = crearClienteNavegador();
+  // Solo rutas internas, para no redirigir a otro sitio.
+  const siguiente = params.get("next")?.startsWith("/") && !params.get("next")?.startsWith("//") ? params.get("next")! : "/resultados";
 
   async function enviar(e: React.FormEvent) {
     e.preventDefault();
@@ -23,7 +25,7 @@ function Formulario() {
     setError(null);
     const { error } = await supabase.auth.signInWithOtp({
       email: email.trim(),
-      options: { emailRedirectTo: `${window.location.origin}/auth/confirm` },
+      options: { emailRedirectTo: `${window.location.origin}/auth/confirm?next=${encodeURIComponent(siguiente)}` },
     });
     setCargando(false);
     if (error) setError(error.message);
@@ -38,7 +40,7 @@ function Formulario() {
     const { error } = await supabase.auth.verifyOtp({ email: email.trim(), token: codigo.trim(), type: "email" });
     setCargando(false);
     if (error) setError("El código no es válido o venció.");
-    else router.replace("/resultados");
+    else router.replace(siguiente);
   }
 
   return (

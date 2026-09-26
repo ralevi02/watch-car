@@ -8,9 +8,8 @@ export async function GET(request: NextRequest) {
   const tokenHash = searchParams.get("token_hash");
   const tipo = searchParams.get("type") as EmailOtpType | null;
   const code = searchParams.get("code");
-  const destino = request.nextUrl.clone();
-  destino.search = "";
-  destino.pathname = "/resultados";
+  const next = searchParams.get("next");
+  const destino = new URL(next?.startsWith("/") && !next.startsWith("//") ? next : "/resultados", request.nextUrl.origin);
 
   const supabase = await crearClienteServidor();
   const { error } = tokenHash && tipo
@@ -20,8 +19,9 @@ export async function GET(request: NextRequest) {
       : { error: new Error("Link incompleto") };
 
   if (error) {
-    destino.pathname = "/login";
-    destino.searchParams.set("error", "El link venció o ya se usó. Pide uno nuevo.");
+    const login = new URL("/login", request.nextUrl.origin);
+    login.searchParams.set("error", "El link venció o ya se usó. Pide uno nuevo.");
+    return NextResponse.redirect(login);
   }
   return NextResponse.redirect(destino);
 }

@@ -2,32 +2,13 @@ import type { Page } from "patchright";
 import type { Seguimiento } from "@radar/core";
 import { capturar, detectarBloqueo, pausa, type Sesion } from "../../lib/navegador.js";
 import { urlBusqueda } from "./consulta.js";
-import { leerDetalle, leerLista, leerPaginacion, type AvisoLista, type DetalleChileautos } from "./lector.js";
+import type { OpcionesRecoleccion, ResultadoRecoleccion } from "../tipos.js";
+import { leerDetalle, leerLista, leerPaginacion, type AvisoLista } from "./lector.js";
 
 /** Dominios que la página necesita para cargar y pasar el anti-bot. El resto (publicidad, analítica) se corta. */
 export const DOMINIOS_CHILEAUTOS = ["chileautos.cl", "csnstatic.com", "datadome.co", "captcha-delivery.com", "awswaf.com"];
 
-export interface OpcionesRecoleccion {
-  /** Tope de páginas de resultados por búsqueda (cada una trae unos 16 avisos más destacados). */
-  maxPaginas?: number;
-  /** Elige qué avisos abrir para leer el detalle (descripción, tracción, versión). */
-  elegirDetalles?: (avisos: AvisoLista[]) => AvisoLista[];
-}
-
-export interface ResultadoChileautos {
-  url: string;
-  totalAvisos?: number;
-  paginasLeidas: number;
-  paginasTotales: number;
-  avisos: AvisoLista[];
-  detalles: Record<string, DetalleChileautos>;
-  descartadas: string[];
-  bloqueo: string | null;
-  errores: string[];
-  capturas: string[];
-  kb: number;
-  ms: number;
-}
+export type ResultadoChileautos = ResultadoRecoleccion;
 
 async function leerNextData(page: Page): Promise<unknown> {
   const txt = await page.evaluate(() => document.getElementById("__NEXT_DATA__")?.textContent ?? null);

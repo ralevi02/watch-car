@@ -6,10 +6,11 @@
   "scripts": {
     "fase0": "tsx src/fase0.ts",
     "chileautos:prueba": "tsx src/chileautos-prueba.ts",
-    "test": "tsx --test src/fuentes/chileautos/lector.test.ts",
+    "test": "tsx --test \"src/**/*.test.ts\"",
     "typecheck": "tsc -p tsconfig.json",
     "pasada": "tsx src/pasada.ts",
-    "normalizar:prueba": "tsx src/normalizar-prueba.ts"
+    "normalizar:prueba": "tsx src/normalizar-prueba.ts",
+    "reconectar": "tsx src/reconectar.ts"
   },
   "dependencies": {
     "@ai-sdk/google": "^4.0.82",

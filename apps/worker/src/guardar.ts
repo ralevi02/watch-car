@@ -1,16 +1,13 @@
 import { createHash } from "node:crypto";
 import { esMismoAuto, evaluar, leerTitulo, modeloCanonico, type AvisoNormalizado, type Seguimiento } from "@radar/core";
 import type { ClienteDb, Json, TablesInsert } from "@radar/db";
-import { normalizar, type EntradaNormalizacion } from "../../normalizar.js";
-import type { AvisoLista, DetalleChileautos } from "./lector.js";
-import type { ResultadoChileautos } from "./recolector.js";
-
-const FUENTE = "chileautos";
+import type { AvisoPortal, DetallePortal, ResultadoRecoleccion } from "./fuentes/tipos.js";
+import { normalizar, type EntradaNormalizacion } from "./normalizar.js";
 
 export const huella = (x: unknown) => createHash("sha256").update(JSON.stringify(x)).digest("hex").slice(0, 32);
 
 /** Lo que se puede sacar de la lista sin IA. La normalización lo completa después. */
-export function datosDeLista(a: AvisoLista) {
+export function datosDeLista(a: AvisoPortal) {
   const t = leerTitulo(a.titulo);
   return {
     url: a.url,
@@ -31,7 +28,7 @@ export function datosDeLista(a: AvisoLista) {
   };
 }
 
-export function datosDeDetalle(d: DetalleChileautos) {
+export function datosDeDetalle(d: DetallePortal) {
   const traccion = d.datos["Tracción"];
   return {
     descripcion: d.descripcion ?? null,
@@ -88,9 +85,10 @@ export interface ResumenGuardado {
 /** Guarda una pasada: crudos, avisos, precios, detalles y avisos que dejaron de aparecer. */
 export async function guardarPasada(
   db: ClienteDb,
+  FUENTE: string,
   busquedaId: string,
   ficha: Seguimiento,
-  r: ResultadoChileautos,
+  r: ResultadoRecoleccion,
   pasadaId: string,
 ): Promise<ResumenGuardado> {
   const resumen: ResumenGuardado = { vistos: r.avisos.length, nuevos: 0, nuevosIds: [], bajasDePrecio: [], noVistos: 0 };
@@ -205,9 +203,9 @@ const COLUMNAS_ENTRADA = "id, titulo, precio, anio, km, caja, combustible, carro
 /**
  * Normaliza con Gemini los avisos cuyo contenido cambió desde la última vez
  * (nuevos, con detalle recién leído, etc.). Lo que viene estructurado del
- * portal (año, km, precio, caja, región) no se pisa.
+ * portal (año, km, precio, caja, región) no se pisa; solo se completa si falta.
  */
-export async function normalizarPendientes(db: ClienteDb, idsExternos: string[]): Promise<{ normalizados: number; error?: string }> {
+export async function normalizarPendientes(db: ClienteDb, FUENTE: string, idsExternos: string[]): Promise<{ normalizados: number; error?: string }> {
   if (!idsExternos.length) return { normalizados: 0 };
   if (!process.env.GOOGLE_GENERATIVE_AI_API_KEY) return { normalizados: 0, error: "Falta GOOGLE_GENERATIVE_AI_API_KEY: no se normalizó" };
   const filas = await leer(db.from("avisos").select(COLUMNAS_ENTRADA).eq("fuente_id", FUENTE).in("id_externo", idsExternos), "leer para normalizar");
@@ -256,6 +254,9 @@ export async function normalizarPendientes(db: ClienteDb, idsExternos: string[])
           ...(n.traccion ? { traccion: n.traccion } : {}),
           ...(n.caja && !p.entrada.caja ? { caja: n.caja } : {}),
           ...(n.comuna && !p.entrada.comuna ? { comuna: n.comuna } : {}),
+          // Facebook casi nunca trae km ni año en la lista: se toman de la descripción.
+          ...(n.km && p.entrada.km === null ? { km: n.km } : {}),
+          ...(n.anio && p.entrada.anio === null ? { anio: n.anio } : {}),
           cross_country: modeloCanonico(n.modelo).includes("cc"),
           alertas: n.alertas,
           alerta_detalle: n.alertaDetalle,
@@ -314,6 +315,7 @@ export interface ResumenEvaluacion {
 /** Veredicto de cada aviso contra la ficha, con los datos ya normalizados. */
 export async function evaluarAvisos(
   db: ClienteDb,
+  FUENTE: string,
   busquedaId: string,
   ficha: Seguimiento,
   idsExternos: string[],

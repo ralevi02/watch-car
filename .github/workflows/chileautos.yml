@@ -59,6 +59,7 @@ jobs:
         if: env.TIENE_SUPABASE == 'true'
         working-directory: apps/worker
         env:
+          FUENTE: chileautos
           SUPABASE_URL: https://ssmtlqtpzzhkhibkcfhi.supabase.co
           SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
           GOOGLE_GENERATIVE_AI_API_KEY: ${{ secrets.GOOGLE_GENERATIVE_AI_API_KEY }}

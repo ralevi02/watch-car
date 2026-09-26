@@ -1,0 +1,70 @@
+name: Facebook · pasadas
+
+on:
+  schedule:
+    # 3 pasadas al día (10:40, 15:40 y 20:40 de Chile en horario de verano).
+    - cron: "40 13,18,23 * * *"
+  workflow_dispatch:
+    inputs:
+      max_busquedas:
+        description: "Máximo de búsquedas en Marketplace por ficha"
+        type: string
+        default: "4"
+      detalles:
+        description: "Máximo de avisos nuevos a abrir por ficha"
+        type: string
+        default: "4"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: facebook
+  cancel-in-progress: false
+
+jobs:
+  pasada:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      LISTO: ${{ secrets.SUPABASE_SECRET_KEY != '' && secrets.PROXY_URL != '' }}
+    steps:
+      - name: Falta configurar
+        if: env.LISTO != 'true'
+        run: echo "::warning::Facebook necesita los secretos SUPABASE_SECRET_KEY y PROXY_URL (IP fija); no se corre."
+
+      - uses: actions/checkout@v5
+        if: env.LISTO == 'true'
+
+      - uses: pnpm/action-setup@v4
+        if: env.LISTO == 'true'
+
+      - uses: actions/setup-node@v5
+        if: env.LISTO == 'true'
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Instalar dependencias
+        if: env.LISTO == 'true'
+        run: pnpm install --frozen-lockfile --filter "@radar/worker..."
+
+      - name: Pasada
+        if: env.LISTO == 'true'
+        working-directory: apps/worker
+        env:
+          FUENTE: facebook
+          SUPABASE_URL: https://ssmtlqtpzzhkhibkcfhi.supabase.co
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+          GOOGLE_GENERATIVE_AI_API_KEY: ${{ secrets.GOOGLE_GENERATIVE_AI_API_KEY }}
+          VAPID_PUBLIC_KEY: ${{ vars.VAPID_PUBLIC_KEY }}
+          VAPID_PRIVATE_KEY: ${{ secrets.VAPID_PRIVATE_KEY }}
+          APP_URL: ${{ vars.APP_URL }}
+          PROXY_URL: ${{ secrets.PROXY_URL }}
+          TIPO: ${{ github.event_name == 'schedule' && 'corta' || 'prueba' }}
+          MAX_PAGINAS: ${{ inputs.max_busquedas || '4' }}
+          DETALLES: ${{ inputs.detalles || '4' }}
+          HEADLESS: "0"
+        run: xvfb-run -a pnpm pasada
+
+      # Sin capturas como artefacto: el repo es público y podrían mostrar datos de la cuenta.

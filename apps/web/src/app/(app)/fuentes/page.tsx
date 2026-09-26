@@ -1,10 +1,11 @@
 import { ExternalLink, LogOut } from "lucide-react";
 import { salir } from "@/app/(app)/acciones";
 import { BotonPush } from "@/components/boton-push";
+import { CuentasFacebook } from "@/components/cuentas-facebook";
 import { Encabezado } from "@/components/encabezado";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { leerFuentesYPasadas, NOMBRE_FUENTE } from "@/lib/datos";
+import { leerFacebook, leerFuentesYPasadas, NOMBRE_FUENTE } from "@/lib/datos";
 
 const ESTADO: Record<string, { texto: string; clase: string }> = {
   ok: { texto: "OK", clase: "bg-emerald-600 text-white" },
@@ -17,7 +18,7 @@ const fecha = (s: string) =>
   new Date(s).toLocaleString("es-CL", { timeZone: "America/Santiago", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
 
 export default async function Fuentes() {
-  const { fuentes, pasadas } = await leerFuentesYPasadas();
+  const [{ fuentes, pasadas }, facebook] = await Promise.all([leerFuentesYPasadas(), leerFacebook()]);
   const ultima = (id: string) => pasadas.find((p) => p.fuente_id === id);
 
   return (
@@ -34,7 +35,7 @@ export default async function Fuentes() {
                   <div>
                     <p className="font-medium">{f.nombre}</p>
                     <p className="text-sm text-muted-foreground">
-                      {f.activa ? (u ? `Última pasada: ${fecha(u.inicio)}` : "Sin pasadas todavía") : "Próximamente"}
+                      {f.activa ? (u ? `Última pasada: ${fecha(u.inicio)}` : "Sin pasadas todavía") : f.id === "facebook" ? "Desactivado" : "Próximamente"}
                     </p>
                   </div>
                   {f.activa ? <Badge className={ESTADO[u?.estado ?? "ok"]?.clase}>{u ? ESTADO[u.estado]?.texto : "Activa"}</Badge> : <Badge variant="outline">Pronto</Badge>}
@@ -42,8 +43,10 @@ export default async function Fuentes() {
               );
             })}
           </ul>
-          <p className="text-xs text-muted-foreground">Chileautos se revisa cada 3 horas entre 8:00 y 23:00.</p>
+          <p className="text-xs text-muted-foreground">Chileautos se revisa cada 3 horas entre 8:00 y 23:00; Facebook, 3 veces al día.</p>
         </section>
+
+        <CuentasFacebook {...facebook} />
 
         <section className="flex flex-col gap-2">
           <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Notificaciones</h2>
