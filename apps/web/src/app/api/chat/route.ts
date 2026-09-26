@@ -1,4 +1,4 @@
-import { google } from "@ai-sdk/google";
+import { google, type GoogleLanguageModelOptions } from "@ai-sdk/google";
 import { convertToModelMessages, createUIMessageStreamResponse, isStepCount, streamText, toUIMessageStream } from "ai";
 import { herramientas, INSTRUCCIONES, type MensajeChat } from "@/lib/chat";
 
@@ -17,6 +17,10 @@ export async function POST(req: Request) {
     messages: await convertToModelMessages(messages),
     tools: herramientas,
     stopWhen: isStepCount(3),
+    // Armar una ficha no necesita razonar mucho; así responde bastante más rápido.
+    providerOptions: {
+      google: { thinkingConfig: { thinkingLevel: "low" } } satisfies GoogleLanguageModelOptions,
+    },
   });
 
   return createUIMessageStreamResponse({
