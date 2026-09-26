@@ -1,8 +1,13 @@
-name: Chileautos · prueba del lector
+name: Prueba de un lector
 
 on:
   workflow_dispatch:
     inputs:
+      fuente:
+        description: "Portal a probar"
+        type: choice
+        options: [chileautos, kavak, yapo]
+        default: chileautos
       max_paginas:
         description: "Máximo de páginas de resultados"
         type: string
@@ -57,13 +62,14 @@ jobs:
           DETALLES: ${{ inputs.detalles }}
           BLOQUEAR_TERCEROS: ${{ inputs.bloquear_terceros && '1' || '0' }}
           FICHA_JSON: ${{ inputs.ficha_json }}
+          FUENTE: ${{ inputs.fuente }}
           HEADLESS: "0"
-        run: xvfb-run -a pnpm chileautos:prueba
+        run: xvfb-run -a pnpm prueba
 
       - name: Guardar resultados
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: chileautos-prueba
+          name: prueba-${{ inputs.fuente }}
           path: apps/worker/out
           retention-days: 14

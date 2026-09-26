@@ -1,26 +1,33 @@
 /**
- * Prueba del lector de Chileautos con una ficha (por defecto el V40 Cross
- * Country de ejemplo). Todavía no guarda en Supabase: deja en out/chileautos/
- * resultado.json y resumen.md, y el resumen en la página de la corrida.
+ * Prueba de un lector (FUENTE=chileautos | kavak | yapo) con una ficha (por
+ * defecto el V40 Cross Country de ejemplo), sin tocar Supabase: deja en
+ * out/<fuente>/ resultado.json y resumen.md, y el resumen en la corrida.
  *
- * Variables: FICHA_JSON (ficha en JSON), MAX_PAGINAS (3), DETALLES (3),
+ * Variables: FUENTE, FICHA_JSON (ficha en JSON), MAX_PAGINAS (3), DETALLES (3),
  * BLOQUEAR_TERCEROS ("1" = cortar publicidad; por defecto no).
  */
 import { appendFile, mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { EJEMPLO_V40CC, evaluar, leerTitulo, Seguimiento, type AvisoNormalizado, type Veredicto } from "@radar/core";
 import { abrirNavegador, OUT } from "./lib/navegador.js";
-import type { AvisoLista } from "./fuentes/chileautos/lector.js";
 import { DOMINIOS_CHILEAUTOS, recolectarChileautos } from "./fuentes/chileautos/recolector.js";
+import { recolectarKavak } from "./fuentes/kavak/recolector.js";
+import type { AvisoPortal, Recolector } from "./fuentes/tipos.js";
+import { recolectarYapo } from "./fuentes/yapo/recolector.js";
 
 const ficha = process.env.FICHA_JSON ? Seguimiento.parse(JSON.parse(process.env.FICHA_JSON)) : EJEMPLO_V40CC;
 const maxPaginas = Number(process.env.MAX_PAGINAS || 3);
 const cuantosDetalles = Number(process.env.DETALLES || 3);
 const bloquearTerceros = process.env.BLOQUEAR_TERCEROS === "1";
-const DIR = join(OUT, "chileautos");
+const FUENTE = process.env.FUENTE || "chileautos";
+const RECOLECTORES: Record<string, Recolector> = { chileautos: recolectarChileautos, kavak: recolectarKavak, yapo: recolectarYapo };
+const elegido = RECOLECTORES[FUENTE];
+if (!elegido) throw new Error(`Fuente sin prueba: ${FUENTE}`);
+const recolectar: Recolector = elegido;
+const DIR = join(OUT, FUENTE);
 
 /** Lectura mínima sin IA, para evaluar contra la ficha. Gemini la reemplazará. */
-function prenormalizar(a: AvisoLista): AvisoNormalizado & { crossCountry: boolean } {
+function prenormalizar(a: AvisoPortal): AvisoNormalizado & { crossCountry: boolean } {
   const t = leerTitulo(a.titulo);
   return {
     anio: a.anio,
@@ -39,10 +46,10 @@ const miles = (n?: number) => (n === undefined ? "?" : n.toLocaleString("es-CL")
 
 async function main() {
   await mkdir(DIR, { recursive: true });
-  const s = await abrirNavegador(bloquearTerceros ? { soloDominios: DOMINIOS_CHILEAUTOS } : {});
+  const s = await abrirNavegador(bloquearTerceros && FUENTE === "chileautos" ? { soloDominios: DOMINIOS_CHILEAUTOS } : {});
   let r;
   try {
-    r = await recolectarChileautos(s, ficha, {
+    r = await recolectar(s, ficha, {
       maxPaginas,
       // Abrir primero los que calzan y dicen Cross Country: son los que más importa leer bien.
       elegirDetalles: (avisos) =>
@@ -63,7 +70,7 @@ async function main() {
   const cuenta = (t: Veredicto["tipo"]) => filas.filter((f) => f.v.tipo === t).length;
 
   const lineas = [
-    `# Chileautos · prueba del lector`,
+    `# ${FUENTE} · prueba del lector`,
     ``,
     `Ficha: **${ficha.nombre}** · ${new Date().toLocaleString("es-CL", { timeZone: "America/Santiago" })} · Origen: ${process.env.GITHUB_ACTIONS ? "GitHub Actions" : "local"} · Proxy: ${s.usaProxy ? "sí" : "no"} · Terceros bloqueados: ${bloquearTerceros ? "sí" : "no"}`,
     ``,
