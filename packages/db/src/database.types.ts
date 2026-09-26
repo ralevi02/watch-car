@@ -1,0 +1,495 @@
+// Generado desde Supabase (proyecto watch-car). No editar a mano: regenerar tras cada migración.
+
+export type Json =
+  | string
+  | number
+  | boolean
+  | null
+  | { [key: string]: Json | undefined }
+  | Json[]
+
+export type Database = {
+  // Allows to automatically instantiate createClient with right options
+  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
+  __InternalSupabase: {
+    PostgrestVersion: "14.5"
+  }
+  public: {
+    Tables: {
+      autos: {
+        Row: {
+          anio: number | null
+          creado_en: string
+          id: string
+          km: number | null
+          marca: string | null
+          modelo: string | null
+          region: string | null
+          version: string | null
+        }
+        Insert: {
+          anio?: number | null
+          creado_en?: string
+          id?: string
+          km?: number | null
+          marca?: string | null
+          modelo?: string | null
+          region?: string | null
+          version?: string | null
+        }
+        Update: {
+          anio?: number | null
+          creado_en?: string
+          id?: string
+          km?: number | null
+          marca?: string | null
+          modelo?: string | null
+          region?: string | null
+          version?: string | null
+        }
+        Relationships: []
+      }
+      avisos: {
+        Row: {
+          alertas: string[]
+          anio: number | null
+          auto_id: string | null
+          caja: string | null
+          carroceria: string | null
+          combustible: string | null
+          comuna: string | null
+          confianza: Json
+          cross_country: boolean | null
+          descripcion: string | null
+          estado: string
+          fuente_id: string
+          id: string
+          id_externo: string
+          km: number | null
+          marca: string | null
+          modelo: string | null
+          motor: string | null
+          normalizado_en: string | null
+          normalizado_hash: string | null
+          precio: number | null
+          precio_inicial: number | null
+          primera_vez: string
+          region: string | null
+          tipo_vendedor: string | null
+          titulo: string
+          traccion: string | null
+          ultima_vez: string
+          url: string
+          veces_no_visto: number
+          vendedor: string | null
+          version: string | null
+        }
+        Insert: {
+          alertas?: string[]
+          anio?: number | null
+          auto_id?: string | null
+          caja?: string | null
+          carroceria?: string | null
+          combustible?: string | null
+          comuna?: string | null
+          confianza?: Json
+          cross_country?: boolean | null
+          descripcion?: string | null
+          estado?: string
+          fuente_id: string
+          id?: string
+          id_externo: string
+          km?: number | null
+          marca?: string | null
+          modelo?: string | null
+          motor?: string | null
+          normalizado_en?: string | null
+          normalizado_hash?: string | null
+          precio?: number | null
+          precio_inicial?: number | null
+          primera_vez?: string
+          region?: string | null
+          tipo_vendedor?: string | null
+          titulo: string
+          traccion?: string | null
+          ultima_vez?: string
+          url: string
+          veces_no_visto?: number
+          vendedor?: string | null
+          version?: string | null
+        }
+        Update: {
+          alertas?: string[]
+          anio?: number | null
+          auto_id?: string | null
+          caja?: string | null
+          carroceria?: string | null
+          combustible?: string | null
+          comuna?: string | null
+          confianza?: Json
+          cross_country?: boolean | null
+          descripcion?: string | null
+          estado?: string
+          fuente_id?: string
+          id?: string
+          id_externo?: string
+          km?: number | null
+          marca?: string | null
+          modelo?: string | null
+          motor?: string | null
+          normalizado_en?: string | null
+          normalizado_hash?: string | null
+          precio?: number | null
+          precio_inicial?: number | null
+          primera_vez?: string
+          region?: string | null
+          tipo_vendedor?: string | null
+          titulo?: string
+          traccion?: string | null
+          ultima_vez?: string
+          url?: string
+          veces_no_visto?: number
+          vendedor?: string | null
+          version?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "avisos_auto_id_fkey"
+            columns: ["auto_id"]
+            isOneToOne: false
+            referencedRelation: "autos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "avisos_fuente_id_fkey"
+            columns: ["fuente_id"]
+            isOneToOne: false
+            referencedRelation: "fuentes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      avisos_crudos: {
+        Row: {
+          creado_en: string
+          datos: Json
+          fuente_id: string
+          hash: string
+          id: number
+          id_externo: string
+          pasada_id: string | null
+          tipo: string
+        }
+        Insert: {
+          creado_en?: string
+          datos: Json
+          fuente_id: string
+          hash: string
+          id?: never
+          id_externo: string
+          pasada_id?: string | null
+          tipo: string
+        }
+        Update: {
+          creado_en?: string
+          datos?: Json
+          fuente_id?: string
+          hash?: string
+          id?: never
+          id_externo?: string
+          pasada_id?: string | null
+          tipo?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "avisos_crudos_fuente_id_fkey"
+            columns: ["fuente_id"]
+            isOneToOne: false
+            referencedRelation: "fuentes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "avisos_crudos_pasada_id_fkey"
+            columns: ["pasada_id"]
+            isOneToOne: false
+            referencedRelation: "pasadas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      busquedas: {
+        Row: {
+          activa: boolean
+          actualizada_en: string
+          alertas: boolean
+          creada_en: string
+          ficha: Json
+          id: string
+          nombre: string
+        }
+        Insert: {
+          activa?: boolean
+          actualizada_en?: string
+          alertas?: boolean
+          creada_en?: string
+          ficha: Json
+          id?: string
+          nombre: string
+        }
+        Update: {
+          activa?: boolean
+          actualizada_en?: string
+          alertas?: boolean
+          creada_en?: string
+          ficha?: Json
+          id?: string
+          nombre?: string
+        }
+        Relationships: []
+      }
+      duenos: {
+        Row: {
+          creado_en: string
+          user_id: string
+        }
+        Insert: {
+          creado_en?: string
+          user_id: string
+        }
+        Update: {
+          creado_en?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      fuentes: {
+        Row: {
+          activa: boolean
+          config: Json
+          id: string
+          nombre: string
+        }
+        Insert: {
+          activa?: boolean
+          config?: Json
+          id: string
+          nombre: string
+        }
+        Update: {
+          activa?: boolean
+          config?: Json
+          id?: string
+          nombre?: string
+        }
+        Relationships: []
+      }
+      marcas: {
+        Row: {
+          actualizada_en: string
+          auto_id: string
+          estado: string | null
+          nota: string | null
+        }
+        Insert: {
+          actualizada_en?: string
+          auto_id: string
+          estado?: string | null
+          nota?: string | null
+        }
+        Update: {
+          actualizada_en?: string
+          auto_id?: string
+          estado?: string | null
+          nota?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "marcas_auto_id_fkey"
+            columns: ["auto_id"]
+            isOneToOne: true
+            referencedRelation: "autos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pasadas: {
+        Row: {
+          avisos_nuevos: number | null
+          avisos_vistos: number | null
+          busqueda_id: string | null
+          detalle: Json
+          estado: string
+          fin: string | null
+          fuente_id: string
+          id: string
+          inicio: string
+          kb: number | null
+          paginas: number | null
+          tipo: string
+        }
+        Insert: {
+          avisos_nuevos?: number | null
+          avisos_vistos?: number | null
+          busqueda_id?: string | null
+          detalle?: Json
+          estado?: string
+          fin?: string | null
+          fuente_id: string
+          id?: string
+          inicio?: string
+          kb?: number | null
+          paginas?: number | null
+          tipo: string
+        }
+        Update: {
+          avisos_nuevos?: number | null
+          avisos_vistos?: number | null
+          busqueda_id?: string | null
+          detalle?: Json
+          estado?: string
+          fin?: string | null
+          fuente_id?: string
+          id?: string
+          inicio?: string
+          kb?: number | null
+          paginas?: number | null
+          tipo?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pasadas_busqueda_id_fkey"
+            columns: ["busqueda_id"]
+            isOneToOne: false
+            referencedRelation: "busquedas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pasadas_fuente_id_fkey"
+            columns: ["fuente_id"]
+            isOneToOne: false
+            referencedRelation: "fuentes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      precios: {
+        Row: {
+          aviso_id: string
+          id: number
+          precio: number
+          visto_en: string
+        }
+        Insert: {
+          aviso_id: string
+          id?: never
+          precio: number
+          visto_en?: string
+        }
+        Update: {
+          aviso_id?: string
+          id?: never
+          precio?: number
+          visto_en?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "precios_aviso_id_fkey"
+            columns: ["aviso_id"]
+            isOneToOne: false
+            referencedRelation: "avisos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      push_suscripciones: {
+        Row: {
+          auth: string
+          creada_en: string
+          endpoint: string
+          id: string
+          p256dh: string
+          user_id: string
+        }
+        Insert: {
+          auth: string
+          creada_en?: string
+          endpoint: string
+          id?: string
+          p256dh: string
+          user_id?: string
+        }
+        Update: {
+          auth?: string
+          creada_en?: string
+          endpoint?: string
+          id?: string
+          p256dh?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      resultados: {
+        Row: {
+          aviso_id: string
+          busqueda_id: string
+          evaluado_en: string
+          motivos: string[]
+          notificado_en: string | null
+          veredicto: string
+        }
+        Insert: {
+          aviso_id: string
+          busqueda_id: string
+          evaluado_en?: string
+          motivos?: string[]
+          notificado_en?: string | null
+          veredicto: string
+        }
+        Update: {
+          aviso_id?: string
+          busqueda_id?: string
+          evaluado_en?: string
+          motivos?: string[]
+          notificado_en?: string | null
+          veredicto?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "resultados_aviso_id_fkey"
+            columns: ["aviso_id"]
+            isOneToOne: false
+            referencedRelation: "avisos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "resultados_busqueda_id_fkey"
+            columns: ["busqueda_id"]
+            isOneToOne: false
+            referencedRelation: "busquedas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      [_ in never]: never
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
+}
+
+type DatabaseWithoutInternals = Omit<Database, "__InternalSupabase">
+
+type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">]
+
+export type Tables<T extends keyof DefaultSchema["Tables"]> = DefaultSchema["Tables"][T]["Row"]
+export type TablesInsert<T extends keyof DefaultSchema["Tables"]> = DefaultSchema["Tables"][T]["Insert"]
+export type TablesUpdate<T extends keyof DefaultSchema["Tables"]> = DefaultSchema["Tables"][T]["Update"]
