@@ -115,10 +115,8 @@ export async function pedirReconexion(cuentaId: string): Promise<Resultado & { i
   if (error) return { ok: false, error: error.message };
   const token = process.env.GITHUB_DISPATCH_TOKEN;
   const repo = process.env.GITHUB_REPO || "ralevi02/watch-car";
-  if (!token) {
-    await supabase.from("reconexiones").update({ estado: "error", error: "Falta GITHUB_DISPATCH_TOKEN en la app" }).eq("id", data.id);
-    return { ok: false, error: "Falta configurar GITHUB_DISPATCH_TOKEN en la app para lanzar la reconexión." };
-  }
+  // Sin token la reconexión queda pedida y se puede lanzar a mano el workflow "Facebook · reconectar" con este id.
+  if (!token) return { ok: true, id: data.id };
   const r = await fetch(`https://api.github.com/repos/${repo}/actions/workflows/facebook-reconectar.yml/dispatches`, {
     method: "POST",
     headers: { Authorization: `Bearer ${token}`, Accept: "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28" },

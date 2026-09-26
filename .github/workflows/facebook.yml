@@ -27,11 +27,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 25
     env:
-      LISTO: ${{ secrets.SUPABASE_SECRET_KEY != '' && secrets.PROXY_URL != '' }}
+      LISTO: ${{ secrets.SUPABASE_SECRET_KEY != '' }}
     steps:
       - name: Falta configurar
         if: env.LISTO != 'true'
-        run: echo "::warning::Facebook necesita los secretos SUPABASE_SECRET_KEY y PROXY_URL (IP fija); no se corre."
+        run: echo "::warning::Facebook necesita el secreto SUPABASE_SECRET_KEY; no se corre."
 
       - uses: actions/checkout@v5
         if: env.LISTO == 'true'
@@ -61,6 +61,8 @@ jobs:
           VAPID_PRIVATE_KEY: ${{ secrets.VAPID_PRIVATE_KEY }}
           APP_URL: ${{ vars.APP_URL }}
           PROXY_URL: ${{ secrets.PROXY_URL }}
+          # Sin proxy se corre igual (decisión de Raimundo: probar primero así, con más riesgo para la cuenta).
+          FB_SIN_PROXY: ${{ secrets.PROXY_URL == '' && '1' || '0' }}
           TIPO: ${{ github.event_name == 'schedule' && 'corta' || 'prueba' }}
           MAX_PAGINAS: ${{ inputs.max_busquedas || '4' }}
           DETALLES: ${{ inputs.detalles || '4' }}

@@ -43,7 +43,7 @@ export default function Reconectar({ params }: { params: Promise<{ id: string }>
 
         {(estado === "pedida" || estado === "abriendo") && (
           <div className="flex items-center gap-2 rounded-xl border border-border bg-card px-4 py-4 text-sm">
-            <LoaderCircle className="size-4 animate-spin" /> Abriendo el navegador seguro… (tarda cerca de un minuto)
+            <LoaderCircle className="size-4 animate-spin" /> Abriendo el navegador seguro… (tarda uno o dos minutos)
           </div>
         )}
 
