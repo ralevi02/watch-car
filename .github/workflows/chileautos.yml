@@ -1,0 +1,78 @@
+name: Chileautos · pasadas
+
+on:
+  schedule:
+    # Cada 3 h entre 8:00 y 23:00 de Chile (UTC-3 en horario de verano; en invierno corre una hora antes).
+    - cron: "23 11,14,17,20,23,2 * * *"
+  workflow_dispatch:
+    inputs:
+      max_paginas:
+        description: "Máximo de páginas por búsqueda"
+        type: string
+        default: "5"
+      detalles:
+        description: "Máximo de detalles nuevos a abrir por búsqueda"
+        type: string
+        default: "5"
+      usar_proxy:
+        description: "Usar el proxy guardado en el secreto PROXY_URL"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+# Nunca dos pasadas a la vez.
+concurrency:
+  group: chileautos
+  cancel-in-progress: false
+
+jobs:
+  pasada:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      TIENE_SUPABASE: ${{ secrets.SUPABASE_SECRET_KEY != '' }}
+    steps:
+      - name: Falta configurar Supabase
+        if: env.TIENE_SUPABASE != 'true'
+        run: echo "::warning::Falta el secreto SUPABASE_SECRET_KEY; no se corre la pasada."
+
+      - uses: actions/checkout@v5
+        if: env.TIENE_SUPABASE == 'true'
+
+      - uses: pnpm/action-setup@v4
+        if: env.TIENE_SUPABASE == 'true'
+
+      - uses: actions/setup-node@v5
+        if: env.TIENE_SUPABASE == 'true'
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Instalar dependencias
+        if: env.TIENE_SUPABASE == 'true'
+        run: pnpm install --frozen-lockfile --filter "@radar/worker..."
+
+      # Los runners de GitHub traen Google Chrome instalado; Patchright lo usa con channel "chrome".
+      - name: Pasada
+        if: env.TIENE_SUPABASE == 'true'
+        working-directory: apps/worker
+        env:
+          SUPABASE_URL: https://ssmtlqtpzzhkhibkcfhi.supabase.co
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+          TIPO: ${{ github.event_name == 'schedule' && 'corta' || 'prueba' }}
+          MAX_PAGINAS: ${{ inputs.max_paginas || '5' }}
+          DETALLES: ${{ inputs.detalles || '5' }}
+          PROXY_URL: ${{ inputs.usar_proxy && secrets.PROXY_URL || '' }}
+          HEADLESS: "0"
+        run: xvfb-run -a pnpm pasada
+
+      - name: Guardar capturas si algo falló
+        if: failure() && env.TIENE_SUPABASE == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: chileautos-capturas
+          path: apps/worker/out/capturas
+          retention-days: 7
+          if-no-files-found: ignore

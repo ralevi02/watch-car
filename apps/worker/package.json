@@ -7,10 +7,12 @@
     "fase0": "tsx src/fase0.ts",
     "chileautos:prueba": "tsx src/chileautos-prueba.ts",
     "test": "tsx --test src/fuentes/chileautos/lector.test.ts",
-    "typecheck": "tsc -p tsconfig.json"
+    "typecheck": "tsc -p tsconfig.json",
+    "pasada": "tsx src/pasada.ts"
   },
   "dependencies": {
     "@radar/core": "workspace:*",
+    "@radar/db": "workspace:*",
     "patchright": "^1.55.0",
     "zod": "^4.1.0"
   },
