@@ -141,9 +141,11 @@
    lo que sale se va rápido, lo que llega entra con calma. */
 
 :root {
-  --salida: 140ms;
-  --entrada: 220ms;
-  --desplazo: 360ms;
+  --salida: 90ms;
+  --entrada: 170ms;
+  --desplazo: 240ms;
+  /* Lo nuevo empieza a aparecer antes de que lo viejo termine de irse. */
+  --traslape: 50ms;
   --curva: cubic-bezier(0.2, 0.8, 0.2, 1);
   interpolate-size: allow-keywords;
 }
@@ -170,27 +172,27 @@ body {
   pointer-events: none;
 }
 ::view-transition-old(.nav-adelante) {
-  --corrimiento: -48px;
+  --corrimiento: -32px;
   animation: var(--salida) ease-in both desvanecer reverse, var(--desplazo) var(--curva) both correr reverse;
 }
 ::view-transition-new(.nav-adelante) {
-  --corrimiento: 48px;
-  animation: var(--entrada) ease-out var(--salida) both desvanecer, var(--desplazo) var(--curva) both correr;
+  --corrimiento: 32px;
+  animation: var(--entrada) ease-out var(--traslape) both desvanecer, var(--desplazo) var(--curva) both correr;
 }
 ::view-transition-old(.nav-atras) {
-  --corrimiento: 48px;
+  --corrimiento: 32px;
   animation: var(--salida) ease-in both desvanecer reverse, var(--desplazo) var(--curva) both correr reverse;
 }
 ::view-transition-new(.nav-atras) {
-  --corrimiento: -48px;
-  animation: var(--entrada) ease-out var(--salida) both desvanecer, var(--desplazo) var(--curva) both correr;
+  --corrimiento: -32px;
+  animation: var(--entrada) ease-out var(--traslape) both desvanecer, var(--desplazo) var(--curva) both correr;
 }
 /* De la pantalla de carga al contenido: el esqueleto se va, el contenido sube. */
 ::view-transition-old(.esfumar) {
   animation: var(--salida) ease-out both desvanecer reverse;
 }
 ::view-transition-new(.aparecer) {
-  animation: var(--entrada) ease-out var(--salida) both desvanecer, var(--desplazo) var(--curva) both subir;
+  animation: var(--entrada) ease-out var(--traslape) both desvanecer, var(--desplazo) var(--curva) both subir;
 }
 /* Encabezado y barra inferior quedan fijos: se mueve el contenido, no la pantalla. */
 ::view-transition-group(encabezado),
@@ -256,7 +258,7 @@ body {
 /* Entrada escalonada de la lista de resultados (solo la primera vez). */
 .entrada-escalonada {
   animation: var(--entrada) ease-out both desvanecer, var(--desplazo) var(--curva) both subir;
-  animation-delay: calc(var(--i, 0) * 45ms);
+  animation-delay: calc(var(--i, 0) * 30ms);
 }
 
 /* Seguimientos: el detalle se despliega en vez de aparecer de golpe. */

@@ -55,8 +55,11 @@ export interface ResultadoAuto {
   precio: number | null;
   precioInicial: number | null;
   precioDescripcion: number | null;
+  /** El mejor veredicto entre todas las fichas (calza gana). */
   veredicto: "calza" | "advertencia";
   motivos: string[];
+  /** Veredicto por ficha, para filtrar por seguimiento en el teléfono. */
+  porBusqueda: Record<string, { veredicto: "calza" | "advertencia"; motivos: string[] }>;
   alertas: string[];
   alertaDetalle: string | null;
   porConfirmar: string[];
@@ -70,17 +73,20 @@ export interface ResultadoAuto {
 
 const HORAS_NUEVO = 48;
 
-/** Resultados agrupados por auto (un auto puede tener avisos en varios portales). */
-export async function leerResultados(busquedaId: string | undefined, filtro: Filtro) {
+/**
+ * Todos los resultados que no quedaron fuera, agrupados por auto (un auto puede
+ * tener avisos en varios portales y calzar en varias fichas). Los filtros se
+ * aplican en el teléfono, sin volver al servidor.
+ */
+export async function leerResultados(): Promise<ResultadoAuto[]> {
   const supabase = await crearClienteServidor();
-  let q = supabase
+  const q = supabase
     .from("resultados")
     .select(
       "veredicto, motivos, busqueda_id, avisos!inner(id, auto_id, fuente_id, url, titulo, anio, km, precio, precio_inicial, precio_descripcion, modelo, version, motor, caja, traccion, region, comuna, tipo_vendedor, vendedor, alertas, alerta_detalle, por_confirmar, estado, primera_vez)",
     )
     .neq("veredicto", "fuera")
     .neq("avisos.estado", "vendido");
-  if (busquedaId) q = q.eq("busqueda_id", busquedaId);
   const { data: filas } = await q;
 
   const autoIds = [...new Set((filas ?? []).map((f) => f.avisos.auto_id).filter((x): x is string => Boolean(x)))];
@@ -116,6 +122,7 @@ export async function leerResultados(busquedaId: string | undefined, filtro: Fil
         precioDescripcion: a.precio_descripcion,
         veredicto,
         motivos: f.motivos,
+        porBusqueda: { [f.busqueda_id]: { veredicto, motivos: f.motivos } },
         alertas: a.alertas,
         alertaDetalle: a.alerta_detalle,
         porConfirmar: a.por_confirmar,
@@ -128,6 +135,8 @@ export async function leerResultados(busquedaId: string | undefined, filtro: Fil
       continue;
     }
     if (!actual.enlaces.some((e) => e.id === a.id)) actual.enlaces.push(enlace);
+    const previo = actual.porBusqueda[f.busqueda_id];
+    if (!previo || veredicto === "calza") actual.porBusqueda[f.busqueda_id] = { veredicto, motivos: f.motivos };
     // Se muestra el precio más bajo entre todos los avisos del mismo auto.
     if (a.precio !== null && (actual.precio === null || a.precio < actual.precio)) {
       actual.precio = a.precio;
@@ -143,36 +152,8 @@ export async function leerResultados(busquedaId: string | undefined, filtro: Fil
     ? await supabase.from("precios").select("aviso_id, precio, visto_en").in("aviso_id", principales).order("visto_en")
     : { data: [] };
   for (const r of todos) r.historial = (precios ?? []).filter((p) => p.aviso_id === r.avisoPrincipal).map((p) => ({ precio: p.precio, fecha: p.visto_en }));
-  const bajo = (r: ResultadoAuto) => r.precio !== null && r.precioInicial !== null && r.precio < r.precioInicial;
-  const visibles = todos.filter((r) => {
-    const descartado = r.marca?.estado === "descartado";
-    switch (filtro) {
-      case "descartados":
-        return descartado;
-      case "favoritos":
-        return r.marca?.estado === "favorito";
-      case "nuevos":
-        return !descartado && r.nuevo;
-      case "bajo":
-        return !descartado && bajo(r);
-      case "advertencia":
-        return !descartado && r.veredicto === "advertencia";
-      default:
-        return !descartado;
-    }
-  });
-  visibles.sort((x, y) => Number(y.marca?.estado === "favorito") - Number(x.marca?.estado === "favorito") || (x.precio ?? Infinity) - (y.precio ?? Infinity));
-
-  const cuentas = {
-    todos: todos.filter((r) => r.marca?.estado !== "descartado").length,
-    nuevos: todos.filter((r) => r.marca?.estado !== "descartado" && r.nuevo).length,
-    bajo: todos.filter((r) => r.marca?.estado !== "descartado" && bajo(r)).length,
-    advertencia: todos.filter((r) => r.marca?.estado !== "descartado" && r.veredicto === "advertencia").length,
-    favoritos: todos.filter((r) => r.marca?.estado === "favorito").length,
-    descartados: todos.filter((r) => r.marca?.estado === "descartado").length,
-  } satisfies Record<Filtro, number>;
-
-  return { resultados: visibles, cuentas };
+  todos.sort((x, y) => (x.precio ?? Infinity) - (y.precio ?? Infinity));
+  return todos;
 }
 
 export async function leerFuentesYPasadas() {

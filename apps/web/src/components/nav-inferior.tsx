@@ -38,6 +38,7 @@ export function NavInferior() {
           <li key={href} className="relative">
             <Link
               href={href}
+              prefetch
               transitionTypes={i === activo ? [] : [i > activo ? "nav-adelante" : "nav-atras"]}
               onClick={() => {
                 if (i !== activo) navigator.vibrate?.(6);
