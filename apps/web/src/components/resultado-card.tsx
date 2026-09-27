@@ -1,7 +1,7 @@
 "use client";
 
 import { ExternalLink, EyeOff, Star, StickyNote, Undo2 } from "lucide-react";
-import { useState, useTransition } from "react";
+import { useOptimistic, useState, useTransition } from "react";
 import { guardarNota, marcarAuto } from "@/app/(app)/acciones";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -36,12 +36,28 @@ function haceDias(fecha: string) {
   return d <= 0 ? "hoy" : d === 1 ? "hace 1 día" : `hace ${d} días`;
 }
 
-export function ResultadoCard({ r, destacado }: { r: ResultadoAuto; destacado?: boolean }) {
+const vibrar = () => navigator.vibrate?.(8);
+
+export function ResultadoCard({ r, destacado, ocultarAlDescartar = true }: { r: ResultadoAuto; destacado?: boolean; ocultarAlDescartar?: boolean }) {
   const [pendiente, iniciar] = useTransition();
   const [editandoNota, setEditandoNota] = useState(false);
   const [nota, setNota] = useState(r.marca?.nota ?? "");
-  const favorito = r.marca?.estado === "favorito";
-  const descartado = r.marca?.estado === "descartado";
+  // La marca cambia en pantalla al tiro; el servidor confirma por detrás.
+  const [estado, marcarYa] = useOptimistic(r.marca?.estado ?? null, (_: string | null, nuevo: string | null) => nuevo);
+  const [saliendo, setSaliendo] = useState(false);
+  const favorito = estado === "favorito";
+  const descartado = estado === "descartado";
+
+  const marcar = (nuevo: "favorito" | "descartado" | null) => {
+    vibrar();
+    if (nuevo === "descartado" && ocultarAlDescartar) setSaliendo(true);
+    iniciar(async () => {
+      marcarYa(nuevo);
+      // Se deja terminar el pliegue antes de que la lista se actualice.
+      if (nuevo === "descartado" && ocultarAlDescartar) await new Promise((ok) => setTimeout(ok, 280));
+      await marcarAuto(r.autoId, nuevo);
+    });
+  };
   const bajo = r.precio !== null && r.precioInicial !== null && r.precio < r.precioInicial;
   const titulo = r.modelo ? [r.anio, r.modelo, r.version && r.version !== "No declarada" ? r.version : null].filter(Boolean).join(" ") : r.titulo;
   const datos = [
@@ -54,9 +70,11 @@ export function ResultadoCard({ r, destacado }: { r: ResultadoAuto; destacado?: 
   ].filter(Boolean);
 
   return (
+    <div className={cn("grid transition-[grid-template-rows,opacity,translate] duration-300 ease-[cubic-bezier(0.2,0.8,0.2,1)]", saliendo ? "grid-rows-[0fr] -translate-x-6 opacity-0" : "grid-rows-[1fr]")}>
+    <div className="min-h-0">
     <article
       id={`aviso-${r.avisoPrincipal}`}
-      className={cn("rounded-xl border bg-card p-4", destacado ? "border-primary ring-2 ring-primary/30" : "border-border", descartado && "opacity-60")}
+      className={cn("rounded-xl border bg-card p-4 transition-opacity", destacado ? "border-primary ring-2 ring-primary/30" : "border-border", descartado && !saliendo && "opacity-60")}
     >
       <div className="flex flex-wrap items-center gap-1.5">
         {r.veredicto === "calza" ? (
@@ -66,7 +84,7 @@ export function ResultadoCard({ r, destacado }: { r: ResultadoAuto; destacado?: 
         )}
         {r.nuevo && <Badge variant="secondary">Nuevo</Badge>}
         {bajo && <Badge variant="secondary">Bajó ${miles(r.precioInicial! - r.precio!)}</Badge>}
-        {favorito && <Badge variant="outline">Favorito</Badge>}
+        {favorito && <Badge variant="outline" className="animate-in fade-in zoom-in-90 duration-200">Favorito</Badge>}
       </div>
 
       <h3 className="mt-2 font-heading text-lg font-bold leading-tight">{titulo}</h3>
@@ -106,7 +124,7 @@ export function ResultadoCard({ r, destacado }: { r: ResultadoAuto; destacado?: 
       <ul className="mt-3 flex flex-col gap-1.5">
         {r.enlaces.map((e) => (
           <li key={e.id}>
-            <a href={e.url} target="_blank" rel="noopener noreferrer" className="flex items-center justify-between gap-2 rounded-lg bg-secondary px-3 py-2 text-sm text-secondary-foreground">
+            <a href={e.url} target="_blank" rel="noopener noreferrer" className="presionable flex items-center justify-between gap-2 rounded-lg bg-secondary px-3 py-2 text-sm text-secondary-foreground">
               <span className="flex items-center gap-1.5 font-medium">
                 <ExternalLink className="size-3.5" /> {NOMBRE_FUENTE[e.fuente] ?? e.fuente}
                 {e.estado === "posible_vendido" && <span className="font-normal text-muted-foreground">(ya no aparece)</span>}
@@ -122,7 +140,7 @@ export function ResultadoCard({ r, destacado }: { r: ResultadoAuto; destacado?: 
 
       {r.marca?.nota && !editandoNota && <p className="mt-3 rounded-lg bg-muted px-3 py-2 text-sm">{r.marca.nota}</p>}
       {editandoNota && (
-        <div className="mt-3 flex flex-col gap-2">
+        <div className="mt-3 flex animate-in flex-col gap-2 fade-in slide-in-from-top-1 duration-200">
           <Textarea value={nota} onChange={(e) => setNota(e.target.value)} placeholder="Ej: llamar el martes, preguntar por la correa" className="min-h-16" />
           <div className="flex gap-2">
             <Button size="sm" disabled={pendiente} onClick={() => iniciar(async () => { await guardarNota(r.autoId, nota); setEditandoNota(false); })}>
@@ -136,10 +154,10 @@ export function ResultadoCard({ r, destacado }: { r: ResultadoAuto; destacado?: 
       )}
 
       <div className="mt-3 flex flex-wrap gap-2">
-        <Button variant="outline" size="sm" disabled={pendiente} onClick={() => iniciar(() => marcarAuto(r.autoId, favorito ? null : "favorito"))}>
-          <Star className={cn(favorito && "fill-current text-primary")} /> {favorito ? "Quitar favorito" : "Favorito"}
+        <Button variant="outline" size="sm" onClick={() => marcar(favorito ? null : "favorito")}>
+          <Star key={String(favorito)} className={cn(favorito && "fill-current text-primary animate-[pop_320ms_ease-out]")} /> {favorito ? "Quitar favorito" : "Favorito"}
         </Button>
-        <Button variant="outline" size="sm" disabled={pendiente} onClick={() => iniciar(() => marcarAuto(r.autoId, descartado ? null : "descartado"))}>
+        <Button variant="outline" size="sm" onClick={() => marcar(descartado ? null : "descartado")}>
           {descartado ? <Undo2 /> : <EyeOff />} {descartado ? "Recuperar" : "Descartar"}
         </Button>
         {!editandoNota && (
@@ -149,5 +167,7 @@ export function ResultadoCard({ r, destacado }: { r: ResultadoAuto; destacado?: 
         )}
       </div>
     </article>
+    </div>
+    </div>
   );
 }

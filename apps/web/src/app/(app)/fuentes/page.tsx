@@ -3,6 +3,7 @@ import { salir } from "@/app/(app)/acciones";
 import { BotonPush } from "@/components/boton-push";
 import { CuentasFacebook } from "@/components/cuentas-facebook";
 import { InterruptorFuente } from "@/components/interruptor-fuente";
+import { Pantalla } from "@/components/pantalla";
 import { Encabezado } from "@/components/encabezado";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -26,6 +27,7 @@ export default async function Fuentes({ searchParams }: PageProps<"/fuentes">) {
   return (
     <>
       <Encabezado titulo="Fuentes" />
+      <Pantalla>
       <main className="flex flex-col gap-6 px-4 py-4">
         <section className="flex flex-col gap-2">
           <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Portales</h2>
@@ -106,6 +108,7 @@ export default async function Fuentes({ searchParams }: PageProps<"/fuentes">) {
           </Button>
         </form>
       </main>
+      </Pantalla>
     </>
   );
 }

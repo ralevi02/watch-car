@@ -135,3 +135,152 @@
     @apply font-sans;
   }
 }
+/* ── Movimiento ─────────────────────────────────────────────────────────────
+   Solo animaciones que responden a lo que hace la persona: cambiar de
+   pestaña, filtrar, marcar, descartar, abrir. Tiempos cortos y asimétricos:
+   lo que sale se va rápido, lo que llega entra con calma. */
+
+:root {
+  --salida: 140ms;
+  --entrada: 220ms;
+  --desplazo: 360ms;
+  --curva: cubic-bezier(0.2, 0.8, 0.2, 1);
+  interpolate-size: allow-keywords;
+}
+
+html {
+  -webkit-tap-highlight-color: transparent;
+  scroll-behavior: smooth;
+}
+
+body {
+  overscroll-behavior-y: none;
+}
+
+/* Respuesta al toque: todo lo presionable se hunde un poco. */
+.presionable {
+  transition: transform 120ms var(--curva), background-color 160ms ease, color 160ms ease;
+}
+.presionable:active {
+  transform: scale(0.96);
+}
+
+/* Transiciones entre pantallas (View Transitions de React/Next). */
+::view-transition {
+  pointer-events: none;
+}
+::view-transition-old(.nav-adelante) {
+  --corrimiento: -48px;
+  animation: var(--salida) ease-in both desvanecer reverse, var(--desplazo) var(--curva) both correr reverse;
+}
+::view-transition-new(.nav-adelante) {
+  --corrimiento: 48px;
+  animation: var(--entrada) ease-out var(--salida) both desvanecer, var(--desplazo) var(--curva) both correr;
+}
+::view-transition-old(.nav-atras) {
+  --corrimiento: 48px;
+  animation: var(--salida) ease-in both desvanecer reverse, var(--desplazo) var(--curva) both correr reverse;
+}
+::view-transition-new(.nav-atras) {
+  --corrimiento: -48px;
+  animation: var(--entrada) ease-out var(--salida) both desvanecer, var(--desplazo) var(--curva) both correr;
+}
+/* De la pantalla de carga al contenido: el esqueleto se va, el contenido sube. */
+::view-transition-old(.esfumar) {
+  animation: var(--salida) ease-out both desvanecer reverse;
+}
+::view-transition-new(.aparecer) {
+  animation: var(--entrada) ease-out var(--salida) both desvanecer, var(--desplazo) var(--curva) both subir;
+}
+/* Encabezado y barra inferior quedan fijos: se mueve el contenido, no la pantalla. */
+::view-transition-group(encabezado),
+::view-transition-group(nav-inferior) {
+  animation: none;
+  z-index: 100;
+}
+::view-transition-old(nav-inferior) {
+  display: none;
+}
+::view-transition-new(nav-inferior) {
+  animation: none;
+}
+
+@keyframes desvanecer {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes correr {
+  from {
+    translate: var(--corrimiento) 0;
+  }
+  to {
+    translate: 0 0;
+  }
+}
+@keyframes subir {
+  from {
+    translate: 0 12px;
+  }
+  to {
+    translate: 0 0;
+  }
+}
+@keyframes pop {
+  0% {
+    scale: 1;
+  }
+  40% {
+    scale: 1.35;
+  }
+  100% {
+    scale: 1;
+  }
+}
+@keyframes punto {
+  0%,
+  80%,
+  100% {
+    opacity: 0.25;
+    translate: 0 0;
+  }
+  40% {
+    opacity: 1;
+    translate: 0 -3px;
+  }
+}
+
+/* Entrada escalonada de la lista de resultados (solo la primera vez). */
+.entrada-escalonada {
+  animation: var(--entrada) ease-out both desvanecer, var(--desplazo) var(--curva) both subir;
+  animation-delay: calc(var(--i, 0) * 45ms);
+}
+
+/* Seguimientos: el detalle se despliega en vez de aparecer de golpe. */
+details::details-content {
+  block-size: 0;
+  overflow: clip;
+  transition: block-size 260ms var(--curva), content-visibility 260ms allow-discrete;
+}
+details[open]::details-content {
+  block-size: auto;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-delay: 0s !important;
+    transition-duration: 0.01ms !important;
+  }
+  ::view-transition-old(*),
+  ::view-transition-new(*),
+  ::view-transition-group(*) {
+    animation-duration: 0s !important;
+    animation-delay: 0s !important;
+  }
+}

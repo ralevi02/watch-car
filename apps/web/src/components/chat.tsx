@@ -21,8 +21,8 @@ function BotonGuardar({ ficha }: { ficha: Seguimiento }) {
   const [estado, setEstado] = useState<"listo" | "guardado" | string>("listo");
   if (estado === "guardado")
     return (
-      <span className="flex items-center gap-1.5 text-sm font-medium text-primary">
-        <Check className="size-4" /> Guardado: la próxima pasada ya lo busca
+      <span className="flex animate-in items-center gap-1.5 text-sm font-medium text-primary fade-in slide-in-from-left-1 duration-300">
+        <Check className="size-4 animate-[pop_320ms_ease-out]" /> Guardado: la próxima pasada ya lo busca
       </span>
     );
   return (
@@ -31,6 +31,7 @@ function BotonGuardar({ ficha }: { ficha: Seguimiento }) {
         onClick={() =>
           iniciar(async () => {
             const r = await guardarSeguimiento(ficha);
+            if (r.ok) navigator.vibrate?.(10);
             setEstado(r.ok ? "guardado" : r.error);
           })
         }
@@ -46,8 +47,8 @@ function BotonGuardar({ ficha }: { ficha: Seguimiento }) {
 function Mensaje({ mensaje }: { mensaje: MensajeChat }) {
   if (mensaje.role === "user") {
     return (
-      <div className="flex justify-end">
-        <div className="max-w-[85%] whitespace-pre-wrap rounded-2xl rounded-br-md bg-primary px-4 py-2.5 text-primary-foreground">
+      <div className="flex animate-in justify-end fade-in slide-in-from-bottom-2 duration-200">
+        <div className="max-w-[85%] origin-bottom-right whitespace-pre-wrap rounded-2xl rounded-br-md bg-primary px-4 py-2.5 text-primary-foreground">
           {mensaje.parts.map((p) => (p.type === "text" ? p.text : null))}
         </div>
       </div>
@@ -61,7 +62,7 @@ function Mensaje({ mensaje }: { mensaje: MensajeChat }) {
         switch (p.type) {
           case "text":
             return p.text.trim() ? (
-              <div key={key} className="max-w-[90%] whitespace-pre-wrap leading-relaxed">
+              <div key={key} className="max-w-[90%] animate-in whitespace-pre-wrap leading-relaxed fade-in duration-300">
                 {p.text}
               </div>
             ) : null;
@@ -70,12 +71,16 @@ function Mensaje({ mensaje }: { mensaje: MensajeChat }) {
               case "input-streaming":
               case "input-available":
                 return (
-                  <div key={key} className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <div key={key} className="flex animate-in items-center gap-2 text-sm text-muted-foreground fade-in duration-200">
                     <LoaderCircle className="size-4 animate-spin" /> Armando la ficha…
                   </div>
                 );
               case "output-available":
-                return <FichaCard key={key} ficha={p.output.ficha} pie={<BotonGuardar ficha={p.output.ficha} />} />;
+                return (
+                  <div key={key} className="animate-in fade-in zoom-in-95 slide-in-from-bottom-2 duration-300">
+                    <FichaCard ficha={p.output.ficha} pie={<BotonGuardar ficha={p.output.ficha} />} />
+                  </div>
+                );
               case "output-error":
                 return (
                   <div key={key} className="text-sm text-destructive">
@@ -124,7 +129,7 @@ export function Chat({ conSeguimientos }: { conSeguimientos: boolean }) {
                   key={e}
                   type="button"
                   onClick={() => enviar(e)}
-                  className="rounded-xl border border-border bg-card px-4 py-3 text-left text-sm transition-colors hover:border-primary/40 hover:bg-secondary"
+                  className="presionable rounded-xl border border-border bg-card px-4 py-3 text-left text-sm hover:border-primary/40 hover:bg-secondary"
                 >
                   {e}
                 </button>
@@ -138,13 +143,15 @@ export function Chat({ conSeguimientos }: { conSeguimientos: boolean }) {
         ))}
 
         {status === "submitted" && (
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <LoaderCircle className="size-4 animate-spin" /> Pensando…
+          <div className="flex animate-in items-center gap-1.5 px-1 py-2 fade-in duration-200" aria-label="Escribiendo">
+            {[0, 1, 2].map((i) => (
+              <span key={i} className="size-2 rounded-full bg-muted-foreground" style={{ animation: `punto 1s ${i * 150}ms infinite ease-in-out` }} />
+            ))}
           </div>
         )}
 
         {error && (
-          <div className="flex flex-col items-start gap-2 rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+          <div className="flex animate-in flex-col items-start gap-2 rounded-xl border border-destructive/30 fade-in duration-200 bg-destructive/5 px-4 py-3 text-sm text-destructive">
             <span>{error.message || "Algo falló al hablar con Gemini."}</span>
             <Button variant="outline" size="sm" onClick={() => regenerate()}>
               <RotateCcw /> Reintentar

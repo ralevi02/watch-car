@@ -1,6 +1,7 @@
 import { Chat } from "@/components/chat";
 import { Encabezado } from "@/components/encabezado";
 import { ListaSeguimientos } from "@/components/lista-seguimientos";
+import { Pantalla } from "@/components/pantalla";
 import { leerBusquedas } from "@/lib/datos";
 
 export default async function Seguimientos() {
@@ -8,8 +9,10 @@ export default async function Seguimientos() {
   return (
     <>
       <Encabezado titulo="Seguimientos" />
-      <ListaSeguimientos busquedas={busquedas} />
-      <Chat conSeguimientos={busquedas.length > 0} />
+      <Pantalla>
+        <ListaSeguimientos busquedas={busquedas} />
+        <Chat conSeguimientos={busquedas.length > 0} />
+      </Pantalla>
     </>
   );
 }

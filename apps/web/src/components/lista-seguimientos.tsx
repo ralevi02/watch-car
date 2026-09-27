@@ -1,7 +1,7 @@
 "use client";
 
 import type { Seguimiento } from "@radar/core";
-import { Bell, BellOff, Pause, Play, Trash2 } from "lucide-react";
+import { Bell, BellOff, ChevronDown, Pause, Play, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useTransition } from "react";
 import { borrarBusqueda, cambiarBusqueda } from "@/app/(app)/acciones";
@@ -35,7 +35,7 @@ function Item({ b }: { b: Busqueda }) {
   return (
     <li className="rounded-xl border border-border bg-card">
       <details className="group">
-        <summary className="flex cursor-pointer list-none items-start justify-between gap-3 px-4 py-3">
+        <summary className="presionable flex cursor-pointer list-none items-start justify-between gap-3 px-4 py-3 [&::-webkit-details-marker]:hidden">
           <div className="min-w-0">
             <div className="flex items-center gap-2">
               <span className="font-heading text-lg font-bold">{b.nombre}</span>
@@ -43,9 +43,12 @@ function Item({ b }: { b: Busqueda }) {
             </div>
             <p className="truncate text-sm text-muted-foreground">{resumen(b.ficha)}</p>
           </div>
-          <Link href={`/resultados?busqueda=${b.id}`} className="shrink-0 text-sm font-medium text-primary" onClick={(e) => e.stopPropagation()}>
-            Ver avisos
-          </Link>
+          <div className="flex shrink-0 items-center gap-2">
+            <Link href={`/resultados?busqueda=${b.id}`} transitionTypes={["nav-adelante"]} className="presionable text-sm font-medium text-primary" onClick={(e) => e.stopPropagation()}>
+              Ver avisos
+            </Link>
+            <ChevronDown className="size-4 text-muted-foreground transition-transform duration-300 group-open:rotate-180" />
+          </div>
         </summary>
         <div className="flex flex-col gap-3 border-t border-border px-4 py-3">
           <FichaCard ficha={b.ficha} />

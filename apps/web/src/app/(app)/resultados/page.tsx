@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Encabezado } from "@/components/encabezado";
-import { ResultadoCard } from "@/components/resultado-card";
+import { ListaResultados } from "@/components/lista-resultados";
+import { Pantalla } from "@/components/pantalla";
 import { leerBusquedas, leerResultados, type Filtro } from "@/lib/datos";
 import { cn } from "@/lib/utils";
 
@@ -35,26 +36,27 @@ export default async function Resultados({ searchParams }: PageProps<"/resultado
           + Pegar link
         </Link>
       </Encabezado>
+      <Pantalla>
       <div className="flex flex-col gap-3 px-4 pt-3">
         {busquedas.length > 1 && (
-          <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1">
-            <Link href={enlace({ busqueda: undefined })} className={cn("shrink-0 rounded-full border px-3 py-1 text-sm", !busqueda ? "border-primary bg-primary text-primary-foreground" : "border-border bg-card")}>
+          <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            <Link href={enlace({ busqueda: undefined })} className={cn("presionable shrink-0 rounded-full border px-3 py-1 text-sm", !busqueda ? "border-primary bg-primary text-primary-foreground" : "border-border bg-card")}>
               Todas
             </Link>
             {busquedas.map((b) => (
-              <Link key={b.id} href={enlace({ busqueda: b.id })} className={cn("shrink-0 rounded-full border px-3 py-1 text-sm", busqueda === b.id ? "border-primary bg-primary text-primary-foreground" : "border-border bg-card")}>
+              <Link key={b.id} href={enlace({ busqueda: b.id })} className={cn("presionable shrink-0 rounded-full border px-3 py-1 text-sm", busqueda === b.id ? "border-primary bg-primary text-primary-foreground" : "border-border bg-card")}>
                 {b.nombre}
               </Link>
             ))}
           </div>
         )}
-        <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1">
+        <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {FILTROS.map((f) => (
             <Link
               key={f.id}
               href={enlace({ filtro: f.id === "todos" ? undefined : f.id })}
               className={cn(
-                "shrink-0 rounded-full px-3 py-1.5 text-sm font-medium",
+                "presionable shrink-0 rounded-full px-3 py-1.5 text-sm font-medium transition-colors",
                 filtro === f.id ? "bg-foreground text-background" : "bg-card text-foreground ring-1 ring-border",
               )}
             >
@@ -64,19 +66,14 @@ export default async function Resultados({ searchParams }: PageProps<"/resultado
         </div>
       </div>
 
-      <main className="flex flex-col gap-3 px-4 py-4">
-        {resultados.length === 0 ? (
-          <p className="py-10 text-center text-muted-foreground">
-            {busquedas.length === 0
+      <ListaResultados clave={`${filtro}-${busqueda ?? "todas"}`} resultados={resultados} aviso={aviso} filtro={filtro} vacio={
+            busquedas.length === 0
               ? "Todavía no tienes seguimientos. Crea uno en la pestaña Seguimientos."
               : filtro === "todos"
                 ? "Aún no hay avisos que calcen. La próxima pasada corre dentro de las próximas 3 horas."
-                : "Nada por aquí con este filtro."}
-          </p>
-        ) : (
-          resultados.map((r) => <ResultadoCard key={r.autoId} r={r} destacado={r.enlaces.some((e) => e.id === aviso)} />)
-        )}
-      </main>
+                : "Nada por aquí con este filtro."
+          } />
+      </Pantalla>
     </>
   );
 }

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Encabezado } from "@/components/encabezado";
 import { FormCompartir } from "@/components/form-compartir";
+import { Pantalla } from "@/components/pantalla";
 import { Badge } from "@/components/ui/badge";
 import { leerCompartidos, NOMBRE_FUENTE } from "@/lib/datos";
 
@@ -14,6 +15,7 @@ export default async function Compartir({ searchParams }: PageProps<"/compartir"
   return (
     <>
       <Encabezado titulo="Agregar aviso" />
+      <Pantalla>
       <main className="flex flex-col gap-6 px-4 py-4">
         <FormCompartir inicial={inicial} />
         <p className="text-xs text-muted-foreground">
@@ -45,6 +47,7 @@ export default async function Compartir({ searchParams }: PageProps<"/compartir"
           </section>
         )}
       </main>
+      </Pantalla>
     </>
   );
 }
