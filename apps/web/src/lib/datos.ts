@@ -69,6 +69,8 @@ export interface ResultadoAuto {
   marca: { estado: string | null; nota: string | null } | null;
   /** Cambios de precio del aviso principal, del más antiguo al más nuevo. */
   historial: { precio: number; fecha: string }[];
+  /** Foto principal (la del aviso más barato que tenga foto). */
+  foto: string | null;
 }
 
 const HORAS_NUEVO = 48;
@@ -83,7 +85,7 @@ export async function leerResultados(): Promise<ResultadoAuto[]> {
   const q = supabase
     .from("resultados")
     .select(
-      "veredicto, motivos, busqueda_id, avisos!inner(id, auto_id, fuente_id, url, titulo, anio, km, precio, precio_inicial, precio_descripcion, modelo, version, motor, caja, traccion, region, comuna, tipo_vendedor, vendedor, alertas, alerta_detalle, por_confirmar, estado, primera_vez)",
+      "veredicto, motivos, busqueda_id, avisos!inner(id, auto_id, fuente_id, url, titulo, anio, km, precio, precio_inicial, precio_descripcion, modelo, version, motor, caja, traccion, region, comuna, tipo_vendedor, vendedor, alertas, alerta_detalle, por_confirmar, estado, primera_vez, foto_url)",
     )
     .neq("veredicto", "fuera")
     .neq("avisos.estado", "vendido");
@@ -131,6 +133,7 @@ export async function leerResultados(): Promise<ResultadoAuto[]> {
         enlaces: [enlace],
         marca: marcaDe.get(clave) ?? null,
         historial: [],
+        foto: a.foto_url,
       });
       continue;
     }
@@ -141,7 +144,9 @@ export async function leerResultados(): Promise<ResultadoAuto[]> {
     if (a.precio !== null && (actual.precio === null || a.precio < actual.precio)) {
       actual.precio = a.precio;
       actual.avisoPrincipal = a.id;
+      if (a.foto_url) actual.foto = a.foto_url;
     }
+    actual.foto ??= a.foto_url;
     if (veredicto === "calza") actual.veredicto = "calza";
     actual.alertas = [...new Set([...actual.alertas, ...a.alertas])];
   }
@@ -193,4 +198,43 @@ export async function leerCompartidos() {
     .order("creado_en", { ascending: false })
     .limit(15);
   return data ?? [];
+}
+
+export interface DetalleAuto {
+  auto: ResultadoAuto;
+  descripcion: string | null;
+  fichas: { id: string; nombre: string; veredicto: string; motivos: string[] }[];
+  precios: { aviso_id: string; precio: number; visto_en: string }[];
+}
+
+/** Un auto con todos sus avisos (puede estar en varios portales), para la pantalla de detalle. */
+export async function leerAuto(id: string): Promise<DetalleAuto | null> {
+  const supabase = await crearClienteServidor();
+  const todos = await leerResultados();
+  const auto = todos.find((r) => r.autoId === id || r.enlaces.some((e) => e.id === id));
+  if (!auto) return null;
+  const ids = auto.enlaces.map((e) => e.id);
+  const [{ data: avisos }, { data: resultados }, { data: precios }] = await Promise.all([
+    supabase.from("avisos").select("id, descripcion").in("id", ids),
+    supabase.from("resultados").select("veredicto, motivos, busqueda_id, busquedas(nombre)").in("aviso_id", ids),
+    supabase.from("precios").select("aviso_id, precio, visto_en").in("aviso_id", ids).order("visto_en"),
+  ]);
+  const fichas = new Map<string, { id: string; nombre: string; veredicto: string; motivos: string[] }>();
+  for (const r of resultados ?? []) {
+    const previo = fichas.get(r.busqueda_id);
+    if (!previo || r.veredicto === "calza") fichas.set(r.busqueda_id, { id: r.busqueda_id, nombre: r.busquedas?.nombre ?? "Ficha", veredicto: r.veredicto, motivos: r.motivos });
+  }
+  const descripcion = (avisos ?? []).find((a) => a.id === auto.avisoPrincipal)?.descripcion ?? (avisos ?? []).find((a) => a.descripcion)?.descripcion ?? null;
+  return { auto, descripcion, fichas: [...fichas.values()], precios: precios ?? [] };
+}
+
+/** Cuántos autos calzan o entran con advertencia en cada ficha (sin contar descartados). */
+export async function contarPorBusqueda(): Promise<Record<string, number>> {
+  const todos = await leerResultados();
+  const cuentas: Record<string, number> = {};
+  for (const r of todos) {
+    if (r.marca?.estado === "descartado") continue;
+    for (const id of Object.keys(r.porBusqueda)) cuentas[id] = (cuentas[id] ?? 0) + 1;
+  }
+  return cuentas;
 }

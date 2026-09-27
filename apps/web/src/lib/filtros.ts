@@ -1,13 +1,13 @@
 import type { Filtro, ResultadoAuto } from "@/lib/datos";
 
-export const FILTROS: { id: Filtro; etiqueta: string }[] = [
+/** Las cuatro vistas del control segmentado; Guardados y Descartados van en el menú. */
+export const SEGMENTOS: { id: Filtro; etiqueta: string }[] = [
   { id: "todos", etiqueta: "Todos" },
   { id: "nuevos", etiqueta: "Nuevos" },
-  { id: "bajo", etiqueta: "Bajó de precio" },
-  { id: "advertencia", etiqueta: "Con advertencia" },
-  { id: "favoritos", etiqueta: "Favoritos" },
-  { id: "descartados", etiqueta: "Descartados" },
+  { id: "bajo", etiqueta: "Bajaron" },
+  { id: "advertencia", etiqueta: "Revisar" },
 ];
+export const FILTROS: Filtro[] = ["todos", "nuevos", "bajo", "advertencia", "favoritos", "descartados"];
 
 const bajo = (r: ResultadoAuto) => r.precio !== null && r.precioInicial !== null && r.precio < r.precioInicial;
 
@@ -36,11 +36,21 @@ function pasa(r: ResultadoAuto, filtro: Filtro) {
   }
 }
 
-export function filtrar(todos: ResultadoAuto[], filtro: Filtro, busqueda?: string) {
-  const deLaBusqueda = todos.flatMap((r) => paraBusqueda(r, busqueda) ?? []);
+const normalizar = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+
+function coincide(r: ResultadoAuto, texto: string) {
+  if (!texto.trim()) return true;
+  const donde = normalizar([r.titulo, r.modelo, r.version, r.motor, r.comuna, r.region, r.vendedor, r.anio].filter(Boolean).join(" "));
+  return normalizar(texto)
+    .split(/\s+/)
+    .every((t) => donde.includes(t));
+}
+
+export function filtrar(todos: ResultadoAuto[], filtro: Filtro, busqueda?: string, texto = "") {
+  const deLaBusqueda = todos.flatMap((r) => paraBusqueda(r, busqueda) ?? []).filter((r) => coincide(r, texto));
   const visibles = deLaBusqueda
     .filter((r) => pasa(r, filtro))
     .sort((x, y) => Number(y.marca?.estado === "favorito") - Number(x.marca?.estado === "favorito") || (x.precio ?? Infinity) - (y.precio ?? Infinity));
-  const cuentas = Object.fromEntries(FILTROS.map((f) => [f.id, deLaBusqueda.filter((r) => pasa(r, f.id)).length])) as Record<Filtro, number>;
+  const cuentas = Object.fromEntries(FILTROS.map((f) => [f, deLaBusqueda.filter((r) => pasa(r, f)).length])) as Record<Filtro, number>;
   return { visibles, cuentas };
 }
