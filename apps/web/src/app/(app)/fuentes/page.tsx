@@ -1,113 +1,128 @@
-import { ExternalLink, LogOut } from "lucide-react";
+import { ChevronRight, LogOut } from "lucide-react";
 import { salir } from "@/app/(app)/acciones";
 import { BotonPush } from "@/components/boton-push";
 import { CuentasFacebook } from "@/components/cuentas-facebook";
+import { Encabezado } from "@/components/encabezado";
 import { InterruptorFuente } from "@/components/interruptor-fuente";
 import { Pantalla } from "@/components/pantalla";
-import { Encabezado } from "@/components/encabezado";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { leerFacebook, leerFuentesYPasadas, NOMBRE_FUENTE } from "@/lib/datos";
+import { cn } from "@/lib/utils";
 
 const ESTADO: Record<string, { texto: string; clase: string }> = {
-  ok: { texto: "OK", clase: "bg-emerald-600 text-white" },
-  corriendo: { texto: "Corriendo", clase: "bg-secondary text-secondary-foreground" },
-  bloqueo: { texto: "Bloqueo", clase: "bg-destructive text-white" },
-  error: { texto: "Error", clase: "bg-destructive text-white" },
+  ok: { texto: "Bien", clase: "text-calza" },
+  corriendo: { texto: "Corriendo", clase: "text-muted-foreground" },
+  bloqueo: { texto: "Bloqueo", clase: "text-destructive" },
+  error: { texto: "Error", clase: "text-destructive" },
 };
 
-const fecha = (s: string) =>
-  new Date(s).toLocaleString("es-CL", { timeZone: "America/Santiago", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+const HORARIO: Record<string, string> = {
+  chileautos: "cada 3 horas de 8:00 a 23:00",
+  kavak: "2 veces al día, necesita proxy",
+  yapo: "2 veces al día, necesita proxy",
+  mercadolibre: "2 veces al día",
+};
+
+const fecha = (s: string) => new Date(s).toLocaleString("es-CL", { timeZone: "America/Santiago", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
 
 export default async function Fuentes({ searchParams }: PageProps<"/fuentes">) {
   const sp = await searchParams;
   const [{ fuentes, pasadas, mlConectado }, facebook] = await Promise.all([leerFuentesYPasadas(), leerFacebook()]);
   const ultima = (id: string) => pasadas.find((p) => p.fuente_id === id);
+  const portales = fuentes.filter((f) => f.id !== "facebook");
 
   return (
     <>
       <Encabezado titulo="Fuentes" />
       <Pantalla>
-      <main className="flex flex-col gap-6 px-4 py-4">
-        <section className="flex flex-col gap-2">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Portales</h2>
-          <ul className="flex flex-col divide-y divide-border rounded-xl border border-border bg-card">
-            {fuentes.map((f) => {
-              const u = ultima(f.id);
-              return (
-                <li key={f.id} className="flex items-center justify-between gap-3 px-4 py-3">
-                  <div>
-                    <p className="font-medium">{f.nombre}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {f.activa ? (u ? `Última pasada: ${fecha(u.inicio)}` : "Sin pasadas todavía") : f.id === "mercadolibre" && !mlConectado ? "Falta conectar tu cuenta de MercadoLibre" : "Desactivado"}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {f.activa && u && <Badge className={ESTADO[u.estado]?.clase}>{ESTADO[u.estado]?.texto}</Badge>}
+        <main className="flex flex-col gap-7 px-4 pb-10 pt-2">
+          <section>
+            <h2 className="titulo-grupo">Portales</h2>
+            <div className="lista-ios">
+              {portales.map((f) => {
+                const u = ultima(f.id);
+                return (
+                  <div key={f.id} className="fila-ios justify-between">
+                    <span className="flex min-w-0 flex-col">
+                      <span>{f.nombre}</span>
+                      <span className="text-[13px] leading-[18px] text-muted-foreground">
+                        {u ? (
+                          <>
+                            <span className={ESTADO[u.estado]?.clase}>{ESTADO[u.estado]?.texto ?? u.estado}</span> · {fecha(u.inicio)}
+                          </>
+                        ) : (
+                          HORARIO[f.id]
+                        )}
+                      </span>
+                    </span>
                     {f.id === "mercadolibre" && !mlConectado ? (
-                      <a href="/api/mercadolibre/conectar" className="rounded-lg border border-border px-2.5 py-1 text-sm font-medium text-primary">
+                      <a href="/api/mercadolibre/conectar" className="presionable shrink-0 text-primary">
                         Conectar
                       </a>
-                    ) : f.id !== "facebook" ? (
-                      <InterruptorFuente id={f.id as "chileautos" | "kavak" | "yapo" | "mercadolibre"} activa={f.activa} />
-                    ) : null}
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
-          <p className="text-xs text-muted-foreground">Chileautos se revisa cada 3 horas entre 8:00 y 23:00; Facebook, 3 veces al día; Kavak, Yapo y MercadoLibre, 2 veces al día.</p>
-          {sp.ml === "ok" && <p className="text-sm text-primary">MercadoLibre quedó conectado.</p>}
-          {sp.ml === "error" && <p className="text-sm text-destructive">No se pudo conectar MercadoLibre. Intenta de nuevo.</p>}
-          {sp.ml === "falta-config" && <p className="text-sm text-destructive">Falta ML_CLIENT_ID en la configuración de la app.</p>}
-        </section>
-
-        <CuentasFacebook {...facebook} />
-
-        <section className="flex flex-col gap-2">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Notificaciones</h2>
-          <p className="text-sm text-muted-foreground">Avisos nuevos que calzan, bajas de precio y bloqueos de un portal.</p>
-          <BotonPush />
-        </section>
-
-        <section className="flex flex-col gap-2">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Registro de pasadas</h2>
-          {pasadas.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Todavía no corre ninguna pasada.</p>
-          ) : (
-            <ul className="flex flex-col divide-y divide-border rounded-xl border border-border bg-card">
-              {pasadas.map((p) => {
-                const d = (p.detalle ?? {}) as { run?: string; errores?: string[]; bloqueo?: string };
-                return (
-                  <li key={p.id} className="flex flex-col gap-1 px-4 py-3 text-sm">
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="font-medium">
-                        {NOMBRE_FUENTE[p.fuente_id] ?? p.fuente_id} · {p.busquedas?.nombre ?? "sin búsqueda"}
-                      </span>
-                      <Badge className={ESTADO[p.estado]?.clase}>{ESTADO[p.estado]?.texto ?? p.estado}</Badge>
-                    </div>
-                    <span className="text-muted-foreground">
-                      {fecha(p.inicio)} · {p.avisos_vistos ?? 0} vistos · {p.avisos_nuevos ?? 0} nuevos · {p.tipo}
-                    </span>
-                    {(d.bloqueo || d.errores?.length) && <span className="text-destructive">{[d.bloqueo, ...(d.errores ?? [])].filter(Boolean).join(" · ")}</span>}
-                    {d.run && (
-                      <a href={d.run} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-primary">
-                        <ExternalLink className="size-3.5" /> Ver corrida en GitHub
-                      </a>
+                    ) : (
+                      <InterruptorFuente id={f.id as "chileautos" | "kavak" | "yapo" | "mercadolibre"} activa={f.activa} nombre={f.nombre} />
                     )}
-                  </li>
+                  </div>
                 );
               })}
-            </ul>
-          )}
-        </section>
+            </div>
+            {sp.ml === "ok" && <p className="pie-grupo text-calza">MercadoLibre quedó conectado.</p>}
+            {sp.ml === "error" && <p className="pie-grupo text-destructive">No se pudo conectar MercadoLibre. Intenta de nuevo.</p>}
+            {sp.ml === "falta-config" && <p className="pie-grupo text-destructive">Falta ML_CLIENT_ID en la configuración de la app.</p>}
+          </section>
 
-        <form action={salir}>
-          <Button variant="ghost" type="submit">
-            <LogOut /> Salir
-          </Button>
-        </form>
-      </main>
+          <CuentasFacebook {...facebook} />
+
+          <section>
+            <h2 className="titulo-grupo">Notificaciones</h2>
+            <BotonPush />
+          </section>
+
+          <section>
+            <h2 className="titulo-grupo">Registro de pasadas</h2>
+            <div className="lista-ios">
+              {pasadas.length === 0 && <div className="fila-ios text-muted-foreground">Todavía no corre ninguna pasada.</div>}
+              {pasadas.map((p) => {
+                const d = (p.detalle ?? {}) as { run?: string; errores?: string[]; bloqueo?: string };
+                const contenido = (
+                  <>
+                    <span className="flex min-w-0 flex-col">
+                      <span className="truncate">
+                        {NOMBRE_FUENTE[p.fuente_id] ?? p.fuente_id}
+                        {p.busquedas?.nombre ? `, ${p.busquedas.nombre}` : ""}
+                      </span>
+                      <span className="text-[13px] leading-[18px] text-muted-foreground">
+                        {fecha(p.inicio)} · {p.avisos_vistos ?? 0} vistos, {p.avisos_nuevos ?? 0} nuevos
+                      </span>
+                      {Boolean(d.bloqueo || d.errores?.length) && <span className="text-[13px] leading-[18px] text-destructive">{[d.bloqueo, ...(d.errores ?? [])].filter(Boolean).join(". ")}</span>}
+                    </span>
+                    <span className={cn("flex shrink-0 items-center gap-1 text-[15px]", ESTADO[p.estado]?.clase)}>
+                      {ESTADO[p.estado]?.texto ?? p.estado}
+                      {d.run && <ChevronRight className="size-5 text-[#C4C4C6]" strokeWidth={2.4} />}
+                    </span>
+                  </>
+                );
+                return d.run ? (
+                  <a key={p.id} href={d.run} target="_blank" rel="noopener noreferrer" className="fila-ios justify-between active:bg-black/5">
+                    {contenido}
+                  </a>
+                ) : (
+                  <div key={p.id} className="fila-ios justify-between">
+                    {contenido}
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+
+          {/* El form va adentro: Next le agrega inputs ocultos que moverían la línea separadora. */}
+          <div className="lista-ios">
+            <form action={salir}>
+              <button type="submit" className="fila-ios w-full justify-center text-destructive active:bg-black/5">
+                <LogOut className="size-5" /> Cerrar sesión
+              </button>
+            </form>
+          </div>
+        </main>
       </Pantalla>
     </>
   );

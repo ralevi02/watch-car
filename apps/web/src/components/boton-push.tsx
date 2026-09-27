@@ -1,9 +1,8 @@
 "use client";
 
-import { Bell, BellOff, LoaderCircle } from "lucide-react";
 import { useEffect, useState } from "react";
 import { borrarSuscripcion, guardarSuscripcion } from "@/app/(app)/acciones";
-import { Button } from "@/components/ui/button";
+import { Interruptor } from "@/components/ui/interruptor";
 
 const aBytes = (b64: string) => {
   const relleno = "=".repeat((4 - (b64.length % 4)) % 4);
@@ -13,6 +12,7 @@ const aBytes = (b64: string) => {
 
 type Estado = "cargando" | "no-soportado" | "bloqueado" | "activo" | "inactivo";
 
+/** Fila "Avisos en este teléfono" con interruptor: suscribe o borra este dispositivo. */
 export function BotonPush() {
   const [estado, setEstado] = useState<Estado>("cargando");
   const [error, setError] = useState<string | null>(null);
@@ -26,49 +26,51 @@ export function BotonPush() {
     })().catch(() => setEstado("no-soportado"));
   }, []);
 
-  async function activar() {
+  async function cambiar(activar: boolean) {
     setError(null);
-    setEstado("cargando");
     try {
-      const permiso = await Notification.requestPermission();
-      if (permiso !== "granted") return setEstado(permiso === "denied" ? "bloqueado" : "inactivo");
       const reg = await navigator.serviceWorker.ready;
-      const sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: aBytes(process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!) });
-      const r = await guardarSuscripcion(sub.toJSON());
-      if (!r.ok) throw new Error(r.error);
-      setEstado("activo");
+      if (activar) {
+        const permiso = await Notification.requestPermission();
+        if (permiso !== "granted") return setEstado(permiso === "denied" ? "bloqueado" : "inactivo");
+        const sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: aBytes(process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!) });
+        const r = await guardarSuscripcion(sub.toJSON());
+        if (!r.ok) throw new Error(r.error);
+        setEstado("activo");
+      } else {
+        const sub = await reg.pushManager.getSubscription();
+        if (sub) {
+          await borrarSuscripcion(sub.endpoint);
+          await sub.unsubscribe();
+        }
+        setEstado("inactivo");
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
       setEstado("inactivo");
     }
   }
 
-  async function desactivar() {
-    setEstado("cargando");
-    const reg = await navigator.serviceWorker.ready;
-    const sub = await reg.pushManager.getSubscription();
-    if (sub) {
-      await borrarSuscripcion(sub.endpoint);
-      await sub.unsubscribe();
-    }
-    setEstado("inactivo");
-  }
-
-  if (estado === "no-soportado")
-    return <p className="text-sm text-muted-foreground">Este navegador no soporta notificaciones. En iPhone, primero agrega la app a la pantalla de inicio (Compartir → Agregar a inicio) y ábrela desde ahí.</p>;
-  if (estado === "bloqueado") return <p className="text-sm text-muted-foreground">Las notificaciones están bloqueadas para esta app. Actívalas en los ajustes del navegador o del teléfono.</p>;
   return (
-    <div className="flex flex-col gap-1">
-      {estado === "activo" ? (
-        <Button variant="outline" onClick={desactivar}>
-          <BellOff /> Desactivar notificaciones en este dispositivo
-        </Button>
-      ) : (
-        <Button onClick={activar} disabled={estado === "cargando"}>
-          {estado === "cargando" ? <LoaderCircle className="animate-spin" /> : <Bell />} Activar notificaciones en este dispositivo
-        </Button>
-      )}
-      {error && <span className="text-xs text-destructive">{error}</span>}
-    </div>
+    <>
+      <div className="lista-ios">
+        <label className="fila-ios justify-between">
+          <span>Avisos en este teléfono</span>
+          {estado === "no-soportado" || estado === "bloqueado" ? (
+            <span className="text-muted-foreground">{estado === "bloqueado" ? "Bloqueados" : "No disponible"}</span>
+          ) : (
+            <Interruptor activo={estado === "activo"} deshabilitado={estado === "cargando"} etiqueta="Avisos en este teléfono" onCambio={cambiar} />
+          )}
+        </label>
+      </div>
+      <p className="pie-grupo">
+        {estado === "bloqueado"
+          ? "Las notificaciones están bloqueadas para esta app: actívalas en los ajustes del teléfono."
+          : estado === "no-soportado"
+            ? "Este navegador no las soporta. En iPhone, agrega la app a la pantalla de inicio y ábrela desde ahí."
+            : "Autos nuevos que calzan, bajas de precio y cuando un portal bloquea la búsqueda."}
+        {error && <span className="block text-destructive">{error}</span>}
+      </p>
+    </>
   );
 }

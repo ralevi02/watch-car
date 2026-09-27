@@ -1,12 +1,12 @@
 "use client";
 
-import { LoaderCircle, Pause, Play, Plus, RefreshCw, Trash2 } from "lucide-react";
+import { ChevronRight, Plus } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { borrarCuentaFacebook, cambiarCuentaFacebook, configurarFacebook, crearCuentaFacebook, pedirReconexion } from "@/app/(app)/acciones";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Hoja } from "@/components/ui/hoja";
+import { Interruptor } from "@/components/ui/interruptor";
+import { cn } from "@/lib/utils";
 
 interface Cuenta {
   id: string;
@@ -18,11 +18,11 @@ interface Cuenta {
 }
 
 const ESTADO: Record<string, { texto: string; clase: string }> = {
-  activa: { texto: "Activa", clase: "bg-emerald-600 text-white" },
-  sin_sesion: { texto: "Sin sesión", clase: "bg-muted text-muted-foreground" },
-  necesita_reconexion: { texto: "Reconectar", clase: "bg-advertencia-fondo text-advertencia" },
-  bloqueada: { texto: "Bloqueada", clase: "bg-destructive text-white" },
-  pausada: { texto: "En pausa", clase: "bg-muted text-muted-foreground" },
+  activa: { texto: "Conectada", clase: "text-calza" },
+  sin_sesion: { texto: "Falta iniciar sesión", clase: "text-muted-foreground" },
+  necesita_reconexion: { texto: "Hay que reconectar", clase: "text-advertencia" },
+  bloqueada: { texto: "Bloqueada por Facebook", clase: "text-destructive" },
+  pausada: { texto: "En pausa", clase: "text-muted-foreground" },
 };
 
 const fecha = (s: string) => new Date(s).toLocaleString("es-CL", { timeZone: "America/Santiago", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
@@ -30,8 +30,9 @@ const fecha = (s: string) => new Date(s).toLocaleString("es-CL", { timeZone: "Am
 export function CuentasFacebook({ activa, rotacion, pasadasPorDia, cuentas }: { activa: boolean; rotacion: boolean; pasadasPorDia: number; cuentas: Cuenta[] }) {
   const router = useRouter();
   const [pendiente, iniciar] = useTransition();
-  const [nombre, setNombre] = useState("");
+  const [abierta, setAbierta] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const actual = cuentas.find((c) => c.id === abierta);
 
   const reconectar = (id: string) =>
     iniciar(async () => {
@@ -42,84 +43,49 @@ export function CuentasFacebook({ activa, rotacion, pasadasPorDia, cuentas }: { 
     });
 
   return (
-    <section className="flex flex-col gap-3">
-      <div className="flex items-center justify-between">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Cuentas de Facebook</h2>
-        <label className="flex items-center gap-2 text-sm">
-          <input type="checkbox" checked={activa} disabled={pendiente} onChange={(e) => iniciar(() => configurarFacebook({ activa: e.target.checked }))} className="size-4 accent-primary" />
-          Buscar en Facebook
+    <section>
+      <h2 className="titulo-grupo">Facebook Marketplace</h2>
+      <div className="lista-ios">
+        <label className="fila-ios justify-between">
+          <span>Buscar en Facebook</span>
+          <Interruptor activo={activa} etiqueta="Buscar en Facebook" onCambio={(v) => configurarFacebook({ activa: v })} />
         </label>
-      </div>
-      <p className="text-sm text-muted-foreground">
-        Usa cuentas secundarias, nunca la personal. La app guarda solo la sesión cifrada, no la contraseña. Para iniciar sesión se abre el mismo navegador del
-        buscador, con la misma IP fija.
-      </p>
-
-      <ul className="flex flex-col divide-y divide-border rounded-xl border border-border bg-card">
-        {cuentas.length === 0 && <li className="px-4 py-3 text-sm text-muted-foreground">Todavía no hay cuentas.</li>}
         {cuentas.map((c) => (
-          <li key={c.id} className="flex flex-col gap-2 px-4 py-3">
-            <div className="flex items-center justify-between gap-2">
-              <span className="font-medium">{c.nombre}</span>
-              <Badge className={ESTADO[c.estado]?.clase}>{ESTADO[c.estado]?.texto ?? c.estado}</Badge>
-            </div>
-            <p className="text-sm text-muted-foreground">
-              {c.ultima_ok ? `Última pasada bien: ${fecha(c.ultima_ok)}` : c.sesion_guardada_en ? `Sesión guardada: ${fecha(c.sesion_guardada_en)}` : "Falta iniciar sesión"}
-            </p>
-            {c.ultimo_error && <p className="text-sm text-destructive">{c.ultimo_error}</p>}
-            <div className="flex flex-wrap gap-2">
-              <Button size="sm" variant={c.estado === "activa" ? "outline" : "default"} disabled={pendiente} onClick={() => reconectar(c.id)}>
-                <RefreshCw /> {c.estado === "sin_sesion" ? "Iniciar sesión" : "Reconectar"}
-              </Button>
-              {(c.estado === "activa" || c.estado === "pausada") && (
-                <Button size="sm" variant="outline" disabled={pendiente} onClick={() => iniciar(() => cambiarCuentaFacebook(c.id, c.estado === "activa" ? "pausada" : "activa"))}>
-                  {c.estado === "activa" ? <Pause /> : <Play />} {c.estado === "activa" ? "Pausar" : "Activar"}
-                </Button>
-              )}
-              <Button
-                size="sm"
-                variant="ghost"
-                disabled={pendiente}
-                onClick={() => {
-                  if (confirm(`¿Borrar «${c.nombre}» y su sesión guardada?`)) iniciar(() => borrarCuentaFacebook(c.id));
-                }}
-              >
-                <Trash2 /> Borrar
-              </Button>
-            </div>
-          </li>
+          <button key={c.id} type="button" onClick={() => setAbierta(c.id)} className="fila-ios w-full justify-between text-left active:bg-black/5">
+            <span className="flex min-w-0 flex-col">
+              <span>{c.nombre}</span>
+              <span className={cn("text-[13px] leading-[18px]", ESTADO[c.estado]?.clase)}>
+                {ESTADO[c.estado]?.texto ?? c.estado}
+                {c.ultima_ok ? ` · última pasada ${fecha(c.ultima_ok)}` : ""}
+              </span>
+            </span>
+            <ChevronRight className="size-5 shrink-0 text-[#C4C4C6]" strokeWidth={2.4} />
+          </button>
         ))}
-      </ul>
-
-      <form
-        className="flex gap-2"
-        onSubmit={(e) => {
-          e.preventDefault();
-          iniciar(async () => {
-            const r = await crearCuentaFacebook(nombre || `Cuenta ${cuentas.length + 1}`);
-            if (!r.ok) setError(r.error);
-            else setNombre("");
-          });
-        }}
-      >
-        <Input value={nombre} onChange={(e) => setNombre(e.target.value)} placeholder={`Cuenta ${cuentas.length + 1}`} className="bg-card" />
-        <Button type="submit" variant="outline" disabled={pendiente}>
-          {pendiente ? <LoaderCircle className="animate-spin" /> : <Plus />} Agregar
-        </Button>
-      </form>
-
-      <div className="flex flex-col gap-2 rounded-xl border border-border bg-card px-4 py-3 text-sm">
-        <label className="flex items-center justify-between gap-3">
-          <span>Rotación automática entre cuentas</span>
-          <input type="checkbox" checked={rotacion} disabled={pendiente} onChange={(e) => iniciar(() => configurarFacebook({ rotacion: e.target.checked }))} className="size-4 accent-primary" />
+        <button
+          type="button"
+          disabled={pendiente}
+          onClick={() =>
+            iniciar(async () => {
+              const r = await crearCuentaFacebook(`Cuenta ${cuentas.length + 1}`);
+              if (r.ok && r.id) setAbierta(r.id);
+              else if (!r.ok) setError(r.error);
+            })
+          }
+          className="fila-ios w-full text-primary active:bg-black/5"
+        >
+          <Plus className="size-5" strokeWidth={2.4} /> Agregar cuenta secundaria
+        </button>
+        <label className="fila-ios justify-between">
+          <span>Rotar entre cuentas</span>
+          <Interruptor activo={rotacion} etiqueta="Rotar entre cuentas" onCambio={(v) => configurarFacebook({ rotacion: v })} />
         </label>
-        <label className="flex items-center justify-between gap-3">
-          <span>Pasadas por día por cuenta</span>
+        <label className="fila-ios justify-between">
+          <span>Pasadas por día y cuenta</span>
           <select
             value={pasadasPorDia}
-            disabled={pendiente}
             onChange={(e) => iniciar(() => configurarFacebook({ pasadas_por_dia: Number(e.target.value) }))}
-            className="rounded-md border border-border bg-background px-2 py-1"
+            className="bg-transparent text-right text-muted-foreground outline-none"
           >
             {[1, 2, 3, 4].map((n) => (
               <option key={n} value={n}>
@@ -128,9 +94,44 @@ export function CuentasFacebook({ activa, rotacion, pasadasPorDia, cuentas }: { 
             ))}
           </select>
         </label>
-        <p className="text-xs text-muted-foreground">Horario: 10:40, 15:40 y 20:40. Si Facebook pide verificación, te llega un aviso y la cuenta queda para reconectar.</p>
       </div>
-      {error && <p className="text-sm text-destructive">{error}</p>}
+      <p className="pie-grupo">Solo cuentas secundarias, nunca la personal. Se guarda la sesión cifrada, nunca la contraseña. Corre a las 10:40, 15:40 y 20:40.</p>
+      {error && <p className="pie-grupo text-destructive">{error}</p>}
+
+      <Hoja abierta={Boolean(actual)} onCerrar={() => setAbierta(null)} titulo={actual?.nombre ?? ""} derecha={<button type="button" onClick={() => setAbierta(null)}>Listo</button>}>
+        {actual && (
+          <div className="flex flex-col gap-6 px-4 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
+            <div className="lista-ios">
+              <div className="fila-ios justify-between"><span>Estado</span><span className={ESTADO[actual.estado]?.clase}>{ESTADO[actual.estado]?.texto ?? actual.estado}</span></div>
+              {actual.sesion_guardada_en && <div className="fila-ios justify-between"><span>Sesión guardada</span><span className="text-muted-foreground">{fecha(actual.sesion_guardada_en)}</span></div>}
+              {actual.ultimo_error && <div className="fila-ios text-[15px] text-destructive">{actual.ultimo_error}</div>}
+            </div>
+            <div className="lista-ios">
+              <button type="button" disabled={pendiente} onClick={() => reconectar(actual.id)} className="fila-ios w-full text-primary active:bg-black/5">
+                {actual.estado === "sin_sesion" ? "Iniciar sesión" : "Reconectar"}
+              </button>
+              {(actual.estado === "activa" || actual.estado === "pausada") && (
+                <button type="button" disabled={pendiente} onClick={() => iniciar(() => cambiarCuentaFacebook(actual.id, actual.estado === "activa" ? "pausada" : "activa"))} className="fila-ios w-full text-primary active:bg-black/5">
+                  {actual.estado === "activa" ? "Pausar cuenta" : "Activar cuenta"}
+                </button>
+              )}
+            </div>
+            <div className="lista-ios">
+              <button
+                type="button"
+                disabled={pendiente}
+                onClick={() => {
+                  if (confirm(`¿Borrar «${actual.nombre}» y su sesión guardada?`)) iniciar(async () => { await borrarCuentaFacebook(actual.id); setAbierta(null); });
+                }}
+                className="fila-ios w-full justify-center text-destructive active:bg-black/5"
+              >
+                Borrar cuenta
+              </button>
+            </div>
+            <p className="pie-grupo -mt-4">Al iniciar sesión se abre un navegador seguro en la nube, con la misma IP del buscador.</p>
+          </div>
+        )}
+      </Hoja>
     </section>
   );
 }

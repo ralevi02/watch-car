@@ -1,13 +1,17 @@
 "use client";
 
 import type { Seguimiento } from "@radar/core";
-import { Bell, BellOff, ChevronDown, Pause, Play, Trash2 } from "lucide-react";
+import { ChevronRight, Info, Plus } from "lucide-react";
 import Link from "next/link";
-import { useTransition } from "react";
+import { useState, useTransition } from "react";
 import { borrarBusqueda, cambiarBusqueda } from "@/app/(app)/acciones";
+import { Chat } from "@/components/chat";
+import { Encabezado } from "@/components/encabezado";
 import { FichaCard } from "@/components/ficha-card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Pantalla } from "@/components/pantalla";
+import { Hoja } from "@/components/ui/hoja";
+import { Interruptor } from "@/components/ui/interruptor";
+import { cn } from "@/lib/utils";
 
 interface Busqueda {
   id: string;
@@ -15,6 +19,7 @@ interface Busqueda {
   ficha: Seguimiento;
   activa: boolean;
   alertas: boolean;
+  avisos: number;
 }
 
 const miles = (n: number) => n.toLocaleString("es-CL");
@@ -23,69 +28,104 @@ function resumen(f: Seguimiento) {
   return [
     f.anio.min ? `${f.anio.min}+` : null,
     f.km.max ? `hasta ${miles(f.km.max / 1000)} mil km` : null,
-    f.precio.max ? `hasta $${miles(f.precio.max)}` : null,
-    f.motoresExcluidos.length ? `sin ${f.motoresExcluidos.join(", ")}` : null,
+    f.precio.max ? `hasta $${miles(f.precio.max / 1_000_000)} M` : null,
   ]
     .filter(Boolean)
-    .join(" · ");
+    .join(", ");
 }
 
-function Item({ b }: { b: Busqueda }) {
+function DetalleFicha({ b, onCerrar }: { b: Busqueda; onCerrar: () => void }) {
   const [pendiente, iniciar] = useTransition();
   return (
-    <li className="rounded-xl border border-border bg-card">
-      <details className="group">
-        <summary className="presionable flex cursor-pointer list-none items-start justify-between gap-3 px-4 py-3 [&::-webkit-details-marker]:hidden">
-          <div className="min-w-0">
-            <div className="flex items-center gap-2">
-              <span className="font-heading text-lg font-bold">{b.nombre}</span>
-              {!b.activa && <Badge variant="outline">En pausa</Badge>}
-            </div>
-            <p className="truncate text-sm text-muted-foreground">{resumen(b.ficha)}</p>
-          </div>
-          <div className="flex shrink-0 items-center gap-2">
-            <Link href={`/resultados?busqueda=${b.id}`} transitionTypes={["nav-adelante"]} className="presionable text-sm font-medium text-primary" onClick={(e) => e.stopPropagation()}>
-              Ver avisos
-            </Link>
-            <ChevronDown className="size-4 text-muted-foreground transition-transform duration-300 group-open:rotate-180" />
-          </div>
-        </summary>
-        <div className="flex flex-col gap-3 border-t border-border px-4 py-3">
-          <FichaCard ficha={b.ficha} />
-          <div className="flex flex-wrap gap-2">
-            <Button variant="outline" size="sm" disabled={pendiente} onClick={() => iniciar(() => cambiarBusqueda(b.id, { activa: !b.activa }))}>
-              {b.activa ? <Pause /> : <Play />} {b.activa ? "Pausar" : "Reanudar"}
-            </Button>
-            <Button variant="outline" size="sm" disabled={pendiente} onClick={() => iniciar(() => cambiarBusqueda(b.id, { alertas: !b.alertas }))}>
-              {b.alertas ? <BellOff /> : <Bell />} {b.alertas ? "Silenciar avisos" : "Activar avisos"}
-            </Button>
-            <Button
-              variant="destructive"
-              size="sm"
-              disabled={pendiente}
-              onClick={() => {
-                if (confirm(`¿Borrar el seguimiento «${b.nombre}»? Los avisos ya encontrados se mantienen.`)) iniciar(() => borrarBusqueda(b.id));
-              }}
-            >
-              <Trash2 /> Borrar
-            </Button>
-          </div>
-        </div>
-      </details>
-    </li>
+    <div className="flex flex-col gap-6 px-4 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
+      <FichaCard ficha={b.ficha} />
+      <div className="lista-ios">
+        <label className="fila-ios justify-between">
+          <span>Buscar</span>
+          <Interruptor activo={b.activa} deshabilitado={pendiente} etiqueta="Buscar este auto" onCambio={(v) => iniciar(() => cambiarBusqueda(b.id, { activa: v }))} />
+        </label>
+        <label className="fila-ios justify-between">
+          <span>Avisarme por notificación</span>
+          <Interruptor activo={b.alertas} deshabilitado={pendiente} etiqueta="Avisarme por notificación" onCambio={(v) => iniciar(() => cambiarBusqueda(b.id, { alertas: v }))} />
+        </label>
+      </div>
+      <div className="lista-ios">
+        <button
+          type="button"
+          disabled={pendiente}
+          onClick={() => {
+            if (confirm(`¿Borrar el seguimiento «${b.nombre}»? Los avisos ya encontrados se mantienen.`)) iniciar(async () => { await borrarBusqueda(b.id); onCerrar(); });
+          }}
+          className="fila-ios w-full justify-center text-destructive active:bg-black/5"
+        >
+          Borrar seguimiento
+        </button>
+      </div>
+    </div>
   );
 }
 
 export function ListaSeguimientos({ busquedas }: { busquedas: Busqueda[] }) {
-  if (!busquedas.length) return null;
+  const [nueva, setNueva] = useState(false);
+  const [abierta, setAbierta] = useState<string | null>(null);
+  const actual = busquedas.find((b) => b.id === abierta);
+
   return (
-    <section className="px-4 pt-4">
-      <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-muted-foreground">Tus seguimientos</h2>
-      <ul className="flex flex-col gap-2">
-        {busquedas.map((b) => (
-          <Item key={b.id} b={b} />
-        ))}
-      </ul>
-    </section>
+    <>
+      <Encabezado titulo="Seguimientos">
+        <button type="button" aria-label="Nuevo seguimiento" onClick={() => setNueva(true)} className="presionable flex size-9 items-center justify-center">
+          <Plus className="size-[26px]" strokeWidth={2.2} />
+        </button>
+      </Encabezado>
+
+      <Pantalla>
+        <main className="flex flex-col gap-6 px-4 pb-8 pt-2">
+          {busquedas.length === 0 ? (
+            <div className="flex flex-col items-center gap-4 px-6 py-16 text-center">
+              <p className="text-[17px] text-muted-foreground">Todavía no sigues ningún auto. Cuéntale a la app qué buscas y ella trae los avisos que calcen.</p>
+              <button type="button" onClick={() => setNueva(true)} className="presionable h-[50px] rounded-[12px] bg-primary px-6 text-[17px] font-semibold text-primary-foreground">
+                Nuevo seguimiento
+              </button>
+            </div>
+          ) : (
+            <section>
+              <div className="lista-ios" style={{ "--sangria": "60px" } as React.CSSProperties}>
+                {busquedas.map((b) => (
+                  <div key={b.id} className="flex items-center">
+                    <Link href={`/resultados?busqueda=${b.id}`} transitionTypes={["nav-adelante"]} className="flex min-w-0 flex-grow items-center gap-3 py-2.5 pl-4 active:bg-black/5">
+                      <span className={cn("flex size-[30px] shrink-0 items-center justify-center rounded-[7px] text-white", b.activa ? "bg-primary" : "bg-[#AEAEB2]")}>
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+                          <path d="M5.5 10.5l1.6-4.2A2 2 0 019 5h6a2 2 0 011.9 1.3l1.6 4.2A2 2 0 0120 12.4V17a1 1 0 01-1 1h-1.2a1 1 0 01-1-1v-1H7.2v1a1 1 0 01-1 1H5a1 1 0 01-1-1v-4.6a2 2 0 011.5-1.9zM7.6 10h8.8l-1.2-3.2a.8.8 0 00-.7-.5H9.5a.8.8 0 00-.7.5z" />
+                        </svg>
+                      </span>
+                      <span className="flex min-w-0 flex-col">
+                        <span className="truncate text-[17px] leading-[22px]">{b.nombre}</span>
+                        <span className="truncate text-[13px] leading-[18px] text-muted-foreground">{b.activa ? resumen(b.ficha) : "En pausa"}</span>
+                      </span>
+                      <span className="ml-auto flex shrink-0 items-center gap-1 text-[17px] text-muted-foreground">
+                        {b.avisos}
+                        <ChevronRight className="size-5 text-[#C4C4C6]" strokeWidth={2.4} />
+                      </span>
+                    </Link>
+                    <button type="button" aria-label={`Ver ficha de ${b.nombre}`} onClick={() => setAbierta(b.id)} className="presionable flex h-full items-center px-4 text-primary">
+                      <Info className="size-[22px]" strokeWidth={2} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+              <p className="pie-grupo">El número es cuántos avisos calzan o entran con advertencia. La ⓘ abre la ficha.</p>
+            </section>
+          )}
+        </main>
+      </Pantalla>
+
+      <Hoja abierta={nueva} onCerrar={() => setNueva(false)} titulo="Nuevo seguimiento" izquierda={<button type="button" onClick={() => setNueva(false)}>Cancelar</button>}>
+        <Chat onGuardado={() => setNueva(false)} />
+      </Hoja>
+
+      <Hoja abierta={Boolean(actual)} onCerrar={() => setAbierta(null)} titulo={actual?.nombre ?? ""} derecha={<button type="button" onClick={() => setAbierta(null)}>Listo</button>}>
+        {actual && <DetalleFicha b={actual} onCerrar={() => setAbierta(null)} />}
+      </Hoja>
+    </>
   );
 }

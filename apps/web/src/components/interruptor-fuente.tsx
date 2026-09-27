@@ -1,18 +1,8 @@
 "use client";
 
-import { useTransition } from "react";
 import { cambiarFuente } from "@/app/(app)/acciones";
+import { Interruptor } from "@/components/ui/interruptor";
 
-export function InterruptorFuente({ id, activa }: { id: "chileautos" | "kavak" | "yapo" | "mercadolibre"; activa: boolean }) {
-  const [pendiente, iniciar] = useTransition();
-  return (
-    <input
-      type="checkbox"
-      aria-label={activa ? "Desactivar" : "Activar"}
-      checked={activa}
-      disabled={pendiente}
-      onChange={(e) => iniciar(() => cambiarFuente(id, e.target.checked))}
-      className="size-5 accent-primary"
-    />
-  );
+export function InterruptorFuente({ id, activa, nombre }: { id: "chileautos" | "kavak" | "yapo" | "mercadolibre"; activa: boolean; nombre: string }) {
+  return <Interruptor activo={activa} etiqueta={`Buscar en ${nombre}`} onCambio={(v) => cambiarFuente(id, v)} />;
 }
