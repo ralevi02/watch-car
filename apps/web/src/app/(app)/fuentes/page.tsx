@@ -1,11 +1,14 @@
 import { ChevronRight, LogOut } from "lucide-react";
 import { salir } from "@/app/(app)/acciones";
 import { BotonPush } from "@/components/boton-push";
+import { ConectarGithub } from "@/components/conectar-github";
+import { AvisoCorridas, BotonCorrer, BotonCorrerTodas, EstadoFuente, ProveedorCorridas } from "@/components/corridas";
 import { CuentasFacebook } from "@/components/cuentas-facebook";
 import { Encabezado } from "@/components/encabezado";
 import { InterruptorFuente } from "@/components/interruptor-fuente";
 import { Pantalla } from "@/components/pantalla";
 import { leerFacebook, leerFuentesYPasadas, NOMBRE_FUENTE } from "@/lib/datos";
+import type { FuenteCorrible } from "@/lib/github";
 import { cn } from "@/lib/utils";
 
 const ESTADO: Record<string, { texto: string; clase: string }> = {
@@ -26,32 +29,37 @@ const fecha = (s: string) => new Date(s).toLocaleString("es-CL", { timeZone: "Am
 
 export default async function Fuentes({ searchParams }: PageProps<"/fuentes">) {
   const sp = await searchParams;
-  const [{ fuentes, pasadas, mlConectado }, facebook] = await Promise.all([leerFuentesYPasadas(), leerFacebook()]);
+  const [{ fuentes, pasadas, mlConectado, githubConectado }, facebook] = await Promise.all([leerFuentesYPasadas(), leerFacebook()]);
   const ultima = (id: string) => pasadas.find((p) => p.fuente_id === id);
   const portales = fuentes.filter((f) => f.id !== "facebook");
 
   return (
-    <>
-      <Encabezado titulo="Fuentes" />
+    <ProveedorCorridas conGithub={githubConectado}>
+      <Encabezado titulo="Fuentes">
+        <BotonCorrerTodas />
+      </Encabezado>
       <Pantalla>
         <main className="flex flex-col gap-7 px-4 pb-10 pt-2">
+          <AvisoCorridas />
           <section>
             <h2 className="titulo-grupo">Portales</h2>
             <div className="lista-ios">
               {portales.map((f) => {
                 const u = ultima(f.id);
                 return (
-                  <div key={f.id} className="fila-ios justify-between">
-                    <span className="flex min-w-0 flex-col">
+                  <div key={f.id} className="fila-ios justify-between gap-3">
+                    <span className="flex min-w-0 flex-grow flex-col">
                       <span>{f.nombre}</span>
                       <span className="text-[13px] leading-[18px] text-muted-foreground">
-                        {u ? (
-                          <>
-                            <span className={ESTADO[u.estado]?.clase}>{ESTADO[u.estado]?.texto ?? u.estado}</span> · {fecha(u.inicio)}
-                          </>
-                        ) : (
-                          HORARIO[f.id]
-                        )}
+                        <EstadoFuente fuente={f.id as FuenteCorrible}>
+                          {u ? (
+                            <>
+                              <span className={ESTADO[u.estado]?.clase}>{ESTADO[u.estado]?.texto ?? u.estado}</span> · {fecha(u.inicio)}
+                            </>
+                          ) : (
+                            HORARIO[f.id]
+                          )}
+                        </EstadoFuente>
                       </span>
                     </span>
                     {f.id === "mercadolibre" && !mlConectado ? (
@@ -59,7 +67,10 @@ export default async function Fuentes({ searchParams }: PageProps<"/fuentes">) {
                         Conectar
                       </a>
                     ) : (
-                      <InterruptorFuente id={f.id as "chileautos" | "kavak" | "yapo" | "mercadolibre"} activa={f.activa} nombre={f.nombre} />
+                      <>
+                        {f.activa && <BotonCorrer fuente={f.id as FuenteCorrible} nombre={f.nombre} />}
+                        <InterruptorFuente id={f.id as "chileautos" | "kavak" | "yapo" | "mercadolibre"} activa={f.activa} nombre={f.nombre} />
+                      </>
                     )}
                   </div>
                 );
@@ -77,12 +88,14 @@ export default async function Fuentes({ searchParams }: PageProps<"/fuentes">) {
             <BotonPush />
           </section>
 
+          <ConectarGithub conectado={githubConectado} />
+
           <section>
             <h2 className="titulo-grupo">Registro de pasadas</h2>
             <div className="lista-ios">
               {pasadas.length === 0 && <div className="fila-ios text-muted-foreground">Todavía no corre ninguna pasada.</div>}
               {pasadas.map((p) => {
-                const d = (p.detalle ?? {}) as { run?: string; errores?: string[]; bloqueo?: string };
+                const d = (p.detalle ?? {}) as { run?: string; errores?: string[]; bloqueo?: string; nota?: string };
                 const contenido = (
                   <>
                     <span className="flex min-w-0 flex-col">
@@ -94,6 +107,7 @@ export default async function Fuentes({ searchParams }: PageProps<"/fuentes">) {
                         {fecha(p.inicio)} · {p.avisos_vistos ?? 0} vistos, {p.avisos_nuevos ?? 0} nuevos
                       </span>
                       {Boolean(d.bloqueo || d.errores?.length) && <span className="text-[13px] leading-[18px] text-destructive">{[d.bloqueo, ...(d.errores ?? [])].filter(Boolean).join(". ")}</span>}
+                      {d.nota && <span className="text-[13px] leading-[18px] text-muted-foreground">{d.nota}</span>}
                     </span>
                     <span className={cn("flex shrink-0 items-center gap-1 text-[15px]", ESTADO[p.estado]?.clase)}>
                       {ESTADO[p.estado]?.texto ?? p.estado}
@@ -124,6 +138,6 @@ export default async function Fuentes({ searchParams }: PageProps<"/fuentes">) {
           </div>
         </main>
       </Pantalla>
-    </>
+    </ProveedorCorridas>
   );
 }

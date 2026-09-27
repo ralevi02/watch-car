@@ -653,7 +653,9 @@ export type Database = {
         Args: { p_nombre: string; p_valor: string }
         Returns: undefined
       }
+      borrar_token_github: { Args: never; Returns: undefined }
       leer_secreto_app: { Args: { p_nombre: string }; Returns: string }
+      leer_token_github: { Args: never; Returns: string | null }
       leer_sesion_facebook: { Args: { p_cuenta: string }; Returns: string }
     }
     Enums: {

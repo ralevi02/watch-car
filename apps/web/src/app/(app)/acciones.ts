@@ -4,6 +4,8 @@ import { Seguimiento } from "@radar/core";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
+import { esDueno } from "@/lib/datos";
+import { corridasActivas, FUENTES_CORRIBLES, github, lanzarWorkflow, pedidosPara, REPO, tokenGithub, type EstadoCorrida, type FuenteCorrible } from "@/lib/github";
 import { crearClienteServidor } from "@/lib/supabase/server";
 
 type Resultado = { ok: true } | { ok: false; error: string };
@@ -113,19 +115,15 @@ export async function pedirReconexion(cuentaId: string): Promise<Resultado & { i
   const supabase = await crearClienteServidor();
   const { data, error } = await supabase.from("reconexiones").insert({ cuenta_id: z.uuid().parse(cuentaId) }).select("id").single();
   if (error) return { ok: false, error: error.message };
-  const token = process.env.GITHUB_DISPATCH_TOKEN;
-  const repo = process.env.GITHUB_REPO || "ralevi02/watch-car";
-  // Sin token la reconexión queda pedida y se puede lanzar a mano el workflow "Facebook · reconectar" con este id.
-  if (!token) return { ok: true, id: data.id };
-  const r = await fetch(`https://api.github.com/repos/${repo}/actions/workflows/facebook-reconectar.yml/dispatches`, {
-    method: "POST",
-    headers: { Authorization: `Bearer ${token}`, Accept: "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28" },
-    body: JSON.stringify({ ref: "main", inputs: { reconexion_id: data.id } }),
-  });
-  if (!r.ok) {
-    const detalle = `GitHub respondió ${r.status}`;
-    await supabase.from("reconexiones").update({ estado: "error", error: detalle }).eq("id", data.id);
-    return { ok: false, error: detalle };
+  const token = await tokenGithub(supabase);
+  if (!token) {
+    await supabase.from("reconexiones").update({ estado: "error", error: "Falta conectar GitHub" }).eq("id", data.id);
+    return { ok: false, error: "Para abrir el navegador seguro, primero conecta GitHub (en Fuentes, sección «Correr desde la app»)." };
+  }
+  const motivo = await lanzarWorkflow(token, "facebook-reconectar.yml", { reconexion_id: data.id });
+  if (motivo) {
+    await supabase.from("reconexiones").update({ estado: "error", error: motivo }).eq("id", data.id);
+    return { ok: false, error: motivo };
   }
   return { ok: true, id: data.id };
 }
@@ -174,4 +172,45 @@ export async function cambiarFuente(id: "kavak" | "yapo" | "mercadolibre" | "chi
   const supabase = await crearClienteServidor();
   await supabase.from("fuentes").update({ activa }).eq("id", id);
   revalidatePath("/fuentes");
+}
+
+// ── Correr desde la app ─────────────────────────────────────────────────────
+
+/** Guarda en Vault el token de GitHub (solo Actions de este repo) después de probarlo. */
+export async function conectarGithub(token: string): Promise<Resultado> {
+  if (!(await esDueno())) return { ok: false, error: "Esta cuenta no tiene acceso a Radar." };
+  const limpio = token.trim();
+  if (!/^(github_pat_|ghp_)[A-Za-z0-9_]{20,}$/.test(limpio)) return { ok: false, error: "Eso no parece un token de GitHub: empieza con github_pat_." };
+  const r = await github(limpio, "/actions/workflows?per_page=1");
+  if (r.status === 401) return { ok: false, error: "GitHub no reconoce ese token." };
+  if (!r.ok) return { ok: false, error: `El token no tiene acceso a las Actions de ${REPO}. Revisa que incluya ese repositorio.` };
+  const supabase = await crearClienteServidor();
+  const { error } = await supabase.rpc("guardar_secreto_app", { p_nombre: "github", p_valor: limpio });
+  if (error) return { ok: false, error: error.message };
+  revalidatePath("/fuentes");
+  return { ok: true };
+}
+
+export async function desconectarGithub() {
+  const supabase = await crearClienteServidor();
+  await supabase.rpc("borrar_token_github");
+  revalidatePath("/fuentes");
+}
+
+const Corrible = z.enum([...FUENTES_CORRIBLES, "todas"]);
+
+/** Lanza ahora la pasada de una fuente (o de todas) en GitHub Actions. */
+export async function correrAhora(fuente: FuenteCorrible | "todas"): Promise<Resultado> {
+  const f = Corrible.parse(fuente);
+  if (!(await esDueno())) return { ok: false, error: "Esta cuenta no tiene acceso a Radar." };
+  const token = await tokenGithub(await crearClienteServidor());
+  if (!token) return { ok: false, error: "Para correr desde aquí, primero conecta GitHub (más abajo, en «Correr desde la app»)." };
+  const motivos = (await Promise.all(pedidosPara(f).map(([w, inputs]) => lanzarWorkflow(token, w, inputs)))).filter(Boolean);
+  return motivos.length ? { ok: false, error: motivos[0]! } : { ok: true };
+}
+
+/** Qué fuentes tienen una corrida en cola o en curso. */
+export async function leerCorridas(): Promise<Partial<Record<FuenteCorrible, EstadoCorrida>>> {
+  const token = await tokenGithub(await crearClienteServidor());
+  return token ? corridasActivas(token) : {};
 }

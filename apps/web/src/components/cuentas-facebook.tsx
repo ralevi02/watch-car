@@ -4,6 +4,7 @@ import { ChevronRight, Plus } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { borrarCuentaFacebook, cambiarCuentaFacebook, configurarFacebook, crearCuentaFacebook, pedirReconexion } from "@/app/(app)/acciones";
+import { BotonCorrer, EstadoFuente } from "@/components/corridas";
 import { Hoja } from "@/components/ui/hoja";
 import { Interruptor } from "@/components/ui/interruptor";
 import { cn } from "@/lib/utils";
@@ -46,10 +47,16 @@ export function CuentasFacebook({ activa, rotacion, pasadasPorDia, cuentas }: { 
     <section>
       <h2 className="titulo-grupo">Facebook Marketplace</h2>
       <div className="lista-ios">
-        <label className="fila-ios justify-between">
-          <span>Buscar en Facebook</span>
+        <div className="fila-ios justify-between gap-3">
+          <span className="flex min-w-0 flex-grow flex-col">
+            <span>Buscar en Facebook</span>
+            <span className="text-[13px] leading-[18px]">
+              <EstadoFuente fuente="facebook">{null}</EstadoFuente>
+            </span>
+          </span>
+          {activa && <BotonCorrer fuente="facebook" nombre="Facebook" />}
           <Interruptor activo={activa} etiqueta="Buscar en Facebook" onCambio={(v) => configurarFacebook({ activa: v })} />
-        </label>
+        </div>
         {cuentas.map((c) => (
           <button key={c.id} type="button" onClick={() => setAbierta(c.id)} className="fila-ios w-full justify-between text-left active:bg-black/5">
             <span className="flex min-w-0 flex-col">

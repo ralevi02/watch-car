@@ -38,6 +38,18 @@ const RUN = process.env.GITHUB_RUN_ID
 const miles = (n: number | null) => (n === null ? "?" : n.toLocaleString("es-CL"));
 const mensaje = (e: unknown) => (e instanceof Error ? e.message.split("\n")[0] ?? e.message : String(e));
 
+/**
+ * Si la corrida se pidió a mano (desde la app) y no hubo nada que recolectar,
+ * se deja el motivo en el registro para que se vea en Fuentes. En las
+ * corridas programadas no, para no llenar el registro.
+ */
+async function registrarSiEsManual(db: ClienteDb, estado: "ok" | "error", motivo: string) {
+  if (process.env.GITHUB_EVENT_NAME !== "workflow_dispatch") return;
+  const ahora = new Date().toISOString();
+  const detalle = estado === "error" ? { run: RUN ?? null, errores: [motivo] } : { run: RUN ?? null, nota: motivo };
+  await db.from("pasadas").insert({ fuente_id: FUENTE, tipo: TIPO, estado, inicio: ahora, fin: ahora, avisos_vistos: 0, avisos_nuevos: 0, detalle });
+}
+
 interface Preparada {
   recolectar: Recolector;
   /** Se llama con el navegador abierto (Facebook carga la sesión). Devuelve un motivo si no se puede seguir. */
@@ -93,6 +105,7 @@ async function main() {
   const prep = await preparar(db);
   if ("noCorre" in prep) {
     console.log(prep.noCorre);
+    await registrarSiEsManual(db, "error", prep.noCorre);
     if (process.env.GITHUB_STEP_SUMMARY) await appendFile(process.env.GITHUB_STEP_SUMMARY, `# ${NOMBRE[FUENTE] ?? FUENTE}\n\nNo se corrió: ${prep.noCorre}\n`);
     return;
   }
@@ -107,6 +120,7 @@ async function main() {
   const { count: compartidosPendientes } = await db.from("compartidos").select("id", { count: "exact", head: true }).eq("fuente_id", FUENTE).eq("estado", "pendiente");
   if (!fichas.length && !compartidosPendientes) {
     console.log(`No hay búsquedas activas con ${FUENTE} ni links compartidos pendientes.`);
+    await registrarSiEsManual(db, "ok", `Ningún seguimiento activo busca en ${NOMBRE[FUENTE] ?? FUENTE}.`);
     return;
   }
 
@@ -123,6 +137,7 @@ async function main() {
     const motivo = await prep.alAbrir?.(s);
     if (motivo) {
       informe.push(`No se corrió: ${motivo}`);
+      await registrarSiEsManual(db, "error", motivo);
       fichas.length = 0;
       fallidas = 1;
     }
