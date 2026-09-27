@@ -12,9 +12,9 @@ export default async function LayoutApp({ children }: LayoutProps<"/">) {
     usuario = { email: data?.claims.email as string | undefined, id: data?.claims.sub };
   }
   return (
-    <div className="mx-auto flex min-h-dvh w-full max-w-2xl flex-col pb-[calc(4rem+env(safe-area-inset-bottom))]">
+    <div className="mx-auto flex min-h-dvh w-full max-w-2xl flex-col pb-[calc(58px+env(safe-area-inset-bottom))]">
       {!dueno && (
-        <div className="m-4 rounded-xl border border-advertencia/30 bg-advertencia-fondo px-4 py-3 text-sm text-advertencia">
+        <div className="m-4 rounded-xl bg-advertencia-fondo px-4 py-3 text-[15px] leading-5 text-[#7A4800]">
           Entraste como {usuario.email ?? "usuario nuevo"}, pero todavía no estás habilitado para ver datos. Hay que agregar tu usuario a la tabla
           «duenos» en Supabase (id: <code className="break-all">{usuario.id}</code>).
         </div>

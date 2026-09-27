@@ -4,18 +4,21 @@ import { PantallaCarga } from "@/components/pantalla";
 export function Esqueleto({ titulo, tarjetas = 3 }: { titulo: string; tarjetas?: number }) {
   return (
     <>
-      <header
-        style={{ viewTransitionName: "encabezado" }}
-        className="sticky top-0 z-10 border-b border-border bg-background/95 px-4 pb-3 pt-[max(0.75rem,env(safe-area-inset-top))] backdrop-blur"
-      >
-        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Radar seminuevos</p>
-        <h1 className="font-heading text-2xl font-bold">{titulo}</h1>
-      </header>
+      <div style={{ viewTransitionName: "encabezado" }} className="sticky top-0 z-20 bg-background pt-[env(safe-area-inset-top)]">
+        <div className="h-11" />
+      </div>
+      <h1 className="px-4 pb-2 text-[34px] font-bold leading-[41px] tracking-[0.37px]">{titulo}</h1>
       <PantallaCarga>
-        <div className="flex flex-col gap-3 px-4 py-4" aria-busy="true" aria-label="Cargando">
-          <div className="h-8 w-3/4 animate-pulse rounded-full bg-muted" />
+        <div className="flex flex-col gap-4 px-4 py-2" aria-busy="true" aria-label="Cargando">
+          <div className="h-9 animate-pulse rounded-[10px] bg-muted" />
           {Array.from({ length: tarjetas }, (_, i) => (
-            <div key={i} className="h-36 animate-pulse rounded-xl border border-border bg-card" style={{ animationDelay: `${i * 120}ms` }} />
+            <div key={i} className="overflow-hidden rounded-[14px] bg-card" style={{ animationDelay: `${i * 120}ms` }}>
+              <div className="aspect-[16/9] animate-pulse bg-[#E5E5EA]" />
+              <div className="flex flex-col gap-2 p-3.5">
+                <div className="h-4 w-2/3 animate-pulse rounded bg-[#E5E5EA]" />
+                <div className="h-3.5 w-1/2 animate-pulse rounded bg-[#EFEFF4]" />
+              </div>
+            </div>
           ))}
         </div>
       </PantallaCarga>

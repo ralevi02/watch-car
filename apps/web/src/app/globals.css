@@ -7,10 +7,14 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-archivo);
-  --font-heading: var(--font-archivo-narrow);
+  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, "Segoe UI", Roboto, sans-serif;
+  --font-heading: -apple-system, BlinkMacSystemFont, "SF Pro Display", system-ui, "Segoe UI", Roboto, sans-serif;
   --color-advertencia: var(--advertencia);
   --color-advertencia-fondo: var(--advertencia-fondo);
+  --color-calza: var(--calza);
+  --color-calza-fondo: var(--calza-fondo);
+  --color-separador: var(--separador);
+  --color-barra: var(--barra);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -50,33 +54,37 @@
 }
 
 :root {
-  /* Paleta del mockup: azul petróleo, fondo gris verdoso, tarjetas blancas. */
-  --background: #f2f4f3;
-  --foreground: #1b2a33;
+  /* Estilo nativo iOS: fondo agrupado gris, tarjetas blancas, separadores finos, tinte azul petróleo. */
+  --background: #f2f2f7;
+  --foreground: #000000;
   --card: #ffffff;
-  --card-foreground: #1b2a33;
+  --card-foreground: #000000;
   --popover: #ffffff;
-  --popover-foreground: #1b2a33;
+  --popover-foreground: #000000;
   --primary: #2b5a87;
   --primary-foreground: #ffffff;
-  --secondary: #e4ecf3;
-  --secondary-foreground: #2b5a87;
-  --muted: #e8eceb;
-  --muted-foreground: #5b6b70;
-  --accent: #e4ecf3;
-  --accent-foreground: #2b5a87;
-  --destructive: #b3261e;
-  --border: #d9dfde;
-  --input: #d9dfde;
+  --secondary: #e5e5ea;
+  --secondary-foreground: #000000;
+  --muted: rgba(118, 118, 128, 0.12);
+  --muted-foreground: #6c6c70;
+  --accent: #e5e5ea;
+  --accent-foreground: #000000;
+  --destructive: #d70015;
+  --border: #c6c6c8;
+  --input: #c6c6c8;
   --ring: #2b5a87;
-  --advertencia: #9a6200;
-  --advertencia-fondo: #fff3d6;
+  --advertencia: #9a5b00;
+  --advertencia-fondo: #fff1dc;
+  --calza: #1d7a36;
+  --calza-fondo: #e3f5e8;
+  --separador: rgba(60, 60, 67, 0.29);
+  --barra: rgba(249, 249, 249, 0.94);
   --chart-1: oklch(0.87 0 0);
   --chart-2: oklch(0.556 0 0);
   --chart-3: oklch(0.439 0 0);
   --chart-4: oklch(0.371 0 0);
   --chart-5: oklch(0.269 0 0);
-  --radius: 0.625rem;
+  --radius: 0.875rem;
   --sidebar: oklch(0.985 0 0);
   --sidebar-foreground: oklch(0.145 0 0);
   --sidebar-primary: oklch(0.205 0 0);
@@ -285,4 +293,48 @@ details[open]::details-content {
     animation-duration: 0s !important;
     animation-delay: 0s !important;
   }
+}
+
+/* ── Piezas iOS ──────────────────────────────────────────────────────────── */
+body {
+  -webkit-font-smoothing: antialiased;
+}
+/* Lista agrupada: tarjeta blanca con filas separadas por una línea fina que no llega al borde izquierdo. */
+.lista-ios {
+  background: var(--card);
+  border-radius: 12px;
+  overflow: hidden;
+}
+.lista-ios > * {
+  position: relative;
+}
+.lista-ios > * + *::before {
+  content: "";
+  position: absolute;
+  left: var(--sangria, 16px);
+  right: 0;
+  top: 0;
+  height: 0.5px;
+  background: var(--separador);
+}
+.fila-ios {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 44px;
+  padding: 11px 16px;
+  font-size: 17px;
+  line-height: 22px;
+}
+.titulo-grupo {
+  margin: 0 0 6px 16px;
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--muted-foreground);
+}
+.pie-grupo {
+  margin: 6px 16px 0;
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--muted-foreground);
 }
