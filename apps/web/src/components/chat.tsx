@@ -2,11 +2,12 @@
 
 import { useChat } from "@ai-sdk/react";
 import type { Seguimiento } from "@radar/core";
-import { ArrowUp, Check, LoaderCircle, RotateCcw } from "lucide-react";
+import { ArrowUp, Check, LoaderCircle, Mic, RotateCcw, Square, X } from "lucide-react";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { guardarSeguimiento } from "@/app/(app)/acciones";
 import { FichaCard } from "@/components/ficha-card";
 import type { MensajeChat } from "@/lib/chat";
+import { useDictado } from "@/lib/dictado";
 import { cn } from "@/lib/utils";
 
 const EJEMPLOS = [
@@ -101,12 +102,32 @@ function Mensaje({ mensaje, onGuardado }: { mensaje: MensajeChat; onGuardado?: (
   );
 }
 
+function Onda({ niveles }: { niveles: number[] }) {
+  return (
+    <span className="flex h-6 min-w-0 flex-grow items-center justify-end gap-[3px] overflow-hidden" aria-hidden>
+      {niveles.map((n, i) => (
+        <span key={i} className="w-[3px] shrink-0 rounded-full bg-primary transition-[height] duration-75" style={{ height: `${Math.max(3, Math.round(n * 24))}px` }} />
+      ))}
+    </span>
+  );
+}
+
+const reloj = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+
 /** Chat que arma la ficha. Vive dentro de la hoja "Nuevo seguimiento". */
 export function Chat({ onGuardado }: { onGuardado?: () => void }) {
   const [texto, setTexto] = useState("");
   const { messages, sendMessage, status, error, regenerate } = useChat<MensajeChat>();
   const fin = useRef<HTMLDivElement>(null);
   const ocupado = status === "submitted" || status === "streaming";
+  // Lo que ya estaba escrito cuando se empezó a dictar; lo dictado se agrega después.
+  const base = useRef("");
+  const unirBase = (t: string) => [base.current.trim(), t.trim()].filter(Boolean).join(" ");
+  const dictado = useDictado({ alCambiar: (t) => setTexto(unirBase(t)), alTerminar: (t) => setTexto(unirBase(t)) });
+  const escuchando = dictado.estado === "escuchando";
+  const grabando = escuchando && dictado.modo === "grabacion";
+  const transcribiendo = dictado.estado === "transcribiendo";
+  const dictando = escuchando || transcribiendo;
 
   useEffect(() => {
     if (messages.length) fin.current?.scrollIntoView({ behavior: "smooth", block: "end" });
@@ -114,7 +135,7 @@ export function Chat({ onGuardado }: { onGuardado?: () => void }) {
 
   function enviar(t: string) {
     const limpio = t.trim();
-    if (!limpio || ocupado) return;
+    if (!limpio || ocupado || dictando) return;
     sendMessage({ text: limpio });
     setTexto("");
   }
@@ -132,7 +153,7 @@ export function Chat({ onGuardado }: { onGuardado?: () => void }) {
                 </button>
               ))}
             </div>
-            <p className="pie-grupo">O escribe el tuyo abajo.</p>
+            <p className="pie-grupo">{dictado.disponible ? "O escríbelo abajo, o toca el micrófono y cuéntalo." : "O escribe el tuyo abajo."}</p>
           </>
         ) : (
           messages.map((m) => <Mensaje key={m.id} mensaje={m} onGuardado={onGuardado} />)
@@ -157,38 +178,82 @@ export function Chat({ onGuardado }: { onGuardado?: () => void }) {
         <div ref={fin} />
       </div>
 
-      <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          enviar(texto);
-        }}
-        className="sticky bottom-0 flex items-end gap-2 bg-background px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-2 shadow-[0_-0.5px_0_var(--separador)]"
-      >
-        <label className="flex min-h-9 flex-grow items-center rounded-[18px] border-[0.5px] border-[#C6C6C8] bg-card px-3 py-1.5">
-          <textarea
-            value={texto}
-            onChange={(e) => setTexto(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
-                e.preventDefault();
-                enviar(texto);
-              }
-            }}
-            rows={1}
-            aria-label="Mensaje"
-            placeholder={messages.length ? "Responde o pide cambios" : "Describe el auto que buscas"}
-            className="max-h-32 w-full resize-none bg-transparent text-[17px] leading-[22px] outline-none [field-sizing:content] placeholder:text-[#C4C4C6]"
-          />
-        </label>
-        <button
-          type="submit"
-          aria-label="Enviar"
-          disabled={ocupado || !texto.trim()}
-          className={cn("presionable flex size-9 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground transition-opacity", (ocupado || !texto.trim()) && "opacity-40")}
+      <div className="sticky bottom-0 bg-background px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-2 shadow-[0_-0.5px_0_var(--separador)]">
+        {dictado.error && (
+          <button type="button" onClick={dictado.limpiarError} className="mb-2 w-full animate-in rounded-xl bg-[#FFE5E7] px-3.5 py-2.5 text-left text-[15px] leading-5 text-destructive fade-in duration-200">
+            {dictado.error}
+          </button>
+        )}
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            enviar(texto);
+          }}
+          className="flex items-end gap-2"
         >
-          {ocupado ? <LoaderCircle className="size-5 animate-spin" /> : <ArrowUp className="size-5" strokeWidth={2.8} />}
-        </button>
-      </form>
+          {grabando ? (
+            <div className="flex h-9 min-w-0 flex-grow items-center gap-2.5 rounded-[18px] border-[0.5px] border-[#C6C6C8] bg-card pl-1.5 pr-3">
+              <button type="button" aria-label="Descartar grabación" onClick={dictado.cancelar} className="presionable flex size-7 shrink-0 items-center justify-center rounded-full text-muted-foreground">
+                <X className="size-[18px]" strokeWidth={2.4} />
+              </button>
+              <span className="size-2 shrink-0 animate-pulse rounded-full bg-destructive" />
+              <span className="shrink-0 text-[15px] tabular-nums text-muted-foreground">{reloj(dictado.segundos)}</span>
+              <Onda niveles={dictado.niveles} />
+            </div>
+          ) : transcribiendo ? (
+            <div className="flex h-9 flex-grow items-center gap-2 rounded-[18px] border-[0.5px] border-[#C6C6C8] bg-card px-3 text-[17px] text-muted-foreground">
+              <LoaderCircle className="size-4 animate-spin" /> Transcribiendo…
+            </div>
+          ) : (
+            <label className="flex min-h-9 flex-grow items-center rounded-[18px] border-[0.5px] border-[#C6C6C8] bg-card px-3 py-1.5">
+              <textarea
+                value={texto}
+                onChange={(e) => setTexto(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
+                    e.preventDefault();
+                    enviar(texto);
+                  }
+                }}
+                rows={1}
+                aria-label="Mensaje"
+                readOnly={escuchando}
+                placeholder={escuchando ? "Te escucho…" : messages.length ? "Responde o pide cambios" : "Describe el auto que buscas"}
+                className="max-h-32 w-full resize-none bg-transparent text-[17px] leading-[22px] outline-none [field-sizing:content] placeholder:text-[#C4C4C6]"
+              />
+            </label>
+          )}
+
+          {escuchando ? (
+            <button type="button" aria-label="Terminar de dictar" onClick={dictado.detener} className="presionable relative flex size-9 shrink-0 items-center justify-center rounded-full bg-destructive text-white">
+              <span className="absolute inset-0 animate-ping rounded-full bg-destructive/40" />
+              <Square className="relative size-3.5 fill-current" strokeWidth={0} />
+            </button>
+          ) : !texto.trim() && dictado.disponible && !transcribiendo ? (
+            <button
+              type="button"
+              aria-label="Dictar con el micrófono"
+              disabled={ocupado}
+              onClick={() => {
+                base.current = texto;
+                dictado.iniciar();
+              }}
+              className="presionable flex size-9 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground disabled:opacity-40"
+            >
+              <Mic className="size-5" strokeWidth={2.4} />
+            </button>
+          ) : (
+            <button
+              type="submit"
+              aria-label="Enviar"
+              disabled={ocupado || dictando || !texto.trim()}
+              className={cn("presionable flex size-9 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground transition-opacity", (ocupado || dictando || !texto.trim()) && "opacity-40")}
+            >
+              {ocupado || transcribiendo ? <LoaderCircle className="size-5 animate-spin" /> : <ArrowUp className="size-5" strokeWidth={2.8} />}
+            </button>
+          )}
+        </form>
+      </div>
     </div>
   );
 }

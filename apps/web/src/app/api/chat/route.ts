@@ -2,6 +2,7 @@ import type { GoogleLanguageModelOptions } from "@ai-sdk/google";
 import { modeloChat } from "@radar/ia";
 import { convertToModelMessages, createUIMessageStreamResponse, isStepCount, streamText, toUIMessageStream } from "ai";
 import { herramientas, INSTRUCCIONES, type MensajeChat } from "@/lib/chat";
+import { esDueno } from "@/lib/datos";
 
 export const maxDuration = 30;
 
@@ -9,6 +10,9 @@ export async function POST(req: Request) {
   if (!process.env.GOOGLE_GENERATIVE_AI_API_KEY) {
     return new Response("Falta GOOGLE_GENERATIVE_AI_API_KEY en el .env de la raíz del repo (y reiniciar el servidor).", { status: 500 });
   }
+
+  // Cualquiera puede crear una cuenta con su correo: solo el dueño gasta la cuota de Gemini.
+  if (!(await esDueno())) return new Response("Esta cuenta no tiene acceso a Radar.", { status: 403 });
 
   const { messages }: { messages: MensajeChat[] } = await req.json();
 

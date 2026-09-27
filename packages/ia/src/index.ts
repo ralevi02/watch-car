@@ -42,3 +42,7 @@ export const modeloChat = () =>
 /** Normalización de avisos: más volumen, modelo liviano. */
 export const modeloNormalizacion = () =>
   geminiConRespaldo(process.env.GEMINI_MODELO_NORMALIZAR || "gemini-flash-lite-latest", process.env.GEMINI_MODELO || "gemini-flash-latest");
+
+/** Dictado por voz cuando el navegador no trae el suyo: audio corto, conviene el más rápido. */
+export const modeloTranscripcion = () =>
+  geminiConRespaldo(process.env.GEMINI_MODELO_TRANSCRIBIR || "gemini-flash-lite-latest", process.env.GEMINI_MODELO || "gemini-flash-latest");
