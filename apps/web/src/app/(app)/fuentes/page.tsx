@@ -25,6 +25,14 @@ const HORARIO: Record<string, string> = {
   mercadolibre: "2 veces al día",
 };
 
+/** Por qué falló la última pasada, en corto. */
+const motivo = (p: { estado: string; detalle: unknown }) => {
+  if (p.estado === "ok" || p.estado === "corriendo") return null;
+  const d = (p.detalle ?? {}) as { errores?: string[]; bloqueo?: string };
+  const m = d.bloqueo ?? d.errores?.[0];
+  return m?.includes("PROXY_URL") ? "Bloquea las IPs de GitHub: necesita proxy" : (m ?? null);
+};
+
 const fecha = (s: string) => new Date(s).toLocaleString("es-CL", { timeZone: "America/Santiago", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
 
 export default async function Fuentes({ searchParams }: PageProps<"/fuentes">) {
@@ -55,6 +63,7 @@ export default async function Fuentes({ searchParams }: PageProps<"/fuentes">) {
                           {u ? (
                             <>
                               <span className={ESTADO[u.estado]?.clase}>{ESTADO[u.estado]?.texto ?? u.estado}</span> · {fecha(u.inicio)}
+                              {motivo(u) && <span className="block truncate text-destructive">{motivo(u)}</span>}
                             </>
                           ) : (
                             HORARIO[f.id]
