@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { esMismoAuto, evaluar, leerTitulo, mismaFoto, modeloCanonico, type AvisoNormalizado, type Seguimiento } from "@radar/core";
+import { esMismoAuto, evaluar, leerTitulo, mismaFoto, modeloCanonico, puedeSerCrossCountry, type AvisoNormalizado, type Seguimiento } from "@radar/core";
 import type { ClienteDb, Json, TablesInsert } from "@radar/db";
 import type { AvisoPortal, DetallePortal, ResultadoRecoleccion } from "./fuentes/tipos.js";
 import { normalizar, type EntradaNormalizacion } from "./normalizar.js";
@@ -245,6 +245,8 @@ export async function normalizarPendientes(db: ClienteDb, FUENTE: string, idsExt
   for (const p of pendientes) {
     const n = normalizados.get(p.entrada.id);
     if (!n) continue;
+    // En Facebook el título es texto libre: un "V40" a secas puede ser Cross Country.
+    const porConfirmar = FUENTE === "facebook" && puedeSerCrossCountry(n.modelo) && !n.porConfirmar.includes("modelo") ? [...n.porConfirmar, "modelo" as const] : n.porConfirmar;
     await escribir(
       db
         .from("avisos")
@@ -262,7 +264,7 @@ export async function normalizarPendientes(db: ClienteDb, FUENTE: string, idsExt
           alertas: n.alertas,
           alerta_detalle: n.alertaDetalle,
           precio_descripcion: n.precioDescripcion,
-          por_confirmar: n.porConfirmar,
+          por_confirmar: porConfirmar,
           normalizado_en: ahora,
           normalizado_hash: p.hash,
         })

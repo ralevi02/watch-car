@@ -55,6 +55,17 @@ export function modeloCanonico(m: string): string {
     .replace(/[^a-z0-9]/g, "");
 }
 
+/** Volvo que tienen versión Cross Country: publicados a secas, no se sabe cuál de los dos es. */
+const CON_CROSS_COUNTRY = new Set(["v40", "v60", "v90", "s60"]);
+
+/**
+ * En portales de texto libre (Facebook) muchos Cross Country se publican con
+ * el nombre del modelo base: un "V40" a secas queda con el modelo por confirmar.
+ */
+export function puedeSerCrossCountry(modelo: string): boolean {
+  return CON_CROSS_COUNTRY.has(modeloCanonico(modelo));
+}
+
 /**
  * ¿El modelo del aviso sirve para la ficha? Una ficha más general acepta
  * variantes ("V40" acepta un V40 Cross Country); una más específica no

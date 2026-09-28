@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { modeloCalza } from "./normalizacion.ts";
+import { modeloCalza, modeloCanonico } from "./normalizacion.ts";
 
 /**
  * La "ficha" de un seguimiento: lo que el chat arma a partir de lo que pides
@@ -97,8 +97,13 @@ export function evaluar(aviso: AvisoNormalizado, s: Seguimiento): Veredicto {
   const fuera: string[] = [];
   const adv: string[] = [];
   if (aviso.modelo) {
+    // La duda de modelo es casi siempre "¿base o Cross Country?". Solo importa
+    // si la ficha pide el Cross Country; si acepta el modelo base, calza igual.
     const dudoso = aviso.porConfirmar?.includes("modelo");
-    if (dudoso) adv.push(`Modelo por confirmar (parece ${aviso.modelo})`);
+    const base = modeloCanonico(aviso.modelo).replace(/cc$/, "");
+    const mismaFamilia = modeloCalza(s.modelo, base);
+    const aceptaLaBase = modeloCalza(base, s.modelo);
+    if (dudoso && mismaFamilia && !aceptaLaBase) adv.push(`¿Es ${s.modelo}? Publicado como ${aviso.modelo}`);
     else if (!modeloCalza(aviso.modelo, s.modelo)) fuera.push(`Es ${aviso.modelo}, no ${s.modelo}`);
   }
   revisarRango(aviso.anio, s.anio, "Año", fuera, adv, String);

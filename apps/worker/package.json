@@ -10,7 +10,8 @@
     "pasada": "tsx src/pasada.ts",
     "normalizar:prueba": "tsx src/normalizar-prueba.ts",
     "reconectar": "tsx src/reconectar.ts",
-    "prueba": "tsx src/prueba-lector.ts"
+    "prueba": "tsx src/prueba-lector.ts",
+    "reevaluar": "tsx src/reevaluar.ts"
   },
   "dependencies": {
     "@ai-sdk/google": "^4.0.82",

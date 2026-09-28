@@ -23,6 +23,7 @@ function etiquetaMotivo(m: string) {
   if (m.startsWith("Precio ")) return "Sobre tu tope";
   if (m.startsWith("Año ")) return "Año fuera de rango";
   if (m.startsWith("Modelo por confirmar")) return "Modelo por confirmar";
+  if (m.startsWith("¿Es ")) return /cross country/i.test(m) ? "¿Es Cross Country?" : "Modelo por confirmar";
   return m;
 }
 

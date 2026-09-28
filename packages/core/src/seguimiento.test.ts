@@ -17,13 +17,28 @@ test("compara el modelo: el V40 base no sirve para una ficha de V40 CC", () => {
   assert.deepEqual(evaluar({ modelo: "V40" }, EJEMPLO_V40CC), { tipo: "fuera", motivos: ["Es V40, no V40 Cross Country"] });
   assert.deepEqual(evaluar({ modelo: "V40", porConfirmar: ["modelo"] }, EJEMPLO_V40CC), {
     tipo: "advertencia",
-    motivos: ["Modelo por confirmar (parece V40)"],
+    motivos: ["¿Es V40 Cross Country? Publicado como V40"],
   });
   assert.deepEqual(evaluar({ modelo: "V40 CC" }, EJEMPLO_V40CC), { tipo: "calza" });
   assert.deepEqual(evaluar({ modelo: "V40 Cross Country", porConfirmar: ["modelo"] }, EJEMPLO_V40CC), {
     tipo: "advertencia",
-    motivos: ["Modelo por confirmar (parece V40 Cross Country)"],
+    motivos: ["¿Es V40 Cross Country? Publicado como V40 Cross Country"],
   });
+  // La duda base/Cross Country no importa si la ficha acepta el modelo base, ni si es de otra familia.
+  const fichaV40 = { ...EJEMPLO_V40CC, modelo: "V40" };
+  assert.deepEqual(evaluar({ modelo: "V40", porConfirmar: ["modelo"] }, fichaV40), { tipo: "calza" });
+  assert.deepEqual(evaluar({ modelo: "V40", porConfirmar: ["modelo"] }, { ...EJEMPLO_V40CC, modelo: "V60 Cross Country" }), {
+    tipo: "fuera",
+    motivos: ["Es V40, no V60 Cross Country"],
+  });
+});
+
+test("en texto libre, un V40 o V60 a secas puede ser Cross Country", async () => {
+  const { puedeSerCrossCountry } = await import("./index.ts");
+  assert.ok(puedeSerCrossCountry("V40"));
+  assert.ok(puedeSerCrossCountry("v60"));
+  assert.ok(!puedeSerCrossCountry("V40 Cross Country"));
+  assert.ok(!puedeSerCrossCountry("XC60"));
 });
 
 test("deduplica por modelo, año, km, precio y región", async () => {
