@@ -50,6 +50,17 @@ async function registrarSiEsManual(db: ClienteDb, estado: "ok" | "error", motivo
   await db.from("pasadas").insert({ fuente_id: FUENTE, tipo: TIPO, estado, inicio: ahora, fin: ahora, avisos_vistos: 0, avisos_nuevos: 0, detalle });
 }
 
+/** Guarda el diagnóstico en la base y la captura en el bucket privado "diagnostico". */
+async function guardarDiagnostico(db: ClienteDb, pasadaId: string, d: NonNullable<ResultadoRecoleccion["diagnostico"]>): Promise<Json> {
+  let captura: string | null = null;
+  if (d.captura) {
+    const ruta = `${FUENTE}/${pasadaId}.png`;
+    const { error } = await db.storage.from("diagnostico").upload(ruta, d.captura, { contentType: "image/png", upsert: true });
+    captura = error ? `error: ${error.message}` : ruta;
+  }
+  return { url: d.url, titulo: d.titulo, texto: d.texto, enlaces: d.enlaces, muestra_enlaces: d.muestraEnlaces, descartadas: d.descartadas, captura };
+}
+
 interface Preparada {
   recolectar: Recolector;
   /** Se llama con el navegador abierto (Facebook carga la sesión). Devuelve un motivo si no se puede seguir. */
@@ -230,6 +241,7 @@ async function main() {
         bajas_de_precio: g?.bajasDePrecio.length ?? 0,
         no_vistos: g?.noVistos ?? 0,
         veredictos: ev?.veredictos ?? null,
+        diagnostico: r?.diagnostico ? await guardarDiagnostico(db, pasada.id, r.diagnostico) : null,
       };
       await db
         .from("pasadas")

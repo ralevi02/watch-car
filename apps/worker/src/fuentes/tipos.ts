@@ -39,6 +39,8 @@ export interface ResultadoRecoleccion {
   capturas: string[];
   kb: number;
   ms: number;
+  /** Cuando una búsqueda sale vacía: qué mostraba la página. Se guarda en Supabase (privado), nunca en el log público. */
+  diagnostico?: { url: string; titulo: string; texto: string; enlaces: number; muestraEnlaces: string[]; descartadas: string[]; captura?: Buffer };
 }
 
 export interface OpcionesRecoleccion {

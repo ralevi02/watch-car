@@ -48,6 +48,20 @@ async function leerGrilla(page: Page) {
   });
 }
 
+/** Qué muestra la página cuando no se leyó ningún aviso (para ajustar el lector). */
+async function diagnosticar(page: Page, descartadas: string[]): Promise<NonNullable<ResultadoRecoleccion["diagnostico"]>> {
+  const info = await page
+    .evaluate(() => ({
+      titulo: document.title,
+      texto: (document.body?.innerText ?? "").slice(0, 4000),
+      enlaces: document.querySelectorAll('a[href*="/marketplace/item/"]').length,
+      muestra: [...document.querySelectorAll<HTMLAnchorElement>('a[href*="/marketplace"]')].slice(0, 12).map((a) => a.getAttribute("href") ?? ""),
+    }))
+    .catch(() => ({ titulo: "", texto: "", enlaces: 0, muestra: [] as string[] }));
+  const captura = await page.screenshot({ fullPage: false }).catch(() => undefined);
+  return { url: page.url(), titulo: info.titulo, texto: info.texto, enlaces: info.enlaces, muestraEnlaces: info.muestra, descartadas: descartadas.slice(0, 10), captura };
+}
+
 /**
  * Una pasada de Facebook para una ficha, con la sesión ya cargada en el
  * navegador. Ritmo humano: pausas, scroll y pocas páginas.
@@ -81,9 +95,10 @@ export async function recolectarFacebook(s: Sesion, ficha: Seguimiento, op: Opci
       if (!tramo && grilla.length >= TOPE_RESULTADOS) {
         for (const t of tramosDePrecio(ficha.precio.min, ficha.precio.maxConAdvertencia ?? ficha.precio.max)) cola.push({ q, tramo: t });
       }
-      if (r.paginasLeidas === 1 && grilla.length === 0) {
+      if (r.paginasLeidas === 1 && vistos.size === 0) {
         const c = await capturar(page, "facebook-sin-resultados");
         if (c) r.capturas.push(c);
+        r.diagnostico = await diagnosticar(page, r.descartadas);
       }
     }
     r.paginasTotales = r.paginasLeidas + cola.length;
