@@ -58,7 +58,7 @@ async function guardarDiagnostico(db: ClienteDb, pasadaId: string, d: NonNullabl
     const { error } = await db.storage.from("diagnostico").upload(ruta, d.captura, { contentType: "image/png", upsert: true });
     captura = error ? `error: ${error.message}` : ruta;
   }
-  return { url: d.url, titulo: d.titulo, texto: d.texto, enlaces: d.enlaces, muestra_enlaces: d.muestraEnlaces, descartadas: d.descartadas, captura };
+  return { url: d.url, titulo: d.titulo, texto: d.texto, enlaces: d.enlaces, muestra_enlaces: d.muestraEnlaces, descartadas: d.descartadas, red: d.red ?? null, vehiculos: d.vehiculos ?? null, captura };
 }
 
 interface Preparada {
