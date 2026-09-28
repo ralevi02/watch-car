@@ -2,7 +2,7 @@
 
 import { cn } from "@/lib/utils";
 
-/** Control segmentado de iOS: el fondo blanco se desliza hasta la opción elegida. */
+/** Control segmentado: la opción elegida se marca con un fondo que se desliza. */
 export function Segmentado<T extends string>({
   opciones,
   valor,
@@ -16,11 +16,11 @@ export function Segmentado<T extends string>({
 }) {
   const i = Math.max(0, opciones.findIndex((o) => o.id === valor));
   return (
-    <div role="radiogroup" aria-label={etiqueta} className="relative grid rounded-[9px] bg-muted p-[2px]" style={{ gridTemplateColumns: `repeat(${opciones.length}, minmax(0, 1fr))` }}>
+    <div role="radiogroup" aria-label={etiqueta} className="relative grid h-10 rounded-xl bg-card p-[3px]" style={{ gridTemplateColumns: `repeat(${opciones.length}, minmax(0, 1fr))` }}>
       <span
         aria-hidden
-        className="absolute top-[2px] bottom-[2px] left-[2px] rounded-[7px] bg-card shadow-[0_3px_8px_rgba(0,0,0,0.12),0_1px_1px_rgba(0,0,0,0.04)] transition-transform duration-300 ease-[cubic-bezier(0.2,0.8,0.2,1)]"
-        style={{ width: `calc((100% - 4px) / ${opciones.length})`, transform: `translateX(${i * 100}%)` }}
+        className="absolute bottom-[3px] left-[3px] top-[3px] rounded-[9px] bg-[#33373e] transition-transform duration-300 ease-[cubic-bezier(0.2,0.8,0.2,1)]"
+        style={{ width: `calc((100% - 6px) / ${opciones.length})`, transform: `translateX(${i * 100}%)` }}
       />
       {opciones.map((o) => (
         <button
@@ -29,10 +29,10 @@ export function Segmentado<T extends string>({
           role="radio"
           aria-checked={o.id === valor}
           onClick={() => onCambio(o.id)}
-          className={cn("relative z-10 h-7 truncate px-1 text-[13px] transition-[font-weight]", o.id === valor ? "font-semibold" : "font-medium")}
+          className={cn("relative z-10 truncate px-1 text-[14px] transition-colors", o.id === valor ? "font-semibold text-foreground" : "font-medium text-muted-foreground")}
         >
           {o.etiqueta}
-          {o.cuenta !== undefined && <span className="ml-1 text-muted-foreground">{o.cuenta}</span>}
+          {o.cuenta !== undefined && o.cuenta > 0 && <span className="ml-1 text-tenue">{o.cuenta}</span>}
         </button>
       ))}
     </div>

@@ -66,7 +66,7 @@ function Mensaje({ mensaje, onGuardado }: { mensaje: MensajeChat; onGuardado?: (
         switch (p.type) {
           case "text":
             return p.text.trim() ? (
-              <div key={key} className="max-w-[80%] animate-in self-start whitespace-pre-wrap rounded-[18px] rounded-bl-[4px] bg-[#E5E5EA] px-3.5 py-2 text-[17px] leading-[22px] fade-in duration-300">
+              <div key={key} className="max-w-[80%] animate-in self-start whitespace-pre-wrap rounded-[18px] rounded-bl-[4px] bg-secondary px-3.5 py-2 text-[17px] leading-[22px] fade-in duration-300">
                 {p.text}
               </div>
             ) : null;
@@ -148,7 +148,7 @@ export function Chat({ onGuardado }: { onGuardado?: () => void }) {
             <p className="mb-1 text-center text-[13px] text-muted-foreground">Cuéntame qué auto buscas, como se lo dirías a alguien.</p>
             <div className="lista-ios">
               {EJEMPLOS.map((e) => (
-                <button key={e} type="button" onClick={() => enviar(e)} className="fila-ios w-full text-left text-[15px] leading-5 active:bg-black/5">
+                <button key={e} type="button" onClick={() => enviar(e)} className="fila-ios w-full text-left text-[15px] leading-5 active:bg-white/5">
                   {e}
                 </button>
               ))}
@@ -160,15 +160,15 @@ export function Chat({ onGuardado }: { onGuardado?: () => void }) {
         )}
 
         {status === "submitted" && (
-          <div className="flex w-fit animate-in items-center gap-1.5 rounded-[18px] rounded-bl-[4px] bg-[#E5E5EA] px-4 py-3 fade-in duration-200" aria-label="Escribiendo">
+          <div className="flex w-fit animate-in items-center gap-1.5 rounded-[18px] rounded-bl-[4px] bg-secondary px-4 py-3 fade-in duration-200" aria-label="Escribiendo">
             {[0, 1, 2].map((i) => (
-              <span key={i} className="size-2 rounded-full bg-[#8E8E93]" style={{ animation: `punto 1s ${i * 150}ms infinite ease-in-out` }} />
+              <span key={i} className="size-2 rounded-full bg-tenue" style={{ animation: `punto 1s ${i * 150}ms infinite ease-in-out` }} />
             ))}
           </div>
         )}
 
         {error && (
-          <div className="flex animate-in flex-col items-start gap-2 rounded-xl bg-[#FFE5E7] px-4 py-3 text-[15px] text-destructive fade-in duration-200">
+          <div className="flex animate-in flex-col items-start gap-2 rounded-xl bg-card px-4 py-3 text-[15px] text-destructive fade-in duration-200">
             <span>{error.message || "Algo falló al hablar con Gemini."}</span>
             <button type="button" onClick={() => regenerate()} className="flex items-center gap-1.5 font-medium text-primary">
               <RotateCcw className="size-4" /> Reintentar
@@ -180,7 +180,7 @@ export function Chat({ onGuardado }: { onGuardado?: () => void }) {
 
       <div className="sticky bottom-0 bg-background px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-2 shadow-[0_-0.5px_0_var(--separador)]">
         {dictado.error && (
-          <button type="button" onClick={dictado.limpiarError} className="mb-2 w-full animate-in rounded-xl bg-[#FFE5E7] px-3.5 py-2.5 text-left text-[15px] leading-5 text-destructive fade-in duration-200">
+          <button type="button" onClick={dictado.limpiarError} className="mb-2 w-full animate-in rounded-xl bg-card px-3.5 py-2.5 text-left text-[15px] leading-5 text-destructive fade-in duration-200">
             {dictado.error}
           </button>
         )}
@@ -192,7 +192,7 @@ export function Chat({ onGuardado }: { onGuardado?: () => void }) {
           className="flex items-end gap-2"
         >
           {grabando ? (
-            <div className="flex h-9 min-w-0 flex-grow items-center gap-2.5 rounded-[18px] border-[0.5px] border-[#C6C6C8] bg-card pl-1.5 pr-3">
+            <div className="flex h-9 min-w-0 flex-grow items-center gap-2.5 rounded-[18px] border-[0.5px] border-separador bg-card pl-1.5 pr-3">
               <button type="button" aria-label="Descartar grabación" onClick={dictado.cancelar} className="presionable flex size-7 shrink-0 items-center justify-center rounded-full text-muted-foreground">
                 <X className="size-[18px]" strokeWidth={2.4} />
               </button>
@@ -201,11 +201,11 @@ export function Chat({ onGuardado }: { onGuardado?: () => void }) {
               <Onda niveles={dictado.niveles} />
             </div>
           ) : transcribiendo ? (
-            <div className="flex h-9 flex-grow items-center gap-2 rounded-[18px] border-[0.5px] border-[#C6C6C8] bg-card px-3 text-[17px] text-muted-foreground">
+            <div className="flex h-9 flex-grow items-center gap-2 rounded-[18px] border-[0.5px] border-separador bg-card px-3 text-[17px] text-muted-foreground">
               <LoaderCircle className="size-4 animate-spin" /> Transcribiendo…
             </div>
           ) : (
-            <label className="flex min-h-9 flex-grow items-center rounded-[18px] border-[0.5px] border-[#C6C6C8] bg-card px-3 py-1.5">
+            <label className="flex min-h-9 flex-grow items-center rounded-[18px] border-[0.5px] border-separador bg-card px-3 py-1.5">
               <textarea
                 value={texto}
                 onChange={(e) => setTexto(e.target.value)}
@@ -219,7 +219,7 @@ export function Chat({ onGuardado }: { onGuardado?: () => void }) {
                 aria-label="Mensaje"
                 readOnly={escuchando}
                 placeholder={escuchando ? "Te escucho…" : messages.length ? "Responde o pide cambios" : "Describe el auto que buscas"}
-                className="max-h-32 w-full resize-none bg-transparent text-[17px] leading-[22px] outline-none [field-sizing:content] placeholder:text-[#C4C4C6]"
+                className="max-h-32 w-full resize-none bg-transparent text-[17px] leading-[22px] outline-none [field-sizing:content] placeholder:text-tenue"
               />
             </label>
           )}

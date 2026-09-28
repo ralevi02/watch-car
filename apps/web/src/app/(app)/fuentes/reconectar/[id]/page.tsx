@@ -72,8 +72,8 @@ export default function Reconectar({ params }: { params: Promise<{ id: string }>
             </div>
             <div>
               <div className="lista-ios">
-                <a href={link} target="_blank" rel="noopener noreferrer" className="fila-ios justify-between text-primary active:bg-black/5">
-                  Abrir en pantalla completa <ExternalLink className="size-4 text-[#C4C4C6]" strokeWidth={2.4} />
+                <a href={link} target="_blank" rel="noopener noreferrer" className="fila-ios justify-between text-primary active:bg-white/5">
+                  Abrir en pantalla completa <ExternalLink className="size-4 text-tenue" strokeWidth={2.4} />
                 </a>
                 <button
                   type="button"
@@ -81,7 +81,7 @@ export default function Reconectar({ params }: { params: Promise<{ id: string }>
                     await navigator.clipboard.writeText(rec?.clave ?? "");
                     setCopiado(true);
                   }}
-                  className="fila-ios w-full justify-between text-left text-primary active:bg-black/5"
+                  className="fila-ios w-full justify-between text-left text-primary active:bg-white/5"
                 >
                   {copiado ? "Clave copiada" : "Copiar clave de la vista"}
                   {copiado && <Check className="size-5 text-calza" strokeWidth={2.6} />}
@@ -111,17 +111,17 @@ export default function Reconectar({ params }: { params: Promise<{ id: string }>
             <Check className="size-5 shrink-0" strokeWidth={2.6} /> Listo: la sesión quedó guardada y la cuenta activa.
           </Aviso>
         )}
-        {(estado === "error" || estado === "vencida") && <Aviso clase="bg-[#FFE5E7] text-destructive">{rec?.error ?? "No se pudo reconectar."}</Aviso>}
+        {(estado === "error" || estado === "vencida") && <Aviso clase="bg-card text-destructive">{rec?.error ?? "No se pudo reconectar."}</Aviso>}
 
         {(rec?.run_url || terminado) && (
           <div className="lista-ios">
             {rec?.run_url && (
-              <a href={rec.run_url} target="_blank" rel="noopener noreferrer" className="fila-ios justify-between text-primary active:bg-black/5">
-                Ver la corrida en GitHub <ExternalLink className="size-4 text-[#C4C4C6]" strokeWidth={2.4} />
+              <a href={rec.run_url} target="_blank" rel="noopener noreferrer" className="fila-ios justify-between text-primary active:bg-white/5">
+                Ver la corrida en GitHub <ExternalLink className="size-4 text-tenue" strokeWidth={2.4} />
               </a>
             )}
             {terminado && (
-              <Link href="/fuentes" transitionTypes={["nav-atras"]} className="fila-ios text-primary active:bg-black/5">
+              <Link href="/fuentes" transitionTypes={["nav-atras"]} className="fila-ios text-primary active:bg-white/5">
                 Volver a Fuentes
               </Link>
             )}

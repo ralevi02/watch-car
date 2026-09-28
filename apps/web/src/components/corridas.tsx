@@ -1,9 +1,9 @@
 "use client";
 
 import { LoaderCircle, Play } from "lucide-react";
-import { useRouter } from "next/navigation";
 import { createContext, use, useCallback, useEffect, useRef, useState } from "react";
 import { correrAhora, leerCorridas } from "@/app/(app)/acciones";
+import { useAlmacen } from "@/lib/almacen";
 import type { EstadoCorrida, FuenteCorrible } from "@/lib/github";
 import { cn } from "@/lib/utils";
 
@@ -30,7 +30,7 @@ const useCorridas = () => {
  * GitHub cada 5 s mientras algo corre y recarga la pantalla para ver el registro.
  */
 export function ProveedorCorridas({ conGithub, children }: { conGithub: boolean; children: React.ReactNode }) {
-  const router = useRouter();
+  const { refrescar } = useAlmacen();
   const [estados, setEstados] = useState<Estados>({});
   const [error, setError] = useState<string | null>(null);
   const pedidas = useRef<Partial<Record<FuenteCorrible, number>>>({});
@@ -49,7 +49,7 @@ export function ProveedorCorridas({ conGithub, children }: { conGithub: boolean;
         for (const f of TODAS) if (!nuevo[f] && Date.now() - (pedidas.current[f] ?? 0) < 25_000) nuevo[f] = "pedida";
         return nuevo;
       });
-      if (activas && ++vueltas % 2 === 0) router.refresh();
+      if (activas && ++vueltas % 2 === 0) void refrescar();
     };
     void leer();
     if (!activas) return () => void (vivo = false);
@@ -58,14 +58,14 @@ export function ProveedorCorridas({ conGithub, children }: { conGithub: boolean;
       vivo = false;
       clearInterval(t);
     };
-  }, [activas, conGithub, router]);
+  }, [activas, conGithub, refrescar]);
 
   // Al terminar todo, una última recarga para ver el resultado en el registro.
   const habia = useRef(false);
   useEffect(() => {
-    if (habia.current && !activas) router.refresh();
+    if (habia.current && !activas) void refrescar();
     habia.current = activas;
-  }, [activas, router]);
+  }, [activas, refrescar]);
 
   const correr = useCallback(
     (f: FuenteCorrible | "todas") => {
@@ -100,7 +100,7 @@ export function AvisoCorridas() {
   const { error, limpiarError } = useCorridas();
   if (!error) return null;
   return (
-    <button type="button" onClick={limpiarError} className="animate-in rounded-xl bg-[#FFE5E7] px-3.5 py-2.5 text-left text-[15px] leading-5 text-destructive fade-in duration-200">
+    <button type="button" onClick={limpiarError} className="animate-in rounded-xl bg-card px-3.5 py-2.5 text-left text-[15px] leading-5 text-destructive fade-in duration-200">
       {error}
     </button>
   );
@@ -116,7 +116,7 @@ export function BotonCorrer({ fuente, nombre }: { fuente: FuenteCorrible; nombre
       aria-label={estado ? `${nombre}: ${TEXTO[estado]}` : `Correr ${nombre} ahora`}
       disabled={Boolean(estado)}
       onClick={() => correr(fuente)}
-      className={cn("presionable flex size-[30px] shrink-0 items-center justify-center rounded-full bg-muted text-primary", estado && "bg-transparent")}
+      className={cn("presionable flex size-[30px] shrink-0 items-center justify-center rounded-full bg-secondary text-foreground", estado && "bg-transparent")}
     >
       {estado ? <LoaderCircle className="size-[18px] animate-spin" strokeWidth={2.4} /> : <Play className="ml-0.5 size-3.5 fill-current" strokeWidth={0} />}
     </button>
@@ -126,7 +126,7 @@ export function BotonCorrer({ fuente, nombre }: { fuente: FuenteCorrible; nombre
 /** Reemplaza el subtítulo de una fila mientras la fuente corre. */
 export function EstadoFuente({ fuente, children }: { fuente: FuenteCorrible; children: React.ReactNode }) {
   const estado = useCorridas().estados[fuente];
-  return estado ? <span className="text-primary">{TEXTO[estado]}</span> : <>{children}</>;
+  return estado ? <span className="text-suave">{TEXTO[estado]}</span> : <>{children}</>;
 }
 
 /** "Correr todo" para la barra de arriba. */
@@ -134,7 +134,7 @@ export function BotonCorrerTodas() {
   const { estados, correr } = useCorridas();
   const todas = TODAS.every((f) => estados[f]);
   return (
-    <button type="button" disabled={todas} onClick={() => correr("todas")} className="presionable text-[17px] text-primary disabled:opacity-40">
+    <button type="button" disabled={todas} onClick={() => correr("todas")} className="presionable px-2 text-[15px] font-medium text-foreground disabled:opacity-40">
       Correr todo
     </button>
   );

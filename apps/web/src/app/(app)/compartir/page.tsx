@@ -37,7 +37,7 @@ export default async function Compartir({ searchParams }: PageProps<"/compartir"
                       {c.error ? (
                         <span className="text-[13px] leading-[18px] text-destructive">{c.error}</span>
                       ) : c.aviso_id ? (
-                        <Link href={`/auto/${c.aviso_id}`} className="text-[13px] leading-[18px] text-primary">
+                        <Link href={`/auto?id=${c.aviso_id}`} className="text-[13px] leading-[18px] text-primary">
                           Ver el auto
                         </Link>
                       ) : (

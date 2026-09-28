@@ -25,18 +25,18 @@ export function Encabezado({ titulo, children, izquierda }: { titulo: string; ch
         style={{ viewTransitionName: "encabezado" }}
         className={cn(
           "sticky top-0 z-20 pt-[env(safe-area-inset-top)] transition-[background-color,box-shadow] duration-200",
-          compacto ? "bg-barra shadow-[0_0.5px_0_var(--separador)] backdrop-blur-xl" : "bg-background",
+          compacto ? "bg-barra shadow-[0_1px_0_var(--separador)] backdrop-blur-xl" : "bg-background",
         )}
       >
-        <div className="relative flex h-11 items-center px-4">
+        <div className="relative flex h-11 items-center px-5">
           <div className="relative z-10 flex items-center gap-4">{izquierda}</div>
-          <span className={cn("pointer-events-none absolute inset-x-16 truncate text-center text-[17px] font-semibold transition-opacity duration-200", compacto ? "opacity-100" : "opacity-0")}>
+          <span className={cn("pointer-events-none absolute inset-x-24 truncate text-center text-[16px] font-semibold transition-opacity duration-200", compacto ? "opacity-100" : "opacity-0")}>
             {titulo}
           </span>
-          <div className="relative z-10 ml-auto flex items-center gap-5 text-primary">{children}</div>
+          <div className="relative z-10 -mr-2 ml-auto flex items-center gap-1 text-foreground">{children}</div>
         </div>
       </div>
-      <h1 ref={grande} className="px-4 pb-2 text-[34px] font-bold leading-[41px] tracking-[0.37px]">
+      <h1 ref={grande} className="px-5 pb-3 pt-1 text-[28px] font-bold leading-[34px] tracking-[-0.5px]">
         {titulo}
       </h1>
     </>

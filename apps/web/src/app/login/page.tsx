@@ -41,7 +41,7 @@ function Formulario() {
     else router.replace(siguiente);
   }
 
-  const campo = "block h-11 w-full bg-transparent px-4 text-[17px] outline-none placeholder:text-[#C4C4C6]";
+  const campo = "block h-11 w-full bg-transparent px-4 text-[17px] outline-none placeholder:text-tenue";
   const boton = "presionable flex h-[50px] items-center justify-center gap-2 rounded-[12px] bg-primary text-[17px] font-semibold text-primary-foreground disabled:opacity-40";
 
   return (

@@ -42,6 +42,7 @@ export interface ResultadoAuto {
   avisoPrincipal: string;
   titulo: string;
   anio: number | null;
+  marcaAuto: string | null;
   modelo: string | null;
   version: string | null;
   km: number | null;
@@ -85,7 +86,7 @@ export async function leerResultados(): Promise<ResultadoAuto[]> {
   const q = supabase
     .from("resultados")
     .select(
-      "veredicto, motivos, busqueda_id, avisos!inner(id, auto_id, fuente_id, url, titulo, anio, km, precio, precio_inicial, precio_descripcion, modelo, version, motor, caja, traccion, region, comuna, tipo_vendedor, vendedor, alertas, alerta_detalle, por_confirmar, estado, primera_vez, foto_url)",
+      "veredicto, motivos, busqueda_id, avisos!inner(id, auto_id, fuente_id, url, titulo, marca, anio, km, precio, precio_inicial, precio_descripcion, modelo, version, motor, caja, traccion, region, comuna, tipo_vendedor, vendedor, alertas, alerta_detalle, por_confirmar, estado, primera_vez, foto_url)",
     )
     .neq("veredicto", "fuera")
     .neq("avisos.estado", "vendido");
@@ -109,6 +110,7 @@ export async function leerResultados(): Promise<ResultadoAuto[]> {
         avisoPrincipal: a.id,
         titulo: a.titulo,
         anio: a.anio,
+        marcaAuto: a.marca,
         modelo: a.modelo,
         version: a.version,
         km: a.km,
@@ -202,21 +204,23 @@ export async function leerCompartidos() {
 }
 
 export interface DetalleAuto {
-  auto: ResultadoAuto;
   descripcion: string | null;
   fichas: { id: string; nombre: string; veredicto: string; motivos: string[] }[];
   precios: { aviso_id: string; precio: number; visto_en: string }[];
 }
 
-/** Un auto con todos sus avisos (puede estar en varios portales), para la pantalla de detalle. */
-export async function leerAuto(id: string): Promise<DetalleAuto | null> {
+/**
+ * Lo que la lista no trae de un auto: la descripción, el veredicto por ficha y
+ * el historial de precios de todos sus avisos. `id` es el del auto o de un aviso.
+ */
+export async function leerDetalle(id: string): Promise<DetalleAuto | null> {
   const supabase = await crearClienteServidor();
-  const todos = await leerResultados();
-  const auto = todos.find((r) => r.autoId === id || r.enlaces.some((e) => e.id === id));
-  if (!auto) return null;
-  const ids = auto.enlaces.map((e) => e.id);
-  const [{ data: avisos }, { data: resultados }, { data: precios }] = await Promise.all([
-    supabase.from("avisos").select("id, descripcion").in("id", ids),
+  const { data: avisos } = await supabase.from("avisos").select("id, auto_id, descripcion, precio").or(`auto_id.eq.${id},id.eq.${id}`);
+  if (!avisos?.length) return null;
+  const autoId = avisos.find((a) => a.id === id)?.auto_id;
+  const todos = autoId ? ((await supabase.from("avisos").select("id, auto_id, descripcion, precio").eq("auto_id", autoId)).data ?? avisos) : avisos;
+  const ids = todos.map((a) => a.id);
+  const [{ data: resultados }, { data: precios }] = await Promise.all([
     supabase.from("resultados").select("veredicto, motivos, busqueda_id, busquedas(nombre)").in("aviso_id", ids),
     supabase.from("precios").select("aviso_id, precio, visto_en").in("aviso_id", ids).order("visto_en"),
   ]);
@@ -225,17 +229,22 @@ export async function leerAuto(id: string): Promise<DetalleAuto | null> {
     const previo = fichas.get(r.busqueda_id);
     if (!previo || r.veredicto === "calza") fichas.set(r.busqueda_id, { id: r.busqueda_id, nombre: r.busquedas?.nombre ?? "Ficha", veredicto: r.veredicto, motivos: r.motivos });
   }
-  const descripcion = (avisos ?? []).find((a) => a.id === auto.avisoPrincipal)?.descripcion ?? (avisos ?? []).find((a) => a.descripcion)?.descripcion ?? null;
-  return { auto, descripcion, fichas: [...fichas.values()], precios: precios ?? [] };
+  // La descripción del aviso más barato, o la primera que haya.
+  const conPrecio = [...todos].sort((x, y) => (x.precio ?? Infinity) - (y.precio ?? Infinity));
+  const descripcion = conPrecio.find((a) => a.descripcion)?.descripcion ?? null;
+  return { descripcion, fichas: [...fichas.values()], precios: precios ?? [] };
 }
 
-/** Cuántos autos calzan o entran con advertencia en cada ficha (sin contar descartados). */
-export async function contarPorBusqueda(): Promise<Record<string, number>> {
-  const todos = await leerResultados();
-  const cuentas: Record<string, number> = {};
-  for (const r of todos) {
-    if (r.marca?.estado === "descartado") continue;
-    for (const id of Object.keys(r.porBusqueda)) cuentas[id] = (cuentas[id] ?? 0) + 1;
+/** Todo lo que muestran las pestañas, en una sola lectura (el teléfono lo guarda). */
+export async function leerTodo() {
+  const [dueno, resultados, busquedas, fuentes, facebook] = await Promise.all([esDueno(), leerResultados(), leerBusquedas(), leerFuentesYPasadas(), leerFacebook()]);
+  let usuario: { email?: string; id?: string } | null = null;
+  if (!dueno) {
+    const supabase = await crearClienteServidor();
+    const { data } = await supabase.auth.getClaims();
+    usuario = { email: data?.claims.email as string | undefined, id: data?.claims.sub };
   }
-  return cuentas;
+  return { dueno, usuario, resultados, busquedas, fuentes, facebook, leidoEn: Date.now() };
 }
+
+export type Todo = Awaited<ReturnType<typeof leerTodo>>;

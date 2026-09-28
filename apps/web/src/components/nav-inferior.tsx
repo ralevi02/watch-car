@@ -5,28 +5,43 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 
-const Seguimientos = ({ activo }: { activo: boolean }) =>
-  activo ? (
-    <svg width="27" height="27" viewBox="0 0 24 24" fill="currentColor"><path d="M4 4h16a1 1 0 011 1v11a1 1 0 01-1 1H9.4l-4.8 3.8A.4.4 0 014 20.5V5a1 1 0 011-1z" /></svg>
-  ) : (
-    <svg width="27" height="27" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round"><path d="M4 4.8h16v11.4H9.2L4 20.2z" /></svg>
-  );
-const Resultados = ({ activo }: { activo: boolean }) => (
-  <svg width="27" height="27" viewBox="0 0 24 24" fill={activo ? "currentColor" : "none"} stroke="currentColor" strokeWidth={activo ? 0 : 1.6} strokeLinejoin="round">
-    <path d="M5.5 10.5l1.6-4.2A2 2 0 019 5h6a2 2 0 011.9 1.3l1.6 4.2A2 2 0 0120 12.4V17a1 1 0 01-1 1h-1.2a1 1 0 01-1-1v-1H7.2v1a1 1 0 01-1 1H5a1 1 0 01-1-1v-4.6a2 2 0 011.5-1.9zM7.6 10h8.8l-1.2-3.2a.8.8 0 00-.7-.5H9.5a.8.8 0 00-.7.5z" />
-  </svg>
-);
-const Fuentes = ({ activo }: { activo: boolean }) => (
-  <svg width="27" height="27" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={activo ? 2.2 : 1.7} strokeLinecap="round">
-    <circle cx="12" cy="12" r="2" fill={activo ? "currentColor" : "none"} />
-    <path d="M8.5 15.5a5 5 0 010-7M15.5 8.5a5 5 0 010 7M5.6 18.4a9 9 0 010-12.8M18.4 5.6a9 9 0 010 12.8" />
-  </svg>
-);
+const trazo = { fill: "none", stroke: "currentColor", strokeLinecap: "round", strokeLinejoin: "round" } as const;
 
 const ITEMS = [
-  { href: "/", etiqueta: "Seguimientos", Icono: Seguimientos },
-  { href: "/resultados", etiqueta: "Resultados", Icono: Resultados },
-  { href: "/fuentes", etiqueta: "Fuentes", Icono: Fuentes },
+  {
+    href: "/",
+    etiqueta: "Seguimientos",
+    icono: (activo: boolean) => (
+      <svg width="23" height="23" viewBox="0 0 24 24" {...trazo} strokeWidth={activo ? 2 : 1.7}>
+        <path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z" />
+      </svg>
+    ),
+  },
+  {
+    href: "/resultados",
+    etiqueta: "Resultados",
+    icono: (activo: boolean) => (
+      <svg width="23" height="23" viewBox="0 0 24 24" {...trazo} strokeWidth={activo ? 2 : 1.7}>
+        <path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2" />
+        <circle cx="7" cy="17" r="2" />
+        <path d="M9 17h6" />
+        <circle cx="17" cy="17" r="2" />
+      </svg>
+    ),
+  },
+  {
+    href: "/fuentes",
+    etiqueta: "Fuentes",
+    icono: (activo: boolean) => (
+      <svg width="23" height="23" viewBox="0 0 24 24" {...trazo} strokeWidth={activo ? 2 : 1.7}>
+        <path d="M4.9 19.1C1 15.2 1 8.8 4.9 4.9" />
+        <path d="M7.8 16.2c-2.3-2.3-2.3-6.1 0-8.5" />
+        <circle cx="12" cy="12" r="2" />
+        <path d="M16.2 7.8c2.3 2.3 2.3 6.1 0 8.5" />
+        <path d="M19.1 4.9C23 8.8 23 15.1 19.1 19" />
+      </svg>
+    ),
+  },
 ];
 
 const indiceDe = (ruta: string) => {
@@ -35,20 +50,16 @@ const indiceDe = (ruta: string) => {
   return i < 0 ? (ruta.startsWith("/auto") || ruta.startsWith("/compartir") ? 1 : 0) : i;
 };
 
-/** Barra de pestañas al estilo iOS: translúcida, con la pestaña activa en el color de tinte. */
+/** Barra de pestañas: se marca apenas se toca, sin esperar a que cambie la página. */
 export function NavInferior() {
   const ruta = usePathname();
-  // La pestaña se marca apenas se toca, sin esperar a que llegue la página.
   const [activo, setActivo] = useState(() => indiceDe(ruta));
   useEffect(() => setActivo(indiceDe(ruta)), [ruta]);
 
   return (
-    <nav
-      style={{ viewTransitionName: "nav-inferior" }}
-      className="fixed inset-x-0 bottom-0 z-30 bg-barra pb-[env(safe-area-inset-bottom)] shadow-[0_-0.5px_0_var(--separador)] backdrop-blur-xl"
-    >
-      <ul className="mx-auto grid h-[50px] max-w-2xl grid-cols-3">
-        {ITEMS.map(({ href, etiqueta, Icono }, i) => (
+    <nav style={{ viewTransitionName: "nav-inferior" }} className="fixed inset-x-0 bottom-0 z-30 border-t border-separador bg-barra pb-[env(safe-area-inset-bottom)] backdrop-blur-xl">
+      <ul className="mx-auto grid h-[56px] max-w-2xl grid-cols-3">
+        {ITEMS.map(({ href, etiqueta, icono }, i) => (
           <li key={href}>
             <Link
               href={href}
@@ -59,9 +70,9 @@ export function NavInferior() {
                 setActivo(i);
               }}
               aria-current={i === activo ? "page" : undefined}
-              className={cn("presionable flex h-full flex-col items-center justify-center gap-0.5 pt-1 text-[10px] font-medium", i === activo ? "text-primary" : "text-[#8A8A8E]")}
+              className={cn("presionable flex h-full flex-col items-center justify-center gap-1 text-[11px]", i === activo ? "font-semibold text-foreground" : "font-medium text-tenue")}
             >
-              <Icono activo={i === activo} />
+              {icono(i === activo)}
               {etiqueta}
             </Link>
           </li>

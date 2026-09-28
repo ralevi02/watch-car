@@ -7,6 +7,7 @@ import { borrarCuentaFacebook, cambiarCuentaFacebook, configurarFacebook, crearC
 import { BotonCorrer, EstadoFuente } from "@/components/corridas";
 import { Hoja } from "@/components/ui/hoja";
 import { Interruptor } from "@/components/ui/interruptor";
+import { useAlmacen } from "@/lib/almacen";
 import { cn } from "@/lib/utils";
 
 interface Cuenta {
@@ -30,6 +31,9 @@ const fecha = (s: string) => new Date(s).toLocaleString("es-CL", { timeZone: "Am
 
 export function CuentasFacebook({ activa, rotacion, pasadasPorDia, cuentas }: { activa: boolean; rotacion: boolean; pasadasPorDia: number; cuentas: Cuenta[] }) {
   const router = useRouter();
+  const { refrescar } = useAlmacen();
+  /** Cada acción termina releyendo lo guardado, para que la pantalla muestre el cambio. */
+  const y = <T,>(p: Promise<T>) => p.then((x) => (void refrescar(), x));
   const [pendiente, iniciar] = useTransition();
   const [abierta, setAbierta] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -55,10 +59,10 @@ export function CuentasFacebook({ activa, rotacion, pasadasPorDia, cuentas }: { 
             </span>
           </span>
           {activa && <BotonCorrer fuente="facebook" nombre="Facebook" />}
-          <Interruptor activo={activa} etiqueta="Buscar en Facebook" onCambio={(v) => configurarFacebook({ activa: v })} />
+          <Interruptor activo={activa} etiqueta="Buscar en Facebook" onCambio={(v) => y(configurarFacebook({ activa: v }))} />
         </div>
         {cuentas.map((c) => (
-          <button key={c.id} type="button" onClick={() => setAbierta(c.id)} className="fila-ios w-full justify-between text-left active:bg-black/5">
+          <button key={c.id} type="button" onClick={() => setAbierta(c.id)} className="fila-ios w-full justify-between text-left active:bg-white/5">
             <span className="flex min-w-0 flex-col">
               <span>{c.nombre}</span>
               <span className={cn("text-[13px] leading-[18px]", ESTADO[c.estado]?.clase)}>
@@ -66,7 +70,7 @@ export function CuentasFacebook({ activa, rotacion, pasadasPorDia, cuentas }: { 
                 {c.ultima_ok ? ` · última pasada ${fecha(c.ultima_ok)}` : ""}
               </span>
             </span>
-            <ChevronRight className="size-5 shrink-0 text-[#C4C4C6]" strokeWidth={2.4} />
+            <ChevronRight className="size-5 shrink-0 text-tenue" strokeWidth={2.4} />
           </button>
         ))}
         <button
@@ -74,24 +78,24 @@ export function CuentasFacebook({ activa, rotacion, pasadasPorDia, cuentas }: { 
           disabled={pendiente}
           onClick={() =>
             iniciar(async () => {
-              const r = await crearCuentaFacebook(`Cuenta ${cuentas.length + 1}`);
+              const r = await y(crearCuentaFacebook(`Cuenta ${cuentas.length + 1}`));
               if (r.ok && r.id) setAbierta(r.id);
               else if (!r.ok) setError(r.error);
             })
           }
-          className="fila-ios w-full text-primary active:bg-black/5"
+          className="fila-ios w-full text-foreground active:bg-white/5"
         >
           <Plus className="size-5" strokeWidth={2.4} /> Agregar cuenta secundaria
         </button>
         <label className="fila-ios justify-between">
           <span>Rotar entre cuentas</span>
-          <Interruptor activo={rotacion} etiqueta="Rotar entre cuentas" onCambio={(v) => configurarFacebook({ rotacion: v })} />
+          <Interruptor activo={rotacion} etiqueta="Rotar entre cuentas" onCambio={(v) => y(configurarFacebook({ rotacion: v }))} />
         </label>
         <label className="fila-ios justify-between">
           <span>Pasadas por día y cuenta</span>
           <select
             value={pasadasPorDia}
-            onChange={(e) => iniciar(() => configurarFacebook({ pasadas_por_dia: Number(e.target.value) }))}
+            onChange={(e) => iniciar(() => y(configurarFacebook({ pasadas_por_dia: Number(e.target.value) })))}
             className="bg-transparent text-right text-muted-foreground outline-none"
           >
             {[1, 2, 3, 4].map((n) => (
@@ -114,11 +118,11 @@ export function CuentasFacebook({ activa, rotacion, pasadasPorDia, cuentas }: { 
               {actual.ultimo_error && <div className="fila-ios text-[15px] text-destructive">{actual.ultimo_error}</div>}
             </div>
             <div className="lista-ios">
-              <button type="button" disabled={pendiente} onClick={() => reconectar(actual.id)} className="fila-ios w-full text-primary active:bg-black/5">
+              <button type="button" disabled={pendiente} onClick={() => reconectar(actual.id)} className="fila-ios w-full text-foreground active:bg-white/5">
                 {actual.estado === "sin_sesion" ? "Iniciar sesión" : "Reconectar"}
               </button>
               {(actual.estado === "activa" || actual.estado === "pausada") && (
-                <button type="button" disabled={pendiente} onClick={() => iniciar(() => cambiarCuentaFacebook(actual.id, actual.estado === "activa" ? "pausada" : "activa"))} className="fila-ios w-full text-primary active:bg-black/5">
+                <button type="button" disabled={pendiente} onClick={() => iniciar(() => y(cambiarCuentaFacebook(actual.id, actual.estado === "activa" ? "pausada" : "activa")))} className="fila-ios w-full text-foreground active:bg-white/5">
                   {actual.estado === "activa" ? "Pausar cuenta" : "Activar cuenta"}
                 </button>
               )}
@@ -128,9 +132,9 @@ export function CuentasFacebook({ activa, rotacion, pasadasPorDia, cuentas }: { 
                 type="button"
                 disabled={pendiente}
                 onClick={() => {
-                  if (confirm(`¿Borrar «${actual.nombre}» y su sesión guardada?`)) iniciar(async () => { await borrarCuentaFacebook(actual.id); setAbierta(null); });
+                  if (confirm(`¿Borrar «${actual.nombre}» y su sesión guardada?`)) iniciar(async () => { await y(borrarCuentaFacebook(actual.id)); setAbierta(null); });
                 }}
-                className="fila-ios w-full justify-center text-destructive active:bg-black/5"
+                className="fila-ios w-full justify-center text-destructive active:bg-white/5"
               >
                 Borrar cuenta
               </button>

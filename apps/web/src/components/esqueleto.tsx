@@ -13,10 +13,10 @@ export function Esqueleto({ titulo, tarjetas = 3 }: { titulo: string; tarjetas?:
           <div className="h-9 animate-pulse rounded-[10px] bg-muted" />
           {Array.from({ length: tarjetas }, (_, i) => (
             <div key={i} className="overflow-hidden rounded-[14px] bg-card" style={{ animationDelay: `${i * 120}ms` }}>
-              <div className="aspect-[16/9] animate-pulse bg-[#E5E5EA]" />
+              <div className="aspect-[16/9] animate-pulse bg-secondary" />
               <div className="flex flex-col gap-2 p-3.5">
-                <div className="h-4 w-2/3 animate-pulse rounded bg-[#E5E5EA]" />
-                <div className="h-3.5 w-1/2 animate-pulse rounded bg-[#EFEFF4]" />
+                <div className="h-4 w-2/3 animate-pulse rounded bg-secondary" />
+                <div className="h-3.5 w-1/2 animate-pulse rounded bg-card" />
               </div>
             </div>
           ))}

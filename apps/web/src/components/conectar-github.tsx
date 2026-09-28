@@ -3,6 +3,7 @@
 import { ExternalLink, LoaderCircle } from "lucide-react";
 import { useState, useTransition } from "react";
 import { conectarGithub, desconectarGithub } from "@/app/(app)/acciones";
+import { useAlmacen } from "@/lib/almacen";
 
 // GitHub completa nombre, descripción, vencimiento y el permiso de Actions con estos parámetros.
 const CREAR_TOKEN =
@@ -13,6 +14,7 @@ export function ConectarGithub({ conectado }: { conectado: boolean }) {
   const [token, setToken] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pendiente, iniciar] = useTransition();
+  const { refrescar } = useAlmacen();
 
   return (
     <section id="github">
@@ -27,7 +29,7 @@ export function ConectarGithub({ conectado }: { conectado: boolean }) {
             <button
               type="button"
               disabled={pendiente}
-              onClick={() => confirm("¿Quitar el token de GitHub? Los botones para correr dejan de funcionar hasta que pegues otro.") && iniciar(() => desconectarGithub())}
+              onClick={() => confirm("¿Quitar el token de GitHub? Los botones para correr dejan de funcionar hasta que pegues otro.") && iniciar(async () => { await desconectarGithub(); await refrescar(); })}
               className="presionable text-[17px] text-destructive"
             >
               Quitar
@@ -35,8 +37,8 @@ export function ConectarGithub({ conectado }: { conectado: boolean }) {
           </div>
         ) : (
           <>
-            <a href={CREAR_TOKEN} target="_blank" rel="noopener noreferrer" className="fila-ios justify-between text-primary active:bg-black/5">
-              Crear token en GitHub <ExternalLink className="size-4 text-[#C4C4C6]" strokeWidth={2.4} />
+            <a href={CREAR_TOKEN} target="_blank" rel="noopener noreferrer" className="fila-ios justify-between text-foreground active:bg-white/5">
+              Crear token en GitHub <ExternalLink className="size-4 text-tenue" strokeWidth={2.4} />
             </a>
             <form
               className="flex items-center gap-3 py-1.5 pl-4 pr-2"
@@ -45,7 +47,10 @@ export function ConectarGithub({ conectado }: { conectado: boolean }) {
                 iniciar(async () => {
                   setError(null);
                   const r = await conectarGithub(token);
-                  if (r.ok) setToken("");
+                  if (r.ok) {
+                    setToken("");
+                    await refrescar();
+                  }
                   else setError(r.error);
                 });
               }}
@@ -58,7 +63,7 @@ export function ConectarGithub({ conectado }: { conectado: boolean }) {
                 onChange={(e) => setToken(e.target.value)}
                 placeholder="Pega el token (github_pat_…)"
                 aria-label="Token de GitHub"
-                className="h-9 min-w-0 flex-grow bg-transparent text-[17px] outline-none placeholder:text-[#C4C4C6]"
+                className="h-9 min-w-0 flex-grow bg-transparent text-[17px] outline-none placeholder:text-tenue"
               />
               <button type="submit" disabled={pendiente || !token.trim()} className="presionable flex h-9 shrink-0 items-center gap-1.5 rounded-full bg-primary px-4 text-[15px] font-semibold text-primary-foreground disabled:opacity-40">
                 {pendiente && <LoaderCircle className="size-4 animate-spin" />} Guardar

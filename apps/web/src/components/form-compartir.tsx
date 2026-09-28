@@ -35,7 +35,7 @@ export function FormCompartir({ inicial }: { inicial: string }) {
           placeholder="Pega el link del aviso"
           rows={3}
           aria-label="Link del aviso"
-          className="block w-full resize-none bg-transparent px-4 py-3 text-[17px] leading-[22px] outline-none placeholder:text-[#C4C4C6]"
+          className="block w-full resize-none bg-transparent px-4 py-3 text-[17px] leading-[22px] outline-none placeholder:text-tenue"
         />
       </div>
       <button type="submit" disabled={pendiente || !texto.trim()} className="presionable flex h-[50px] items-center justify-center gap-2 rounded-[12px] bg-primary text-[17px] font-semibold text-primary-foreground disabled:opacity-40">

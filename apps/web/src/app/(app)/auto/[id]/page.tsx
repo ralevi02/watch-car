@@ -1,10 +1,6 @@
-import { notFound } from "next/navigation";
-import { DetalleAuto } from "@/components/detalle-auto";
-import { leerAuto } from "@/lib/datos";
+import { redirect } from "next/navigation";
 
-export default async function Auto({ params }: PageProps<"/auto/[id]">) {
-  const { id } = await params;
-  const detalle = await leerAuto(id);
-  if (!detalle) notFound();
-  return <DetalleAuto {...detalle} />;
+/** Links antiguos: el detalle ahora es /auto?id=, una página fija que lee del teléfono. */
+export default async function AutoAntiguo({ params }: PageProps<"/auto/[id]">) {
+  redirect(`/auto?id=${encodeURIComponent((await params).id)}`);
 }
