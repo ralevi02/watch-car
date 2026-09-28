@@ -124,6 +124,14 @@ export async function recolectarFacebook(s: Sesion, ficha: Seguimiento, op: Opci
         const c = await capturar(page, "facebook-sin-resultados");
         if (c) r.capturas.push(c);
         r.diagnostico = { ...(await diagnosticar(page, r.descartadas)), red: [...red], vehiculos, muestraBusqueda };
+        // Página cargada, sesión viva, pero Facebook no pidió ni mostró avisos: se lo guarda para él.
+        if (!red.some((x) => /marketplace/i.test(x)) && (vehiculos?.enlaces ?? 0) === 0) {
+          r.errores.push(
+            process.env.PROXY_URL
+              ? "Facebook no mostró avisos a esta cuenta (puede estar restringida para Marketplace)"
+              : "Facebook no muestra avisos desde la IP de GitHub: necesita el proxy residencial",
+          );
+        }
       }
     }
     r.paginasTotales = r.paginasLeidas + cola.length;

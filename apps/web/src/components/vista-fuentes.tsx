@@ -34,7 +34,7 @@ const motivo = (p: { estado: string; detalle: unknown }) => {
   if (p.estado === "ok" || p.estado === "corriendo") return null;
   const d = (p.detalle ?? {}) as { errores?: string[]; bloqueo?: string };
   const m = d.bloqueo ?? d.errores?.[0];
-  return m?.includes("PROXY_URL") ? "Bloquea las IPs de GitHub: necesita proxy" : (m ?? null);
+  return m?.includes("PROXY_URL") || m?.includes("proxy residencial") ? "Bloquea las IPs de GitHub: necesita proxy" : (m ?? null);
 };
 
 const fecha = (s: string) => new Date(s).toLocaleString("es-CL", { timeZone: "America/Santiago", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
