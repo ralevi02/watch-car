@@ -2,7 +2,7 @@ import type { Page } from "patchright";
 import type { Seguimiento } from "@radar/core";
 import { capturar, pausa, scrollHumano, type Sesion } from "../../lib/navegador.js";
 import type { AvisoPortal, OpcionesRecoleccion, ResultadoRecoleccion } from "../tipos.js";
-import { consultas, detectarMuro, leerDetalle, leerTarjeta, tramosDePrecio, urlBusqueda } from "./lector.js";
+import { consultas, detectarMuro, leerDetalle, leerTarjeta, tramosDePrecio, urlBusqueda, urlVehiculos } from "./lector.js";
 
 /** Facebook muestra ~24 resultados por búsqueda; si llega cerca del tope, se barre por tramos de precio. */
 const TOPE_RESULTADOS = 20;
@@ -73,6 +73,14 @@ export async function recolectarFacebook(s: Sesion, ficha: Seguimiento, op: Opci
   const vistos = new Map<string, AvisoPortal>();
   const page = await s.context.newPage();
   const maxBusquedas = op.maxPaginas ?? 5;
+  // Respuestas internas de Facebook (GraphQL), para el diagnóstico si no aparece nada.
+  const red: string[] = [];
+  page.on("response", async (res) => {
+    if (!res.url().includes("/api/graphql") || red.length >= 25) return;
+    const nombre = res.request().headers()["x-fb-friendly-name"] ?? "?";
+    const cuerpo = await res.text().catch(() => "");
+    red.push(`${nombre} ${res.status()} ${Math.round(cuerpo.length / 1024)}KB${/"errors"\s*:/.test(cuerpo) ? " con errores" : ""}${/marketplace_search|listing/i.test(cuerpo) ? " con avisos" : ""}`);
+  });
 
   try {
     const cola = consultas(ficha).map((q) => ({ q, tramo: undefined as { min?: number; max?: number } | undefined }));
@@ -84,8 +92,23 @@ export async function recolectarFacebook(s: Sesion, ficha: Seguimiento, op: Opci
       await pausa(3000, 6000);
       await revisarMuro(page);
       await cerrarDialogos(page);
+      // Los avisos llegan después de la página: se esperan hasta 15 s.
+      await page.waitForSelector('a[href*="/marketplace/item/"]', { timeout: 15_000 }).catch(() => {});
       await scrollHumano(page, 4);
-      const grilla = await leerGrilla(page);
+      let grilla = await leerGrilla(page);
+      // La búsqueda general a veces sale vacía: se prueba dentro de Vehículos.
+      let vehiculos: { url: string; enlaces: number } | undefined;
+      if (grilla.length === 0) {
+        const url = urlVehiculos(ficha, q, op.ciudad, tramo);
+        await pausa(4000, 8000);
+        await page.goto(url, { waitUntil: "domcontentloaded", timeout: 45_000 });
+        await pausa(3000, 6000);
+        await revisarMuro(page);
+        await page.waitForSelector('a[href*="/marketplace/item/"]', { timeout: 15_000 }).catch(() => {});
+        await scrollHumano(page, 3);
+        grilla = await leerGrilla(page);
+        vehiculos = { url, enlaces: grilla.length };
+      }
       r.paginasLeidas++;
       for (const { c, aviso } of grilla) {
         if (!aviso) r.descartadas.push(`${c.id}: ${c.texto.replace(/\s+/g, " ").slice(0, 80)}`);
@@ -98,7 +121,7 @@ export async function recolectarFacebook(s: Sesion, ficha: Seguimiento, op: Opci
       if (r.paginasLeidas === 1 && vistos.size === 0) {
         const c = await capturar(page, "facebook-sin-resultados");
         if (c) r.capturas.push(c);
-        r.diagnostico = await diagnosticar(page, r.descartadas);
+        r.diagnostico = { ...(await diagnosticar(page, r.descartadas)), red: [...red], vehiculos };
       }
     }
     r.paginasTotales = r.paginasLeidas + cola.length;

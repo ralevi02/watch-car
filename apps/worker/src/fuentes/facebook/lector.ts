@@ -23,6 +23,15 @@ export function consultas(f: Seguimiento): string[] {
   return [...unicas.values()].slice(0, 2);
 }
 
+/** La misma búsqueda dentro de la categoría Vehículos (acepta año y km). */
+export function urlVehiculos(f: Seguimiento, consulta: string, ciudad = "santiago", precio?: { min?: number; max?: number }): string {
+  const u = new URL(urlBusqueda(f, consulta, ciudad, precio));
+  u.pathname = `/marketplace/${ciudad}/vehicles/`;
+  const maxKm = f.km.maxConAdvertencia ?? f.km.max;
+  if (maxKm) u.searchParams.set("maxMileage", String(maxKm));
+  return u.toString();
+}
+
 export function urlBusqueda(f: Seguimiento, consulta: string, ciudad = "santiago", precio?: { min?: number; max?: number }): string {
   const p = new URLSearchParams();
   p.set("query", consulta);
