@@ -99,7 +99,9 @@ Las tres fases están en código. Supabase `watch-car` (id `ssmtlqtpzzhkhibkcfhi
 
 ## Diseño
 
-Hay un mockup (claude.ai, privado de Raimundo) con 3 pantallas web y 4 móviles: Seguimientos con chat, Resultados (atajos Nuevos / Bajó de precio / Con advertencia), Fuentes (cuentas de Facebook con estado, reconectar, agregar, rotación automática, frecuencia, horario, registro de pasadas) y la hoja "Reconectar Facebook" con navegador seguro en vivo. Después se probaron 3 direcciones con fotos (canvas en claude.ai) y Raimundo eligió la **A, "Nativa" (estilo iOS)**: letra del sistema, fondo `#F2F2F7`, tarjetas blancas sin borde, azul petróleo `#2B5A87` como color de acción, verde `#34C759` en interruptores. Ya está aplicada en toda la app.
+Dirección elegida (septiembre 2026): **F3 "Cabina en filas"** del canvas claude.ai/artifact/MMygXQ1yjauDfjiGajuhHF. Oscuro y liviano: fondo `#17191c`, superficies `#212429`, texto `#eceef1` / `#b4bac2` / `#7d848d`, letra Figtree. Resultados en filas con foto chica (116×88), agrupados por ficha. Lo que hay que revisar va como etiqueta corta en ámbar `#e8b25a` con borde fino ("Compañía de seguros", "Km sobre tu tope"), nunca como caja con triángulo ni frases tipo "Dos cosas para preguntar" (a Raimundo le parecen "muy IA"). "Calza" en menta `#72d3a2`. Botón principal claro sobre oscuro.
+
+**Velocidad:** las pestañas (`/`, `/resultados`, `/fuentes`, `/auto?id=`) son páginas estáticas; los datos viven en el teléfono (`lib/almacen.tsx`, localStorage) y se actualizan por detrás desde `/api/datos` (al abrir, al volver a la app y cada 60 s). Las acciones cambian el almacén al tiro (optimista). No agregar lecturas al servidor en el layout ni en esas páginas: vuelven dinámicas todas las pestañas. El detalle no usa ViewTransition porque React espera la foto grande antes de animar.
 
 ## Fases
 
