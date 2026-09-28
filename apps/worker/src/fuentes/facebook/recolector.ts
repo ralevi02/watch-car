@@ -75,10 +75,12 @@ export async function recolectarFacebook(s: Sesion, ficha: Seguimiento, op: Opci
   const maxBusquedas = op.maxPaginas ?? 5;
   // Respuestas internas de Facebook (GraphQL), para el diagnóstico si no aparece nada.
   const red: string[] = [];
+  let muestraBusqueda: string | undefined;
   page.on("response", async (res) => {
     if (!res.url().includes("/api/graphql") || red.length >= 25) return;
     const nombre = res.request().headers()["x-fb-friendly-name"] ?? "?";
     const cuerpo = await res.text().catch(() => "");
+    if (/search/i.test(nombre) && !muestraBusqueda) muestraBusqueda = `${nombre}: ${cuerpo.slice(0, 3000)}`;
     red.push(`${nombre} ${res.status()} ${Math.round(cuerpo.length / 1024)}KB${/"errors"\s*:/.test(cuerpo) ? " con errores" : ""}${/marketplace_search|listing/i.test(cuerpo) ? " con avisos" : ""}`);
   });
 
@@ -121,7 +123,7 @@ export async function recolectarFacebook(s: Sesion, ficha: Seguimiento, op: Opci
       if (r.paginasLeidas === 1 && vistos.size === 0) {
         const c = await capturar(page, "facebook-sin-resultados");
         if (c) r.capturas.push(c);
-        r.diagnostico = { ...(await diagnosticar(page, r.descartadas)), red: [...red], vehiculos };
+        r.diagnostico = { ...(await diagnosticar(page, r.descartadas)), red: [...red], vehiculos, muestraBusqueda };
       }
     }
     r.paginasTotales = r.paginasLeidas + cola.length;

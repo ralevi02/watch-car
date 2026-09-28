@@ -58,7 +58,7 @@ async function guardarDiagnostico(db: ClienteDb, pasadaId: string, d: NonNullabl
     const { error } = await db.storage.from("diagnostico").upload(ruta, d.captura, { contentType: "image/png", upsert: true });
     captura = error ? `error: ${error.message}` : ruta;
   }
-  return { url: d.url, titulo: d.titulo, texto: d.texto, enlaces: d.enlaces, muestra_enlaces: d.muestraEnlaces, descartadas: d.descartadas, red: d.red ?? null, vehiculos: d.vehiculos ?? null, captura };
+  return { url: d.url, titulo: d.titulo, texto: d.texto, enlaces: d.enlaces, muestra_enlaces: d.muestraEnlaces, descartadas: d.descartadas, red: d.red ?? null, vehiculos: d.vehiculos ?? null, muestra_busqueda: d.muestraBusqueda ?? null, captura };
 }
 
 interface Preparada {
@@ -143,7 +143,8 @@ async function main() {
   const notificaciones: Notificacion[] = [];
   const resultados: ResultadoRecoleccion[] = [];
   let fallidas = 0;
-  const s = await abrirNavegador();
+  // Facebook: página completa, con imágenes y fuentes, como la ve una persona.
+  const s = await abrirNavegador(FUENTE === "facebook" ? { bloquearRecursos: false } : {});
   try {
     const motivo = await prep.alAbrir?.(s);
     if (motivo) {
