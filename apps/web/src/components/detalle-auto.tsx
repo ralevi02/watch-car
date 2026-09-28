@@ -5,7 +5,6 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { guardarNota, marcarAuto } from "@/app/(app)/acciones";
-import { Pantalla } from "@/components/pantalla";
 import { useAlmacen } from "@/lib/almacen";
 import { fotoGrande } from "@/lib/fotos";
 import { bajo, caja, ETIQUETA_ALERTA, etiquetas, haceDias, lugar, miles, NOMBRE_FUENTE, pesos, tituloAuto } from "@/lib/presentar";
@@ -35,7 +34,7 @@ export function DetalleAuto() {
 
   if (!r) {
     return (
-      <Pantalla>
+      <div className="animate-in fade-in duration-150">
         <header className="flex items-center px-2 pt-[calc(env(safe-area-inset-top)+6px)]">
           <Link href="/resultados" transitionTypes={["nav-atras"]} className="flex h-11 items-center gap-0.5 pr-2 text-[16px] font-medium text-suave">
             <ChevronLeft className="size-6" strokeWidth={2} /> Resultados
@@ -46,7 +45,7 @@ export function DetalleAuto() {
         ) : (
           <div className="mx-5 mt-2 aspect-[3/2] animate-pulse rounded-[18px] bg-card" aria-busy="true" aria-label="Cargando" />
         )}
-      </Pantalla>
+      </div>
     );
   }
 
@@ -82,7 +81,7 @@ export function DetalleAuto() {
   };
 
   return (
-    <Pantalla>
+    <div className="animate-in fade-in duration-150">
       <header className="flex items-center justify-between px-2 pt-[calc(env(safe-area-inset-top)+6px)]">
         <button type="button" onClick={volver} className="presionable flex h-11 items-center gap-0.5 pr-2 text-[16px] font-medium text-suave">
           <ChevronLeft className="size-6" strokeWidth={2} /> Resultados
@@ -98,9 +97,13 @@ export function DetalleAuto() {
       </header>
 
       <main className="flex flex-col px-5 pb-[calc(9rem+env(safe-area-inset-bottom))] pt-1.5">
-        <div className="aspect-[3/2] overflow-hidden rounded-[18px] bg-card">
-          {foto ? (
-            <img src={foto} alt={`${tituloAuto(r)} ${r.anio ?? ""}`} className="size-full object-cover" />
+        <div className="relative aspect-[3/2] overflow-hidden rounded-[18px] bg-card">
+          {foto && r.foto ? (
+            <>
+              {/* La foto chica ya está en caché por la lista: se ve al tiro y la grande la tapa al llegar. */}
+              <img src={r.foto} alt="" className="absolute inset-0 size-full object-cover" />
+              <img src={foto} alt={`${tituloAuto(r)} ${r.anio ?? ""}`} decoding="async" className="relative size-full object-cover" />
+            </>
           ) : (
             <div className="flex size-full items-center justify-center text-tenue">
               <Car className="size-14" strokeWidth={1.2} />
@@ -222,6 +225,6 @@ export function DetalleAuto() {
           </a>
         )}
       </div>
-    </Pantalla>
+    </div>
   );
 }

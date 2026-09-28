@@ -12,7 +12,6 @@ export function FilaResultado({ r, destacado }: { r: ResultadoAuto; destacado?: 
   return (
     <Link
       href={`/auto?id=${r.autoId}`}
-      transitionTypes={["nav-adelante"]}
       aria-label={`${tituloAuto(r)}, ${r.precio !== null ? pesos(r.precio) : "sin precio"}`}
       className={cn("presionable flex gap-3.5 py-3", descartado && "opacity-55", destacado && "rounded-xl bg-card px-2")}
     >
