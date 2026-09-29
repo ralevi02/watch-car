@@ -11,7 +11,8 @@
     "normalizar:prueba": "tsx src/normalizar-prueba.ts",
     "reconectar": "tsx src/reconectar.ts",
     "prueba": "tsx src/prueba-lector.ts",
-    "reevaluar": "tsx src/reevaluar.ts"
+    "reevaluar": "tsx src/reevaluar.ts",
+    "prueba-busqueda-fb": "tsx src/prueba-busqueda-fb.ts"
   },
   "dependencies": {
     "@ai-sdk/google": "^4.0.82",

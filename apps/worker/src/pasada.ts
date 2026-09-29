@@ -143,8 +143,8 @@ async function main() {
   const notificaciones: Notificacion[] = [];
   const resultados: ResultadoRecoleccion[] = [];
   let fallidas = 0;
-  // Facebook: página completa, con imágenes y fuentes, como la ve una persona.
-  const s = await abrirNavegador(FUENTE === "facebook" ? { bloquearRecursos: false } : {});
+  // Sin fotos, videos ni fuentes: recorrer la grilla entera de Facebook con fotos gastaba ~300 MB de proxy por pasada.
+  const s = await abrirNavegador();
   try {
     const motivo = await prep.alAbrir?.(s);
     if (motivo) {

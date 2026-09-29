@@ -1,0 +1,54 @@
+name: Facebook · prueba de búsqueda
+
+# Diagnóstico: corre una búsqueda en varias variantes y dice dónde aparece un aviso.
+# No guarda avisos ni cuenta como pasada. Solo el resumen (conteos) queda en el log.
+on:
+  workflow_dispatch:
+    inputs:
+      buscar_id:
+        description: "Id del aviso de Marketplace que debería aparecer"
+        type: string
+        default: ""
+      consulta:
+        description: "Texto de búsqueda"
+        type: string
+        default: "Volvo V40"
+      max_precio:
+        description: "Precio máximo (vacío = sin tope)"
+        type: string
+        default: "16000000"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: facebook
+  cancel-in-progress: false
+
+jobs:
+  prueba:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Instalar dependencias
+        run: pnpm install --frozen-lockfile --filter "@radar/worker..."
+      - name: Chrome
+        working-directory: apps/worker
+        run: pnpm exec patchright install --with-deps chrome
+      - name: Prueba
+        working-directory: apps/worker
+        env:
+          SUPABASE_URL: https://ssmtlqtpzzhkhibkcfhi.supabase.co
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+          PROXY_URL: ${{ secrets.PROXY_URL }}
+          BUSCAR_ID: ${{ inputs.buscar_id }}
+          CONSULTA: ${{ inputs.consulta }}
+          MAX_PRECIO: ${{ inputs.max_precio }}
+          HEADLESS: "0"
+        run: xvfb-run -a pnpm prueba-busqueda-fb
