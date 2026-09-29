@@ -38,9 +38,6 @@ jobs:
           cache: pnpm
       - name: Instalar dependencias
         run: pnpm install --frozen-lockfile --filter "@radar/worker..."
-      - name: Chrome
-        working-directory: apps/worker
-        run: pnpm exec patchright install --with-deps chrome
       - name: Prueba
         working-directory: apps/worker
         env:
