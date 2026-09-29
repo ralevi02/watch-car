@@ -377,6 +377,13 @@ body {
 }
 
 /* Mapa de autos: precio como píldora, en los colores de la app. */
+/* Leaflet usa z-index de 400 a 1000 en sus capas: el contenedor las encierra
+   para que no queden encima de las hojas ni de la barra de pestañas. */
+.mapa-autos {
+  isolation: isolate;
+  z-index: 0;
+  position: relative;
+}
 .mapa-autos .leaflet-container,
 .mapa-autos {
   font-family: inherit;

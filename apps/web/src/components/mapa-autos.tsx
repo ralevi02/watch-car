@@ -157,7 +157,7 @@ export function MapaAutos({ autos, casa, abrir }: { autos: ResultadoAuto[]; casa
   return (
     <div className="-mx-5">
       {sinLugar > 0 && <p className="px-5 pb-2 text-[13px] text-tenue">{sinLugar === 1 ? "Un auto no sale en el mapa" : `${sinLugar} autos no salen en el mapa`}: el aviso no dice dónde está.</p>}
-      <div ref={caja} className="mapa-autos h-[calc(100dvh-330px)] min-h-[360px] w-full bg-card" />
+      <div ref={caja} className="mapa-autos isolate h-[calc(100dvh-330px)] min-h-[360px] w-full bg-card" />
     </div>
   );
 }
