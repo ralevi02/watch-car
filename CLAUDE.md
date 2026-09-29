@@ -57,6 +57,27 @@ Las tres fases están en código. Supabase `watch-car` (id `ssmtlqtpzzhkhibkcfhi
 - Facebook se reconecta con GitHub Actions + noVNC + túnel de Cloudflare (decisión de Raimundo: Browserbase gratis no acepta proxy propio y con proxy cuesta USD 20/mes). Link y clave enmascarados en los logs; solo quedan en Supabase.
 - Secretos en GitHub: `GOOGLE_GENERATIVE_AI_API_KEY`, `SUPABASE_SECRET_KEY`, `VAPID_PRIVATE_KEY`; variables `APP_URL`, `VAPID_PUBLIC_KEY`. Faltan `PROXY_URL` y `ML_CLIENT_ID`/`ML_CLIENT_SECRET` (estos dos también en Vercel). Vercel tiene solo las claves públicas y la de Gemini (no la de servicio de Supabase).
 - **Qué falta para que corra cada fuente (sept 2026):** Chileautos funciona. Facebook: conectar GitHub en la app y que Raimundo inicie sesión con la cuenta secundaria en la reconexión (yo no entro a Facebook). Kavak y Yapo: proxy residencial chileno (`PROXY_URL`); desde una IP residencial de Chile ambos responden 200 sin nada especial. MercadoLibre: registrar una app en developers.mercadolibre.cl (redirect `https://watch-car.vercel.app/api/mercadolibre/callback`) y cargar `ML_CLIENT_ID`/`ML_CLIENT_SECRET`; el sitio web exige cuenta y la API sin token da 403. Sentry sin configurar.
+- **Compra y cuidado (fin de sept 2026):**
+  - Detalle del auto:
+    - todas las fotos (`avisos.fotos`) y gráfico de precio;
+    - "Compra" con estados en `marcas.contacto`, mensaje al vendedor sin IA (`lib/mensaje.ts`), nota de voz después de llamar (`/api/llamada`, queda en `marcas.llamadas`), agenda en Google Calendar y lista de la visita (`lib/visita.ts`, fotos en el bucket privado `visitas`);
+    - preguntar a la IA (`/api/preguntar`);
+    - compartir para opinar (`/v/<token>`, funciones `auto_publico` y `opinar`);
+    - "¿Algo mal?" (`correcciones`, que son ejemplos para la normalización y mandan sobre la IA) y "No es el mismo auto" (`avisos.separado`).
+  - Resultados:
+    - vista Mapa (Leaflet + OpenStreetMap, `lib/comunas.ts` con las 346 comunas);
+    - revisar de a uno deslizando;
+    - "Casi calzan" (`resultados.casi`, `casiCalza` en core) y "En contacto";
+    - descartar con motivo (la ficha sugiere ajustes).
+  - Fuentes:
+    - gastos (`uso_ia`, proxy por `pasadas.kb`), avisos al tiro o resumen diario (`ajustes.avisos`, `resumen.yml` cada hora), tu comuna (`ajustes.casa`);
+    - diagnóstico con IA cuando una pasada trae 0 avisos.
+  - La app abre sin señal (service worker).
+- **Fuentes nuevas:**
+  - **Bruno Fritsch** (`brunofritsch`, API JSON pública del catálogo "Volvo Usados", funciona desde Actions sin proxy).
+  - **Remates** (`remates.yml` diario): lotes de Karcal (Algolia; la clave pública se lee del JS del sitio en cada corrida, no va al repo) y Zárate (HTML), cruzados con los avisos por patente o por modelo, año y km (`avisos.remate`).
+  - Investigados y no hechos todavía: Reyco (PDF semanal), Vedisa (trae datos personales: usar lista blanca), Manquehue, Macal y Ditec (ya publica en Chileautos).
+- **Facebook:** la búsqueda por texto corta en ~24 avisos, también dentro de la categoría Vehículos. Los filtros de marca y modelo de la categoría están por probar (`prueba-busqueda-fb.ts` anota los controles de filtro que ve).
 - El repo es público: pasarlo a privado sería más seguro con Facebook activo (los minutos de Actions alcanzan).
 
 ## Lo que ya se sabe de cada fuente
