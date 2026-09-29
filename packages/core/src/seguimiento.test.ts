@@ -89,7 +89,8 @@ test("la duda de modelo se ajusta con lo que dice el aviso", async () => {
 });
 
 test("un precio muy bajo para la ficha queda para revisar, no se oculta", () => {
-  assert.deepEqual(evaluar({ anio: 2018, precio: 100000 }, EJEMPLO_V40CC), { tipo: "advertencia", motivos: ["Precio muy bajo ($100.000)"] });
+  assert.deepEqual(evaluar({ anio: 2018, precio: 2500000 }, EJEMPLO_V40CC), { tipo: "advertencia", motivos: ["Precio muy bajo ($2.500.000)"] });
+  assert.equal(evaluar({ anio: 2018, precio: 100000 }, EJEMPLO_V40CC).tipo, "fuera");
   assert.equal(evaluar({ anio: 2018, precio: 8000000 }, EJEMPLO_V40CC).tipo, "calza");
 });
 

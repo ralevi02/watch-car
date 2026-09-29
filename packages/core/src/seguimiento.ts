@@ -99,6 +99,8 @@ export function evaluar(aviso: AvisoNormalizado, s: Seguimiento): Veredicto {
   const fuera: string[] = [];
   const adv: string[] = [];
   if (aviso.tipo && aviso.tipo !== "auto") return { tipo: "fuera", motivos: [`No es un auto (${aviso.tipo})`] };
+  // Bajo un millón no hay auto usado: es un repuesto o un precio de mentira ($1, $100.000).
+  if (aviso.precio !== undefined && aviso.precio < 1_000_000) return { tipo: "fuera", motivos: [`Precio $${fmt(aviso.precio)}: no es el precio de un auto`] };
   if (aviso.modelo) {
     // La duda de modelo es casi siempre "¿base o Cross Country?". Solo importa
     // si la ficha pide el Cross Country; si acepta el modelo base, calza igual.
