@@ -24,6 +24,8 @@ export interface AvisoPortal {
 export interface DetallePortal {
   descripcion?: string;
   datos: Record<string, string>;
+  /** Todas las fotos del aviso, si el detalle las trae. */
+  fotos?: string[];
 }
 
 export interface ResultadoRecoleccion {

@@ -168,8 +168,15 @@ export async function recolectarFacebook(s: Sesion, ficha: Seguimiento, op: Opci
         await cerrarDialogos(p);
         // "Ver más" en la descripción.
         await p.getByRole("button", { name: /ver más|see more/i }).first().click({ timeout: 2000 }).catch(() => {});
-        const texto = await p.evaluate(() => (document.querySelector('[role="main"]') as HTMLElement | null)?.innerText ?? document.body.innerText);
-        r.detalles[a.id] = leerDetalle(texto);
+        const { texto, fotos } = await p.evaluate(() => {
+          const main = (document.querySelector('[role="main"]') as HTMLElement | null) ?? document.body;
+          // Las fotos del aviso: imágenes grandes del CDN (aunque no se bajen, el src está). Las chicas son perfiles.
+          const fotos = [...main.querySelectorAll<HTMLImageElement>('img[src*="scontent"], img[src*="fbcdn"]')]
+            .filter((img) => /foto de producto|product photo/i.test(img.alt) || img.getBoundingClientRect().width >= 120)
+            .map((img) => img.src);
+          return { texto: main.innerText, fotos: [...new Set(fotos)].slice(0, 20) };
+        });
+        r.detalles[a.id] = { ...leerDetalle(texto), ...(fotos.length ? { fotos } : {}) };
       } catch (e) {
         if (e instanceof MuroFacebook) {
           r.bloqueo = e.message;

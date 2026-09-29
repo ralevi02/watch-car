@@ -8,6 +8,17 @@ export interface Notificacion {
   url?: string;
   /** Notificaciones con la misma etiqueta se reemplazan en vez de apilarse. */
   etiqueta?: string;
+  /** Qué avisa: con avisos en modo "resumen", los nuevos y las bajas chicas esperan al resumen del día. */
+  tipo?: "nuevo" | "baja" | "sistema";
+  /** Algo que no puede esperar al resumen (una baja fuerte de precio). */
+  urgente?: boolean;
+}
+
+/** Modo de avisos que eligió el dueño en la app. */
+export async function leerModoAvisos(db: ClienteDb): Promise<{ modo: "inmediato" | "resumen"; hora: number }> {
+  const { data } = await db.from("ajustes").select("valor").eq("clave", "avisos").maybeSingle();
+  const v = (data?.valor ?? {}) as { modo?: string; hora?: number };
+  return { modo: v.modo === "resumen" ? "resumen" : "inmediato", hora: typeof v.hora === "number" ? v.hora : 20 };
 }
 
 /**
@@ -21,6 +32,8 @@ export async function enviarPush(db: ClienteDb, notis: Notificacion[]): Promise<
   if (!publica || !privada) return { enviadas: 0, error: "Faltan VAPID_PUBLIC_KEY y VAPID_PRIVATE_KEY: no se mandaron notificaciones" };
   webpush.setVapidDetails(process.env.VAPID_SUBJECT || "mailto:radar-seminuevos@users.noreply.github.com", publica, privada);
 
+  // Sin que viaje lo interno (tipo, urgente) al teléfono.
+  notis = notis.map(({ tipo: _t, urgente: _u, ...n }) => n);
   const { data: subs, error } = await db.from("push_suscripciones").select("id, endpoint, p256dh, auth");
   if (error) return { enviadas: 0, error: `Supabase (suscripciones): ${error.message}` };
 

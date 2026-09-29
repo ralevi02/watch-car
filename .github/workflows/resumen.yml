@@ -1,0 +1,41 @@
+name: Resumen diario
+# Solo manda algo si en la app se eligió "Un resumen al día" y es la hora elegida.
+
+on:
+  schedule:
+    - cron: "5 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  resumen:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      TIENE_SUPABASE: ${{ secrets.SUPABASE_SECRET_KEY != '' }}
+    steps:
+      - uses: actions/checkout@v5
+        if: env.TIENE_SUPABASE == 'true'
+      - uses: pnpm/action-setup@v4
+        if: env.TIENE_SUPABASE == 'true'
+      - uses: actions/setup-node@v5
+        if: env.TIENE_SUPABASE == 'true'
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Instalar dependencias
+        if: env.TIENE_SUPABASE == 'true'
+        run: pnpm install --frozen-lockfile --filter "@radar/worker..."
+      - name: Resumen
+        if: env.TIENE_SUPABASE == 'true'
+        working-directory: apps/worker
+        env:
+          SUPABASE_URL: https://ssmtlqtpzzhkhibkcfhi.supabase.co
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+          VAPID_PUBLIC_KEY: ${{ vars.VAPID_PUBLIC_KEY }}
+          VAPID_PRIVATE_KEY: ${{ secrets.VAPID_PRIVATE_KEY }}
+          APP_URL: ${{ vars.APP_URL }}
+          FORZAR: ${{ github.event_name == 'workflow_dispatch' && '1' || '' }}
+        run: pnpm resumen

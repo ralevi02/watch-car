@@ -16,6 +16,126 @@ export type Database = {
   }
   public: {
     Tables: {
+      uso_ia: {
+        Row: {
+          creado_en: string
+          dia: string
+          id: number
+          modelo: string
+          uso: string
+        }
+        Insert: {
+          creado_en?: string
+          dia?: string
+          id?: number
+          modelo: string
+          uso: string
+        }
+        Update: {
+          creado_en?: string
+          dia?: string
+          id?: number
+          modelo?: string
+          uso?: string
+        }
+        Relationships: []
+      }
+      opiniones: {
+        Row: {
+          creada_en: string
+          id: string
+          nombre: string
+          texto: string | null
+          token: string
+          voto: string
+        }
+        Insert: {
+          creada_en?: string
+          id?: string
+          nombre: string
+          texto?: string | null
+          token: string
+          voto: string
+        }
+        Update: {
+          creada_en?: string
+          id?: string
+          nombre?: string
+          texto?: string | null
+          token?: string
+          voto?: string
+        }
+        Relationships: []
+      }
+      enlaces_publicos: {
+        Row: {
+          activo: boolean
+          auto_id: string
+          creado_en: string
+          token: string
+        }
+        Insert: {
+          activo?: boolean
+          auto_id: string
+          creado_en?: string
+          token?: string
+        }
+        Update: {
+          activo?: boolean
+          auto_id?: string
+          creado_en?: string
+          token?: string
+        }
+        Relationships: []
+      }
+      correcciones: {
+        Row: {
+          aviso_id: string | null
+          campo: string
+          creada_en: string
+          descripcion: string | null
+          id: string
+          titulo: string
+          valor: string
+        }
+        Insert: {
+          aviso_id?: string | null
+          campo: string
+          creada_en?: string
+          descripcion?: string | null
+          id?: string
+          titulo: string
+          valor: string
+        }
+        Update: {
+          aviso_id?: string | null
+          campo?: string
+          creada_en?: string
+          descripcion?: string | null
+          id?: string
+          titulo?: string
+          valor?: string
+        }
+        Relationships: []
+      }
+      ajustes: {
+        Row: {
+          actualizado_en: string
+          clave: string
+          valor: Json
+        }
+        Insert: {
+          actualizado_en?: string
+          clave: string
+          valor: Json
+        }
+        Update: {
+          actualizado_en?: string
+          clave?: string
+          valor?: Json
+        }
+        Relationships: []
+      }
       autos: {
         Row: {
           anio: number | null
@@ -88,6 +208,8 @@ export type Database = {
           veces_no_visto: number
           vendedor: string | null
           version: string | null
+          fotos: string[]
+          separado: boolean
         }
         Insert: {
           alertas?: string[]
@@ -127,6 +249,8 @@ export type Database = {
           veces_no_visto?: number
           vendedor?: string | null
           version?: string | null
+          fotos?: string[]
+          separado?: boolean
         }
         Update: {
           alertas?: string[]
@@ -166,6 +290,8 @@ export type Database = {
           veces_no_visto?: number
           vendedor?: string | null
           version?: string | null
+          fotos?: string[]
+          separado?: boolean
         }
         Relationships: [
           {
@@ -400,18 +526,33 @@ export type Database = {
           auto_id: string
           estado: string | null
           nota: string | null
+          contacto: string | null
+          motivo_descarte: string | null
+          llamadas: Json
+          visita: Json
+          visita_en: string | null
         }
         Insert: {
           actualizada_en?: string
           auto_id: string
           estado?: string | null
           nota?: string | null
+          contacto?: string | null
+          motivo_descarte?: string | null
+          llamadas?: Json
+          visita?: Json
+          visita_en?: string | null
         }
         Update: {
           actualizada_en?: string
           auto_id?: string
           estado?: string | null
           nota?: string | null
+          contacto?: string | null
+          motivo_descarte?: string | null
+          llamadas?: Json
+          visita?: Json
+          visita_en?: string | null
         }
         Relationships: [
           {
@@ -591,6 +732,7 @@ export type Database = {
           motivos: string[]
           notificado_en: string | null
           veredicto: string
+          casi: boolean
         }
         Insert: {
           aviso_id: string
@@ -599,6 +741,7 @@ export type Database = {
           motivos?: string[]
           notificado_en?: string | null
           veredicto: string
+          casi?: boolean
         }
         Update: {
           aviso_id?: string
@@ -607,6 +750,7 @@ export type Database = {
           motivos?: string[]
           notificado_en?: string | null
           veredicto?: string
+          casi?: boolean
         }
         Relationships: [
           {
@@ -648,6 +792,8 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      auto_publico: { Args: { p_token: string }; Returns: Json }
+      opinar: { Args: { p_nombre: string; p_texto: string; p_token: string; p_voto: string }; Returns: boolean }
       guardar_sesion_facebook: {
         Args: { p_cuenta: string; p_sesion: string }
         Returns: undefined

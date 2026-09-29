@@ -1,6 +1,6 @@
 import { strict as assert } from "node:assert";
 import { test } from "node:test";
-import { EJEMPLO_V40CC, evaluar, modeloCalza, modeloCanonico, pareceNoAuto } from "./index.ts";
+import { casiCalza, EJEMPLO_V40CC, evaluar, modeloCalza, modeloCanonico, pareceNoAuto } from "./index.ts";
 
 test("evalúa km, precio y motor contra la ficha", () => {
   assert.deepEqual(evaluar({ anio: 2018, km: 90000, precio: 13000000, motor: "T4" }, EJEMPLO_V40CC), { tipo: "calza" });
@@ -107,4 +107,14 @@ test("reconoce repuestos por el título sin IA", () => {
   for (const t of ["2018 Volvo V40", "Volvo v60 2012", "Volvo V40 turbo 5 puertas", "2017 Volvo v40 llantas nuevas"]) {
     assert.equal(pareceNoAuto(t), undefined, t);
   }
+});
+
+test("casi calza: fuera por poco en precio, km o año, nunca otro modelo", () => {
+  const base = { modelo: "V40 Cross Country", anio: 2018, km: 90000, precio: 13000000 };
+  assert.equal(casiCalza(base, EJEMPLO_V40CC), false, "si calza no está casi");
+  assert.equal(casiCalza({ ...base, precio: 15000000 }, EJEMPLO_V40CC), true);
+  assert.equal(casiCalza({ ...base, precio: 20000000 }, EJEMPLO_V40CC), false);
+  assert.equal(casiCalza({ ...base, anio: 2016 }, EJEMPLO_V40CC), true);
+  assert.equal(casiCalza({ ...base, modelo: "V60" }, EJEMPLO_V40CC), false);
+  assert.equal(casiCalza({ ...base, tipo: "repuesto" }, EJEMPLO_V40CC), false);
 });

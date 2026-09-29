@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { modeloCalza, modeloCanonico } from "./normalizacion.ts";
+import { modeloCalza, modeloCanonico, pareceNoAuto, TIPOS_AVISO } from "./normalizacion.ts";
 
 /**
  * La "ficha" de un seguimiento: lo que el chat arma a partir de lo que pides
@@ -75,6 +75,32 @@ export interface AvisoNormalizado {
 
 const fmt = (n: number) => n.toLocaleString("es-CL");
 
+/** Una fila de la tabla avisos, lista para evaluar. Lo que dijo la IA manda; si no hay tipo, el filtro por palabras del título. */
+export function avisoDesdeFila(x: {
+  titulo?: string | null;
+  tipo?: string | null;
+  modelo?: string | null;
+  por_confirmar?: string[] | null;
+  anio: number | null;
+  km: number | null;
+  precio: number | null;
+  motor: string | null;
+  traccion: string | null;
+  caja: string | null;
+}): AvisoNormalizado {
+  return {
+    tipo: TIPOS_AVISO.find((t) => t === x.tipo) ?? (x.titulo ? pareceNoAuto(x.titulo) : undefined),
+    modelo: x.modelo ?? undefined,
+    porConfirmar: x.por_confirmar ?? undefined,
+    anio: x.anio ?? undefined,
+    km: x.km ?? undefined,
+    precio: x.precio ?? undefined,
+    motor: x.motor ?? undefined,
+    traccion: x.traccion === "AWD" || x.traccion === "FWD" ? x.traccion : undefined,
+    caja: x.caja === "automatica" || x.caja === "manual" ? x.caja : undefined,
+  };
+}
+
 function revisarRango(
   valor: number | undefined,
   rango: z.infer<typeof Rango>,
@@ -130,6 +156,20 @@ export function evaluar(aviso: AvisoNormalizado, s: Seguimiento): Veredicto {
   if (fuera.length > 0) return { tipo: "fuera", motivos: fuera };
   if (adv.length > 0) return { tipo: "advertencia", motivos: adv };
   return { tipo: "calza" };
+}
+
+/**
+ * Quedó fuera por poco: calzaría con un 10% más de precio o km, o un año de
+ * diferencia. Lo que no es un auto, o es otro modelo, nunca está "casi".
+ */
+export function casiCalza(aviso: AvisoNormalizado, s: Seguimiento): boolean {
+  if (evaluar(aviso, s).tipo !== "fuera") return false;
+  const holgura = (r: Seguimiento["km"]): Seguimiento["km"] => ({
+    min: r.min !== undefined ? Math.floor(r.min * 0.9) : undefined,
+    max: r.max !== undefined ? Math.ceil((r.maxConAdvertencia ?? r.max) * 1.1) : undefined,
+  });
+  const anio = { min: s.anio.min !== undefined ? s.anio.min - 1 : undefined, max: s.anio.max !== undefined ? s.anio.max + 1 : undefined };
+  return evaluar(aviso, { ...s, anio, km: holgura(s.km), precio: holgura(s.precio) }).tipo !== "fuera";
 }
 
 /** El ejemplo de la conversación, útil para pruebas. */

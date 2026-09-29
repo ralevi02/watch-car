@@ -133,6 +133,8 @@ export interface DetalleChileautos {
   descripcion?: string;
   /** Pares etiqueta → valor: Tracción, Versión, Comuna, Color exterior, etc. */
   datos: Record<string, string>;
+  /** Fotos de la galería principal. */
+  fotos?: string[];
 }
 
 export function leerDetalle(arbol: unknown): DetalleChileautos {
@@ -152,5 +154,10 @@ export function leerDetalle(arbol: unknown): DetalleChileautos {
     const t = textos(gi);
     if (t.length === 2) agregar(t[0], t[1]);
   }
-  return { descripcion: i >= 0 ? todos[i + 1] : undefined, datos };
+  // La galería de arriba ("details:body:hero-image"); las de más abajo son de otros autos.
+  const galerias = nodos(arbol, "Gallery");
+  const galeria = galerias.find((g) => String(g.id ?? "").includes("hero")) ?? galerias[0];
+  const hijos = galeria && Array.isArray(galeria.children) ? (galeria.children as Record<string, unknown>[]) : [];
+  const fotos = [...new Set(hijos.filter((h) => h?.type === "Image" && typeof h.url === "string").map((h) => h.url as string))].slice(0, 30);
+  return { descripcion: i >= 0 ? todos[i + 1] : undefined, datos, ...(fotos.length ? { fotos } : {}) };
 }

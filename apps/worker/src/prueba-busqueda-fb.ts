@@ -18,18 +18,13 @@ const s = await abrirNavegador();
 const informe: string[] = [`# Prueba de búsqueda en Facebook`, "", `Consulta base: «${consulta}». Aviso buscado: ${buscado || "(ninguno)"}`, ""];
 try {
   if (!(await cargarSesion(db, s.context, cuentas[0].id))) throw new Error("La cuenta no tiene sesión guardada");
-  const variantes = [
-    { nombre: "más nuevos primero", q: consulta, orden: "creation_time_descend" },
-    { nombre: "por relevancia", q: consulta, orden: "" },
-    { nombre: "precio de menor a mayor", q: consulta, orden: "price_ascend" },
-  ];
   const page = await s.context.newPage();
-  for (const [i, v] of variantes.entries()) {
-    if (i > 0) await pausa(8000, 14000);
-    const p = new URLSearchParams({ query: v.q, exact: "false", radius: "65" });
-    if (process.env.MAX_PRECIO) p.set("maxPrice", process.env.MAX_PRECIO);
-    if (v.orden) p.set("sortBy", v.orden);
-    await page.goto(`https://www.facebook.com/marketplace/santiago/search/?${p}`, { waitUntil: "domcontentloaded", timeout: 45_000 });
+  // Sin fotos ni videos: la prueba solo cuenta avisos y gasta poco proxy.
+  await page.route("**/*", (r) => (["image", "media", "font"].includes(r.request().resourceType()) ? r.abort() : r.fallback()));
+
+  /** Abre la URL, baja hasta que no lleguen más avisos y dice cuántos hay y dónde está el buscado. */
+  const contar = async (nombre: string, url: string) => {
+    await page.goto(url, { waitUntil: "domcontentloaded", timeout: 45_000 });
     await pausa(3000, 5000);
     await page.waitForSelector('a[href*="/marketplace/item/"]', { timeout: 15_000 }).catch(() => {});
     let motivo = "tope de 80 bajadas", antes = -1, quietas = 0;
@@ -53,14 +48,56 @@ try {
       }
       return { dentro: ids.length, total: todos.length, pos: ids.indexOf(id), posTotal: todos.indexOf(id) };
     }, buscado);
+    // La URL sin la parte de la ciudad, para reusarla en el lector (no trae datos personales).
+    const u = new URL(page.url());
     informe.push(
-      `## ${v.nombre}`,
-      `- Avisos de la búsqueda: ${res.dentro} (más ${res.total - res.dentro} "relacionados" después)`,
+      `## ${nombre}`,
+      `- URL: ${u.pathname}${u.search}`,
+      `- Avisos: ${res.dentro} (más ${res.total - res.dentro} "relacionados" después)`,
       `- Se detuvo porque: ${motivo}`,
-      `- Aviso buscado: ${res.pos >= 0 ? `en la búsqueda, posición ${res.pos + 1}` : res.posTotal >= 0 ? `solo entre los relacionados (posición ${res.posTotal + 1})` : "no aparece"}`,
+      `- Aviso buscado: ${res.pos >= 0 ? `sí, posición ${res.pos + 1}` : res.posTotal >= 0 ? `solo entre los relacionados (posición ${res.posTotal + 1})` : "no aparece"}`,
       "",
     );
+  };
+
+  const base = (extra: Record<string, string>) => {
+    const p = new URLSearchParams({ exact: "false", radius: "65", ...extra });
+    if (process.env.MAX_PRECIO) p.set("maxPrice", process.env.MAX_PRECIO);
+    return p;
+  };
+
+  // 1. Búsqueda por texto (la de siempre), como referencia.
+  await contar("Búsqueda por texto, más nuevos", `https://www.facebook.com/marketplace/santiago/search/?${base({ query: consulta, sortBy: "creation_time_descend" })}`);
+  await pausa(8000, 14000);
+  // 2. El mismo texto dentro de la categoría Vehículos.
+  await contar("Categoría Vehículos con texto", `https://www.facebook.com/marketplace/santiago/vehicles/?${base({ query: consulta, sortBy: "creation_time_descend" })}`);
+  await pausa(8000, 14000);
+
+  // 3. Categoría Vehículos con los filtros de marca y modelo: se tocan como una persona y se lee la URL que queda.
+  const [marca, ...resto] = consulta.split(" ");
+  const modelo = resto.join(" ");
+  await page.goto(`https://www.facebook.com/marketplace/santiago/vehicles/?${base({ sortBy: "creation_time_descend" })}`, { waitUntil: "domcontentloaded", timeout: 45_000 });
+  await pausa(4000, 6000);
+  const elegir = async (campo: RegExp, valor: string) => {
+    const abrir = page.getByRole("combobox", { name: campo }).or(page.getByRole("button", { name: campo })).or(page.getByText(campo)).first();
+    await abrir.click({ timeout: 8000 });
+    await pausa(1500, 2500);
+    const opcion = page.getByRole("option", { name: new RegExp(`^${valor}$`, "i") }).or(page.getByRole("radio", { name: new RegExp(`^${valor}$`, "i") })).or(page.getByText(new RegExp(`^${valor}$`, "i"))).first();
+    await opcion.click({ timeout: 8000 });
+    await pausa(3000, 4500);
+  };
+  let filtros = "";
+  try {
+    await elegir(/^(marca|make)$/i, marca!);
+    filtros = `marca ${marca}`;
+    if (modelo) {
+      await elegir(/^(modelo|model)$/i, modelo);
+      filtros += `, modelo ${modelo}`;
+    }
+  } catch (e) {
+    informe.push(`Filtros de marca/modelo: no se pudieron elegir${filtros ? ` más allá de ${filtros}` : ""} (${e instanceof Error ? e.message.split("\n")[0] : String(e)}).`, "");
   }
+  if (filtros) await contar(`Categoría Vehículos con filtros (${filtros})`, page.url());
 } finally {
   await s.cerrar();
 }

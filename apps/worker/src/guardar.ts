@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { dudaDeModelo, esMismoAuto, evaluar, leerTitulo, mismaFoto, modeloCanonico, pareceNoAuto, TIPOS_AVISO, type AvisoNormalizado, type Seguimiento } from "@radar/core";
+import { avisoDesdeFila, casiCalza, dudaDeModelo, esMismoAuto, evaluar, leerTitulo, mismaFoto, modeloCanonico, TIPOS_AVISO, type Seguimiento } from "@radar/core";
 import type { ClienteDb, Json, TablesInsert } from "@radar/db";
 import type { AvisoPortal, DetallePortal, ResultadoRecoleccion } from "./fuentes/tipos.js";
 import { normalizar, type EntradaNormalizacion } from "./normalizar.js";
@@ -34,37 +34,14 @@ export function datosDeDetalle(d: DetallePortal) {
   return {
     descripcion: d.descripcion ?? null,
     comuna: d.datos["Comuna"] ?? null,
+    ...(d.fotos?.length ? { fotos: d.fotos } : {}),
     ...(traccion && /4x4|awd|4wd/i.test(traccion) ? { traccion: "AWD" } : {}),
     ...(traccion && /4x2|2wd|fwd/i.test(traccion) ? { traccion: "FWD" } : {}),
   };
 }
 
-export function aNormalizado(x: {
-  titulo?: string | null;
-  tipo?: string | null;
-  modelo?: string | null;
-  por_confirmar?: string[] | null;
-  anio: number | null;
-  km: number | null;
-  precio: number | null;
-  motor: string | null;
-  traccion: string | null;
-  caja: string | null;
-}): AvisoNormalizado {
-  // Lo que dijo la IA manda; mientras tanto, el filtro por palabras del título.
-  const tipo = TIPOS_AVISO.find((t) => t === x.tipo) ?? (x.titulo ? pareceNoAuto(x.titulo) : undefined);
-  return {
-    tipo,
-    modelo: x.modelo ?? undefined,
-    porConfirmar: x.por_confirmar ?? undefined,
-    anio: x.anio ?? undefined,
-    km: x.km ?? undefined,
-    precio: x.precio ?? undefined,
-    motor: x.motor ?? undefined,
-    traccion: x.traccion === "AWD" || x.traccion === "FWD" ? x.traccion : undefined,
-    caja: x.caja === "automatica" || x.caja === "manual" ? x.caja : undefined,
-  };
-}
+/** Fila de avisos → aviso para evaluar (la regla vive en core, la usa también la app). */
+export const aNormalizado = avisoDesdeFila;
 
 type Respuesta<T> = PromiseLike<{ data: T | null; error: { message: string } | null }>;
 
@@ -238,20 +215,38 @@ export async function normalizarPendientes(db: ClienteDb, FUENTE: string, idsExt
     .filter((p) => op.forzar || p.hash !== p.anterior);
   if (!pendientes.length) return { normalizados: 0 };
 
+  // Lo que corrigió el dueño: sirve de ejemplo y además manda sobre lo que diga la IA.
+  const correcciones = await leer(db.from("correcciones").select("aviso_id, campo, valor, titulo, descripcion").order("creada_en", { ascending: false }).limit(40), "correcciones");
+  const ejemplos = correcciones.slice(0, 20).map((c) => ({ titulo: c.titulo, descripcion: c.descripcion, campo: c.campo as "modelo" | "tipo", valor: c.valor }));
+  const usos: string[] = [];
   let normalizados: Awaited<ReturnType<typeof normalizar>>;
   try {
-    normalizados = await normalizar(pendientes.map((p) => p.entrada));
+    normalizados = await normalizar(
+      pendientes.map((p) => p.entrada),
+      { ejemplos, alUsar: (m) => usos.push(m) },
+    );
   } catch (e) {
+    if (usos.length) await db.from("uso_ia").insert(usos.map((modelo) => ({ modelo, uso: "normalizar" })));
     // Sin IA la pasada sirve igual: se reintenta en la próxima.
     return { normalizados: 0, error: `Gemini: ${e instanceof Error ? e.message.split("\n")[0] : String(e)}` };
   }
 
+  if (usos.length) await db.from("uso_ia").insert(usos.map((modelo) => ({ modelo, uso: "normalizar" })));
   const ahora = new Date().toISOString();
   for (const p of pendientes) {
     const n = normalizados.get(p.entrada.id);
     if (!n) continue;
+    for (const c of correcciones.filter((c) => c.aviso_id === p.entrada.id).reverse()) {
+      if (c.campo === "modelo") {
+        n.modelo = c.valor;
+        n.porConfirmar = n.porConfirmar.filter((x) => x !== "modelo");
+      }
+      if (c.campo === "tipo" && TIPOS_AVISO.includes(c.valor as never)) n.tipo = c.valor as typeof n.tipo;
+    }
     // Si el aviso dice Cross Country no hay duda; en Facebook (texto libre) un "V40" a secas sí la hay.
-    const porConfirmar = dudaDeModelo(n.modelo, n.porConfirmar, p.entrada, FUENTE === "facebook") as typeof n.porConfirmar;
+    // Si el dueño ya dijo qué modelo es, no queda duda.
+    const corregido = correcciones.some((c) => c.aviso_id === p.entrada.id && c.campo === "modelo");
+    const porConfirmar = corregido ? n.porConfirmar : (dudaDeModelo(n.modelo, n.porConfirmar, p.entrada, FUENTE === "facebook") as typeof n.porConfirmar);
     await escribir(
       db
         .from("avisos")
@@ -288,13 +283,16 @@ export async function normalizarPendientes(db: ClienteDb, FUENTE: string, idsExt
 export async function deduplicar(db: ClienteDb, avisoIds: string[]): Promise<number> {
   let juntados = 0;
   for (const id of avisoIds) {
-    const [a] = await leer(db.from("avisos").select("id, auto_id, modelo, anio, km, precio, region, foto_hash").eq("id", id), "leer para deduplicar");
+    const [a] = await leer(db.from("avisos").select("id, auto_id, modelo, anio, km, precio, region, foto_hash, separado").eq("id", id), "leer para deduplicar");
+    // Separado a mano: el dueño dijo que no es el mismo auto que otro.
+    if (a?.separado) continue;
     if (!a?.anio || !a.modelo || (!a.km && !a.foto_hash)) continue;
     const candidatos = await leer(
       db
         .from("avisos")
         .select("id, auto_id, modelo, anio, km, precio, region, foto_hash, primera_vez")
         .eq("anio", a.anio)
+        .eq("separado", false)
         .neq("id", a.id)
         .in("estado", ["activo", "posible_vendido"])
         .order("primera_vez", { ascending: true }),
@@ -346,12 +344,13 @@ export async function evaluarAvisos(
   const nuevos = new Set(nuevosIds);
   const ahora = new Date().toISOString();
   const resultados = filas.map((f) => {
-    const v = evaluar(aNormalizado(f), ficha);
+    const n = aNormalizado(f);
+    const v = evaluar(n, ficha);
     resumen.veredictos[v.tipo]++;
     if (nuevos.has(f.id) && v.tipo !== "fuera") {
       resumen.nuevosInteresantes.push({ id: f.id, titulo: f.titulo, precio: f.precio, url: f.url, veredicto: v.tipo });
     }
-    return { busqueda_id: busquedaId, aviso_id: f.id, veredicto: v.tipo, motivos: v.tipo === "calza" ? [] : v.motivos, evaluado_en: ahora };
+    return { busqueda_id: busquedaId, aviso_id: f.id, veredicto: v.tipo, motivos: v.tipo === "calza" ? [] : v.motivos, casi: casiCalza(n, ficha), evaluado_en: ahora };
   });
   await escribir(db.from("resultados").upsert(resultados, { onConflict: "busqueda_id,aviso_id" }), "resultados");
   return resumen;

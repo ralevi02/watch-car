@@ -24,8 +24,11 @@ const db = clienteServicio();
 
 // La duda de modelo con la regla actual: no se duda si el aviso dice Cross Country; en Facebook un V40 a secas sí.
 const { data: todos } = await db.from("avisos").select("id, fuente_id, titulo, descripcion, modelo, por_confirmar").not("modelo", "is", null);
+const { data: corregidos } = await db.from("correcciones").select("aviso_id").eq("campo", "modelo");
+const yaCorregido = new Set((corregidos ?? []).map((c) => c.aviso_id));
 let cambiados = 0;
 for (const a of todos ?? []) {
+  if (yaCorregido.has(a.id)) continue;
   const nuevo = dudaDeModelo(a.modelo!, a.por_confirmar, a, a.fuente_id === "facebook");
   if (nuevo.length === a.por_confirmar.length && nuevo.every((c) => a.por_confirmar.includes(c))) continue;
   await db.from("avisos").update({ por_confirmar: nuevo }).eq("id", a.id);

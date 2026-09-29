@@ -12,7 +12,8 @@
     "reconectar": "tsx src/reconectar.ts",
     "prueba": "tsx src/prueba-lector.ts",
     "reevaluar": "tsx src/reevaluar.ts",
-    "prueba-busqueda-fb": "tsx src/prueba-busqueda-fb.ts"
+    "prueba-busqueda-fb": "tsx src/prueba-busqueda-fb.ts",
+    "resumen": "tsx src/resumen.ts"
   },
   "dependencies": {
     "@ai-sdk/google": "^4.0.82",

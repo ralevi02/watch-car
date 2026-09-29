@@ -23,7 +23,8 @@ import { hashearFotos } from "./fotos.js";
 import type { Recolector, ResultadoRecoleccion } from "./fuentes/tipos.js";
 import { aNormalizado, datosDeLista, deduplicar, evaluarAvisos, guardarPasada, normalizarPendientes, type ResumenEvaluacion, type ResumenGuardado } from "./guardar.js";
 import { abrirNavegador, pausa, type Sesion } from "./lib/navegador.js";
-import { enviarPush, type Notificacion } from "./push.js";
+import { diagnosticar } from "./diagnostico.js";
+import { enviarPush, leerModoAvisos, type Notificacion } from "./push.js";
 
 const FUENTE = process.env.FUENTE || "chileautos";
 const NOMBRE: Record<string, string> = { chileautos: "Chileautos", facebook: "Facebook", kavak: "Kavak", yapo: "Yapo", mercadolibre: "MercadoLibre" };
@@ -213,10 +214,11 @@ async function main() {
             cuerpo: `${x.titulo} · $${miles(x.precio)} · ${NOMBRE[FUENTE] ?? FUENTE}`,
             url: APP_URL ? `${APP_URL}/resultados?aviso=${x.id}` : x.url,
             etiqueta: `aviso-${x.id}`,
+            tipo: "nuevo",
           });
         }
         if (ev.nuevosInteresantes.length > 5) {
-          notificaciones.push({ titulo: b.nombre, cuerpo: `Y ${ev.nuevosInteresantes.length - 5} avisos nuevos más`, url: APP_URL ? `${APP_URL}/resultados` : undefined });
+          notificaciones.push({ titulo: b.nombre, cuerpo: `Y ${ev.nuevosInteresantes.length - 5} avisos nuevos más`, url: APP_URL ? `${APP_URL}/resultados` : undefined, tipo: "nuevo" });
         }
       }
       if (b.alertas && g?.bajasDePrecio.length) {
@@ -233,6 +235,9 @@ async function main() {
             cuerpo: `${x.titulo} · de $${miles(x.antes)} a $${miles(x.ahora)}`,
             url: APP_URL ? `${APP_URL}/resultados?aviso=${x.id}` : x.url,
             etiqueta: `precio-${x.id}`,
+            tipo: "baja",
+            // Una baja de 5% o más no espera al resumen.
+            urgente: x.antes - x.ahora >= x.antes * 0.05,
           });
         }
       }
@@ -240,6 +245,8 @@ async function main() {
         notificaciones.push({ titulo: `${NOMBRE[FUENTE] ?? FUENTE} bloqueó la pasada`, cuerpo: `${r?.bloqueo}. Se reintenta en la próxima; si se repite, hay que activar el proxy.`, etiqueta: `bloqueo-${FUENTE}` });
       }
 
+      // La IA dice qué cree que pasó cuando no llegó nada (solo en Supabase, nunca en el log público).
+      const diagnosticoIa = r?.diagnostico && !r.avisos.length ? await diagnosticar(db, FUENTE, r.diagnostico) : null;
       const detalle: Json = {
         run: RUN ?? null,
         url: r?.url ?? null,
@@ -253,7 +260,15 @@ async function main() {
         no_vistos: g?.noVistos ?? 0,
         veredictos: ev?.veredictos ?? null,
         diagnostico: r?.diagnostico ? await guardarDiagnostico(db, pasada.id, r.diagnostico) : null,
+        diagnostico_ia: diagnosticoIa?.texto ?? null,
+        diagnostico_causa: diagnosticoIa?.causa ?? null,
+        // Para el panel de gastos: el tráfico de esta pasada salió por el proxy.
+        proxy: Boolean(process.env.PROXY_URL),
       };
+      // Si de verdad no había avisos no se avisa; si cambió la página o hay bloqueo, sí.
+      if (diagnosticoIa && diagnosticoIa.causa !== "sin_resultados") {
+        notificaciones.push({ titulo: `${NOMBRE[FUENTE] ?? FUENTE}: 0 avisos en ${b.nombre}`, cuerpo: diagnosticoIa.texto, etiqueta: `diagnostico-${FUENTE}`, url: APP_URL ? `${APP_URL}/fuentes` : undefined, tipo: "sistema" });
+      }
       await db
         .from("pasadas")
         .update({ estado, fin: new Date().toISOString(), avisos_vistos: r?.avisos.length ?? 0, avisos_nuevos: g?.nuevos ?? 0, paginas: r?.paginasLeidas ?? 0, kb: r?.kb ?? null, detalle })
@@ -290,7 +305,10 @@ async function main() {
   }
 
   notificaciones.push(...((await prep.alTerminar?.(resultados)) ?? []));
-  const push = await enviarPush(db, notificaciones);
+  // En modo resumen, lo nuevo y las bajas chicas van en el resumen del día (resumen.ts).
+  const { modo } = await leerModoAvisos(db);
+  const aMandar = modo === "resumen" ? notificaciones.filter((n) => n.tipo !== "nuevo" && (n.tipo !== "baja" || n.urgente)) : notificaciones;
+  const push = await enviarPush(db, aMandar);
   informe.push(`Notificaciones: ${push.enviadas} enviadas de ${notificaciones.length}${push.error ? ` (${push.error})` : ""}.`);
 
   const texto = informe.join("\n");
