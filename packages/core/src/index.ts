@@ -3,3 +3,4 @@ export * from "./titulo.ts";
 export * from "./normalizacion.ts";
 export * from "./links.ts";
 export * from "./remates.ts";
+export * from "./contacto.ts";

@@ -271,6 +271,7 @@ export type Database = {
           fotos: string[]
           separado: boolean
           remate: Json | null
+          contacto: Json | null
         }
         Insert: {
           alertas?: string[]
@@ -313,6 +314,7 @@ export type Database = {
           fotos?: string[]
           separado?: boolean
           remate?: Json | null
+          contacto?: Json | null
         }
         Update: {
           alertas?: string[]
@@ -355,6 +357,7 @@ export type Database = {
           fotos?: string[]
           separado?: boolean
           remate?: Json | null
+          contacto?: Json | null
         }
         Relationships: [
           {

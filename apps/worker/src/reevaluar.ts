@@ -12,8 +12,8 @@
  */
 import { resolve } from "node:path";
 import { dudaDeModelo, Seguimiento } from "@radar/core";
-import { clienteServicio } from "@radar/db";
-import { evaluarAvisos, normalizarPendientes } from "./guardar.js";
+import { clienteServicio, type Json } from "@radar/db";
+import { contactoDe, evaluarAvisos, normalizarPendientes } from "./guardar.js";
 
 try {
   process.loadEnvFile(resolve(process.cwd(), "../../.env"));
@@ -35,6 +35,17 @@ for (const a of todos ?? []) {
   cambiados++;
 }
 console.log(`Duda de modelo ajustada en ${cambiados} avisos`);
+
+// Contacto sacado de la descripción, para lo que se guardó antes de leerlo.
+const { data: sinContacto } = await db.from("avisos").select("id, descripcion").is("contacto", null).not("descripcion", "is", null);
+let conContacto = 0;
+for (const a of sinContacto ?? []) {
+  const c = contactoDe({ descripcion: a.descripcion ?? undefined, datos: {} });
+  if (!c) continue;
+  await db.from("avisos").update({ contacto: c as Json }).eq("id", a.id);
+  conContacto++;
+}
+console.log(`Contacto encontrado en ${conContacto} descripciones`);
 
 if (process.argv.includes("--ia")) {
   const { data: visibles } = await db.from("resultados").select("avisos!inner(id_externo, fuente_id, tipo)").neq("veredicto", "fuera").is("avisos.tipo", null);

@@ -2,6 +2,7 @@
 
 import { ChevronRight, LogOut } from "lucide-react";
 import { useSearchParams } from "next/navigation";
+import { useEffect, useState } from "react";
 import { salir } from "@/app/(app)/acciones";
 import { AjustesAvisos, TuComuna } from "@/components/ajustes-avisos";
 import { Apariencia } from "@/components/apariencia";
@@ -13,6 +14,7 @@ import { CuentasFacebook } from "@/components/cuentas-facebook";
 import { Encabezado } from "@/components/encabezado";
 import { InterruptorFuente } from "@/components/interruptor-fuente";
 import { Pantalla } from "@/components/pantalla";
+import { Segmentado } from "@/components/ui/segmentado";
 import { borrarGuardado, useAlmacen } from "@/lib/almacen";
 import { NOMBRE_FUENTE } from "@/lib/presentar";
 import type { FuenteCorrible } from "@/lib/github";
@@ -44,10 +46,37 @@ const motivo = (p: { estado: string; detalle: unknown }) => {
 
 const fecha = (s: string) => new Date(s).toLocaleString("es-CL", { timeZone: "America/Santiago", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
 
-/** Fuentes: portales, Facebook, avisos, GitHub y el registro. Lee del almacén del teléfono. */
+type Seccion = "portales" | "avisos" | "ajustes" | "registro";
+const SECCIONES: { id: Seccion; etiqueta: string }[] = [
+  { id: "portales", etiqueta: "Portales" },
+  { id: "avisos", etiqueta: "Avisos" },
+  { id: "ajustes", etiqueta: "Ajustes" },
+  { id: "registro", etiqueta: "Registro" },
+];
+const CLAVE_SECCION = "radar:fuentes";
+
+/** Fuentes, separada en secciones: portales, avisos, ajustes y registro. Lee del almacén del teléfono. */
 export function VistaFuentes() {
-  const ml = useSearchParams().get("ml");
+  const sp = useSearchParams();
+  const ml = sp.get("ml");
   const { datos } = useAlmacen();
+  const [seccion, setSeccion] = useState<Seccion>(() => SECCIONES.find((x) => x.id === sp.get("seccion"))?.id ?? "portales");
+  // La sección elegida queda en el teléfono (salvo que el link pida una, como al volver de MercadoLibre).
+  useEffect(() => {
+    if (sp.get("seccion") || ml) return;
+    try {
+      const g = localStorage.getItem(CLAVE_SECCION);
+      const s = SECCIONES.find((x) => x.id === g);
+      if (s) setSeccion(s.id);
+    } catch {}
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  const elegir = (x: Seccion) => {
+    navigator.vibrate?.(5);
+    setSeccion(x);
+    try {
+      localStorage.setItem(CLAVE_SECCION, x);
+    } catch {}
+  };
   if (!datos) {
     return (
       <>
@@ -71,7 +100,12 @@ export function VistaFuentes() {
         <BotonCorrerTodas />
       </Encabezado>
       <Pantalla>
-        <main className="flex flex-col gap-7 px-5 pb-10 pt-2">
+        <div className="px-5 pt-1">
+          <Segmentado etiqueta="Sección" valor={seccion} onCambio={elegir} opciones={SECCIONES} />
+        </div>
+        <main key={seccion} className="entrada-escalonada flex flex-col gap-7 px-5 pb-10 pt-5">
+          {seccion === "portales" && (
+            <>
           <AvisoCorridas />
           <section>
             <h2 className="titulo-grupo">Portales</h2>
@@ -116,20 +150,35 @@ export function VistaFuentes() {
 
           <CuentasFacebook {...facebook} />
 
-          <section>
-            <h2 className="titulo-grupo">Notificaciones</h2>
-            <BotonPush />
-            <AjustesAvisos />
-          </section>
-
-          <TuComuna />
-
-          <Apariencia />
-
-          <Gastos />
-
           <ConectarGithub conectado={githubConectado} />
+            </>
+          )}
 
+          {seccion === "avisos" && (
+            <section>
+              <h2 className="titulo-grupo">Notificaciones</h2>
+              <BotonPush />
+              <AjustesAvisos />
+            </section>
+          )}
+
+          {seccion === "ajustes" && (
+            <>
+              <TuComuna />
+              <Apariencia />
+              <Gastos />
+              {/* El form va adentro: Next le agrega inputs ocultos que moverían la línea separadora. */}
+              <div className="lista-ios">
+                <form action={salir} onSubmit={borrarGuardado}>
+                  <button type="submit" className="fila-ios w-full justify-center text-destructive active:bg-presion">
+                    <LogOut className="size-5" /> Cerrar sesión
+                  </button>
+                </form>
+              </div>
+            </>
+          )}
+
+          {seccion === "registro" && (
           <section>
             <h2 className="titulo-grupo">Registro de pasadas</h2>
             <div className="lista-ios">
@@ -168,15 +217,7 @@ export function VistaFuentes() {
               })}
             </div>
           </section>
-
-          {/* El form va adentro: Next le agrega inputs ocultos que moverían la línea separadora. */}
-          <div className="lista-ios">
-            <form action={salir} onSubmit={borrarGuardado}>
-              <button type="submit" className="fila-ios w-full justify-center text-destructive active:bg-presion">
-                <LogOut className="size-5" /> Cerrar sesión
-              </button>
-            </form>
-          </div>
+          )}
         </main>
       </Pantalla>
     </ProveedorCorridas>

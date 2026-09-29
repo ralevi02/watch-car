@@ -159,5 +159,14 @@ export function leerDetalle(arbol: unknown): DetalleChileautos {
   const galeria = galerias.find((g) => String(g.id ?? "").includes("hero")) ?? galerias[0];
   const hijos = galeria && Array.isArray(galeria.children) ? (galeria.children as Record<string, unknown>[]) : [];
   const fotos = [...new Set(hijos.filter((h) => h?.type === "Image" && typeof h.url === "string").map((h) => h.url as string))].slice(0, 30);
+  // Contacto: las automotoras traen el número completo en un botón "tel:" (con un código de publicación);
+  // a los particulares, sin sesión, el sitio les muestra solo el comienzo ("(+569) 199...").
+  const json = JSON.stringify(arbol);
+  const tel = json.match(/"url":"tel:(\+?\d{8,12})"/)?.[1];
+  const codigo = json.match(/C[oó]digo de publicaci[oó]n:\s*(\d+)/)?.[1];
+  const parcial = json.match(/"value":"(\(\+?56\d?\)\s*[\d\s]+\.\.\.)"/)?.[1];
+  if (tel) datos["Teléfono"] = tel;
+  if (codigo) datos["Código de publicación"] = codigo;
+  if (parcial && !tel) datos["Teléfono parcial"] = parcial;
   return { descripcion: i >= 0 ? todos[i + 1] : undefined, datos, ...(fotos.length ? { fotos } : {}) };
 }

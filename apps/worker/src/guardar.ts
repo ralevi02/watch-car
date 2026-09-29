@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { avisoDesdeFila, casiCalza, dudaDeModelo, esMismoAuto, evaluar, leerTitulo, mismaFoto, modeloCanonico, TIPOS_AVISO, type Seguimiento } from "@radar/core";
+import { avisoDesdeFila, casiCalza, contactosEnTexto, normalizarTelefono, type Contacto, dudaDeModelo, esMismoAuto, evaluar, leerTitulo, mismaFoto, modeloCanonico, TIPOS_AVISO, type Seguimiento } from "@radar/core";
 import type { ClienteDb, Json, TablesInsert } from "@radar/db";
 import type { AvisoPortal, DetallePortal, ResultadoRecoleccion } from "./fuentes/tipos.js";
 import { normalizar, type EntradaNormalizacion } from "./normalizar.js";
@@ -29,12 +29,26 @@ export function datosDeLista(a: AvisoPortal) {
   };
 }
 
+/** Teléfono y correo: lo que trae el portal y, si no, lo que esté escrito en la descripción. */
+export function contactoDe(d: Pick<DetallePortal, "descripcion" | "datos">): Contacto | null {
+  const deTexto = contactosEnTexto(d.descripcion);
+  const telefono = (d.datos["Teléfono"] && normalizarTelefono(d.datos["Teléfono"])) || deTexto.telefonos[0];
+  const c: Contacto = {
+    ...(telefono ? { telefono } : {}),
+    ...(deTexto.emails[0] ? { email: deTexto.emails[0] } : {}),
+    ...(d.datos["Código de publicación"] ? { codigo: d.datos["Código de publicación"] } : {}),
+    ...(!telefono && d.datos["Teléfono parcial"] ? { parcial: d.datos["Teléfono parcial"] } : {}),
+  };
+  return Object.keys(c).length ? c : null;
+}
+
 export function datosDeDetalle(d: DetallePortal) {
   const traccion = d.datos["Tracción"];
   return {
     descripcion: d.descripcion ?? null,
     comuna: d.datos["Comuna"] ?? null,
     ...(d.fotos?.length ? { fotos: d.fotos } : {}),
+    contacto: contactoDe(d) as Json,
     ...(traccion && /4x4|awd|4wd/i.test(traccion) ? { traccion: "AWD" } : {}),
     ...(traccion && /4x2|2wd|fwd/i.test(traccion) ? { traccion: "FWD" } : {}),
   };

@@ -1,6 +1,7 @@
 "use client";
 
-import { CalendarPlus, ClipboardCheck, Copy, LoaderCircle, MessageCircle, Mic, Square } from "lucide-react";
+import { esCelular } from "@radar/core";
+import { CalendarPlus, ClipboardCheck, Copy, LoaderCircle, Mail, MessageCircle, Mic, Phone, Square } from "lucide-react";
 import { useState } from "react";
 import { agendarVisita, type Contacto } from "@/app/(app)/acciones-auto";
 import { VisitaHoja } from "@/components/auto/visita";
@@ -49,6 +50,7 @@ export function ContactoAuto({ r, detalle }: { r: ResultadoAuto; detalle?: Detal
   return (
     <section className="mt-7">
       <h2 className="titulo-grupo !ml-0">Compra</h2>
+      <Contactar r={r} detalle={detalle} />
       <div className="-mx-5 flex gap-1.5 overflow-x-auto px-5 pb-1 [scrollbar-width:none]" role="radiogroup" aria-label="En qué va">
         {PASOS.map((p) => (
           <button
@@ -95,6 +97,65 @@ export function ContactoAuto({ r, detalle }: { r: ResultadoAuto; detalle?: Detal
       <AgendaHoja abierta={hoja === "agenda"} onCerrar={() => setHoja(null)} r={r} />
       <VisitaHoja abierta={hoja === "visita"} onCerrar={() => setHoja(null)} r={r} visita={visita} />
     </section>
+  );
+}
+
+/** "+56912345678" → "+56 9 1234 5678"; fijo "+56223456789" → "+56 2 2345 6789". */
+const lindo = (t: string) => t.replace(/^\+56(9|2)(\d{4})(\d{4})$/, "+56 $1 $2 $3").replace(/^\+56(\d{2})(\d{3})(\d{4})$/, "+56 $1 $2 $3");
+
+/** Llamar, WhatsApp o correo con lo que trae el aviso. Si no hay, dónde escribirle. */
+function Contactar({ r, detalle }: { r: ResultadoAuto; detalle?: DetalleAuto }) {
+  const { contacto } = useMarcar();
+  const c = r.contacto ?? null;
+  const principal = r.enlaces.find((e) => e.id === r.avisoPrincipal) ?? r.enlaces[0];
+  const portal = principal ? (NOMBRE_FUENTE[principal.fuente] ?? principal.fuente) : "el portal";
+  const mensaje = mensajeVendedor(r, detalle?.descripcion ?? null, detalle?.llamadas);
+  const escribi = () => (!r.marca?.contacto || r.marca.contacto === "por_contactar") && contacto(r.autoId, "escribi");
+  const asunto = `${[r.marcaAuto, tituloAuto(r), r.anio].filter(Boolean).join(" ")}`;
+
+  if (!c?.telefono && !c?.email) {
+    return (
+      <p className="mb-3 text-[14px] leading-[20px] text-muted-foreground">
+        {c?.parcial
+          ? `${portal} muestra solo el comienzo del número (${c.parcial}); para verlo completo hay que entrar con tu cuenta. Puedes escribirle desde el aviso.`
+          : `Este aviso no muestra teléfono ni correo: escríbele desde ${portal} con el mensaje de abajo.`}
+      </p>
+    );
+  }
+  return (
+    <div className="mb-3 flex flex-col gap-2">
+      <div className="grid grid-cols-2 gap-2">
+        {c.telefono && (
+          <a href={`tel:${c.telefono}`} className="presionable flex h-12 items-center gap-2 rounded-xl bg-primary px-3.5 text-[14px] font-semibold text-primary-foreground">
+            <Phone className="size-[18px] shrink-0" strokeWidth={1.9} />
+            <span className="truncate">Llamar {lindo(c.telefono)}</span>
+          </a>
+        )}
+        {c.telefono && esCelular(c.telefono) && (
+          <a
+            href={`https://wa.me/${c.telefono.replace("+", "")}?text=${encodeURIComponent(mensaje)}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={escribi}
+            className="presionable flex h-12 items-center gap-2 rounded-xl bg-card px-3.5 text-[14px] font-semibold"
+          >
+            <MessageCircle className="size-[18px] shrink-0" strokeWidth={1.9} />
+            <span className="truncate">WhatsApp</span>
+          </a>
+        )}
+        {c.email && (
+          <a
+            href={`mailto:${c.email}?subject=${encodeURIComponent(asunto)}&body=${encodeURIComponent(`${mensaje}\n\n${principal?.url ?? ""}`)}`}
+            onClick={escribi}
+            className="presionable flex h-12 items-center gap-2 rounded-xl bg-card px-3.5 text-[14px] font-semibold"
+          >
+            <Mail className="size-[18px] shrink-0" strokeWidth={1.9} />
+            <span className="truncate">{c.email}</span>
+          </a>
+        )}
+      </div>
+      {c.codigo && <p className="text-[13px] text-tenue">Al llamar, dile el código de publicación {c.codigo}.</p>}
+    </div>
   );
 }
 
@@ -176,7 +237,8 @@ function MensajeHoja({ abierta, onCerrar, r, detalle }: { abierta: boolean; onCe
   const propuesto = mensajeVendedor(r, detalle?.descripcion ?? null, detalle?.llamadas);
   const mensaje = texto ?? propuesto;
   const principal = r.enlaces.find((e) => e.id === r.avisoPrincipal) ?? r.enlaces[0];
-  const telefono = telefonoDe(detalle?.descripcion ?? null);
+  const delAviso = r.contacto?.telefono && esCelular(r.contacto.telefono) ? r.contacto.telefono.replace("+", "") : null;
+  const telefono = delAviso ?? telefonoDe(detalle?.descripcion ?? null);
 
   const marcarEscribi = () => {
     if (!r.marca?.contacto || r.marca.contacto === "por_contactar") contacto(r.autoId, "escribi");

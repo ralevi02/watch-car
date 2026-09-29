@@ -143,7 +143,10 @@ async function main() {
   }
 
   // Avisos que ya tienen detalle: no se vuelven a abrir.
-  const { data: conDetalleFilas } = await db.from("avisos").select("id_externo").eq("fuente_id", FUENTE).not("descripcion", "is", null);
+  // Ya leídos: con descripción (y en Chileautos también con contacto, que se empezó a guardar después).
+  let consulta = db.from("avisos").select("id_externo").eq("fuente_id", FUENTE).not("descripcion", "is", null);
+  if (FUENTE === "chileautos") consulta = consulta.not("contacto", "is", null);
+  const { data: conDetalleFilas } = await consulta;
   const conDetalle = new Set((conDetalleFilas ?? []).map((x) => x.id_externo));
 
   const informe: string[] = [`# ${NOMBRE[FUENTE] ?? FUENTE} · pasada ${TIPO}`, ""];

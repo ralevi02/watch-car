@@ -1,5 +1,5 @@
 import "server-only";
-import { Seguimiento } from "@radar/core";
+import { type Contacto, Seguimiento } from "@radar/core";
 import { crearClienteServidor } from "@/lib/supabase/server";
 
 export const NOMBRE_FUENTE: Record<string, string> = {
@@ -94,6 +94,8 @@ export interface ResultadoAuto {
   casi?: boolean;
   /** Coincide con un lote de remate (misma patente, o parecido). */
   remate?: Remate | null;
+  /** Cómo contactar al vendedor (teléfono, correo, código de publicación). */
+  contacto?: Contacto | null;
   /** Cambios de precio del aviso principal, del más antiguo al más nuevo. */
   historial: { precio: number; fecha: string }[];
   /** Foto principal (la del aviso más barato que tenga foto). */
@@ -108,7 +110,7 @@ const HORAS_NUEVO = 48;
  * aplican en el teléfono, sin volver al servidor.
  */
 const COLUMNAS_AVISO =
-  "id, auto_id, fuente_id, url, titulo, marca, anio, km, precio, precio_inicial, precio_descripcion, modelo, version, motor, caja, traccion, region, comuna, tipo_vendedor, vendedor, alertas, alerta_detalle, por_confirmar, estado, primera_vez, foto_url, fotos, remate";
+  "id, auto_id, fuente_id, url, titulo, marca, anio, km, precio, precio_inicial, precio_descripcion, modelo, version, motor, caja, traccion, region, comuna, tipo_vendedor, vendedor, alertas, alerta_detalle, por_confirmar, estado, primera_vez, foto_url, fotos, remate, contacto";
 
 type FilaResultado = {
   veredicto: string;
@@ -118,7 +120,7 @@ type FilaResultado = {
     id: string; auto_id: string | null; fuente_id: string; url: string; titulo: string; marca: string | null; anio: number | null; km: number | null;
     precio: number | null; precio_inicial: number | null; precio_descripcion: number | null; modelo: string | null; version: string | null; motor: string | null;
     caja: string | null; traccion: string | null; region: string | null; comuna: string | null; tipo_vendedor: string | null; vendedor: string | null;
-    alertas: string[]; alerta_detalle: string | null; por_confirmar: string[]; estado: string; primera_vez: string; foto_url: string | null; fotos: string[]; remate: unknown;
+    alertas: string[]; alerta_detalle: string | null; por_confirmar: string[]; estado: string; primera_vez: string; foto_url: string | null; fotos: string[]; remate: unknown; contacto: unknown;
   };
 };
 
@@ -168,6 +170,7 @@ function agruparPorAuto(filas: FilaResultado[], marcaDe: Map<string, MarcaAuto>,
         foto: a.foto_url,
         fotos: a.fotos ?? [],
         remate: (a.remate as Remate | null) ?? null,
+        contacto: (a.contacto as Contacto | null) ?? null,
         ...(casi ? { casi: true } : {}),
       });
       principalCalza.set(clave, veredicto === "calza");
@@ -190,6 +193,9 @@ function agruparPorAuto(filas: FilaResultado[], marcaDe: Map<string, MarcaAuto>,
     if ((a.fotos?.length ?? 0) > actual.fotos.length) actual.fotos = a.fotos;
     if (veredicto === "calza") actual.veredicto = "calza";
     actual.alertas = [...new Set([...actual.alertas, ...a.alertas])];
+    // El contacto más completo entre los avisos del auto (con teléfono gana).
+    const c = a.contacto as Contacto | null;
+    if (c && (!actual.contacto || (c.telefono && !actual.contacto.telefono))) actual.contacto = c;
     // Si algún aviso del auto salió de remate, el auto también (la patente gana a "posible").
     const r = a.remate as Remate | null;
     if (r && (!actual.remate || (r.tipo === "patente" && actual.remate.tipo !== "patente"))) actual.remate = r;
