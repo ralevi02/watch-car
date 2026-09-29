@@ -148,9 +148,27 @@ export async function cancelarReconexion(id: string) {
   await supabase.from("reconexiones").update({ estado: "vencida", error: "Cancelada" }).eq("id", z.uuid().parse(id)).in("estado", ["pedida", "abriendo", "lista"]);
 }
 
+/**
+ * La app de Facebook comparte links cortos (facebook.com/share/…) que redirigen
+ * al aviso; sin sesión terminan en el login con el aviso en ?next=. Se sigue la
+ * redirección solo para sacar el número del aviso.
+ */
+async function resolverLinkCorto(entrada: string): Promise<string> {
+  const url = entrada.match(/https?:\/\/\S+/)?.[0];
+  if (!url || !/^https:\/\/(www\.|m\.)?(facebook\.com\/share\/|fb\.me\/)/.test(url)) return entrada;
+  try {
+    const r = await fetch(url, { redirect: "follow", headers: { "User-Agent": "facebookexternalhit/1.1" }, signal: AbortSignal.timeout(8000) });
+    const final = decodeURIComponent(r.url);
+    const id = final.match(/\/marketplace\/item\/(\d+)/)?.[1];
+    return id ? `https://www.facebook.com/marketplace/item/${id}/` : entrada;
+  } catch {
+    return entrada;
+  }
+}
+
 export async function compartirLink(entrada: string): Promise<Resultado & { fuente?: string }> {
   const { identificarLink } = await import("@radar/core");
-  const link = identificarLink(entrada);
+  const link = identificarLink(await resolverLinkCorto(entrada));
   if (!link) return { ok: false, error: "No reconozco ese link. Sirven avisos de Chileautos, Facebook Marketplace y MercadoLibre." };
   const supabase = await crearClienteServidor();
   const soportado = link.fuente === "chileautos" || link.fuente === "facebook";
