@@ -27,8 +27,6 @@ export function consultas(f: Seguimiento): string[] {
 export function urlVehiculos(f: Seguimiento, consulta: string, ciudad = "santiago", precio?: { min?: number; max?: number }): string {
   const u = new URL(urlBusqueda(f, consulta, ciudad, precio));
   u.pathname = `/marketplace/${ciudad}/vehicles/`;
-  const maxKm = f.km.maxConAdvertencia ?? f.km.max;
-  if (maxKm) u.searchParams.set("maxMileage", String(maxKm));
   return u.toString();
 }
 
@@ -39,8 +37,10 @@ export function urlBusqueda(f: Seguimiento, consulta: string, ciudad = "santiago
   const maxAnio = f.anio.maxConAdvertencia ?? f.anio.max;
   const minPrecio = precio?.min ?? f.precio.min;
   const maxPrecio = precio?.max ?? f.precio.maxConAdvertencia ?? f.precio.max;
-  if (minAnio) p.set("minYear", String(minAnio));
-  if (maxAnio) p.set("maxYear", String(maxAnio));
+  // Año y km NO van a Facebook: esos filtros dejan fuera los avisos publicados
+  // como artículo común (sin año ni km en campos propios). Se aplican después, al leer cada aviso.
+  void minAnio;
+  void maxAnio;
   if (minPrecio) p.set("minPrice", String(minPrecio));
   if (maxPrecio) p.set("maxPrice", String(maxPrecio));
   p.set("exact", "false");

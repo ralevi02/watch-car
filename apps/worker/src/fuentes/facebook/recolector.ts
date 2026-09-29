@@ -96,10 +96,13 @@ export async function recolectarFacebook(s: Sesion, ficha: Seguimiento, op: Opci
       await cerrarDialogos(page);
       // Los avisos llegan después de la página: se esperan hasta 15 s.
       await page.waitForSelector('a[href*="/marketplace/item/"]', { timeout: 15_000 }).catch(() => {});
-      // La grilla carga más avisos al bajar: se baja hasta que no aparezcan nuevos (máx. 10 veces).
-      for (let i = 0, antes = -1; i < 10; i++) {
+      // La grilla carga más avisos al bajar: se baja hasta el final (dos vueltas sin avisos nuevos,
+      // o hasta el título "Resultados fuera de tu búsqueda"), con tope de 60 vueltas.
+      for (let i = 0, antes = -1, quietas = 0; i < 60 && quietas < 2; i++) {
         const ahora = await page.locator('a[href*="/marketplace/item/"]').count().catch(() => 0);
-        if (ahora === antes) break;
+        const fin = await page.getByText(/fuera de tu búsqueda|outside your search/i).count().catch(() => 0);
+        if (fin > 0) break;
+        quietas = ahora === antes ? quietas + 1 : 0;
         antes = ahora;
         await scrollHumano(page, 2);
       }

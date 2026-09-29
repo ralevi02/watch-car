@@ -8,7 +8,8 @@ test("arma las consultas y la URL de búsqueda", () => {
   const url = new URL(urlBusqueda(EJEMPLO_V40CC, "Volvo V40"));
   assert.equal(url.pathname, "/marketplace/santiago/search/");
   assert.equal(url.searchParams.get("query"), "Volvo V40");
-  assert.equal(url.searchParams.get("minYear"), "2017");
+  // El año se filtra después de leer el aviso: con minYear Facebook esconde los publicados como artículo común.
+  assert.equal(url.searchParams.get("minYear"), null);
   assert.equal(url.searchParams.get("maxPrice"), "14000000");
   assert.equal(url.searchParams.get("sortBy"), "creation_time_descend");
 });

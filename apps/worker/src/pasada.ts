@@ -10,7 +10,7 @@
  * MAX_PAGINAS (5), DETALLES (5 por búsqueda), PROXY_URL.
  */
 import { appendFile } from "node:fs/promises";
-import { evaluar, leerTitulo, Seguimiento } from "@radar/core";
+import { evaluar, leerTitulo, modeloCanonico, Seguimiento } from "@radar/core";
 import { clienteServicio, type ClienteDb, type Json } from "@radar/db";
 import { procesarCompartidos } from "./compartidos.js";
 import { recolectarChileautosTodo } from "./fuentes/chileautos/recolector.js";
@@ -29,7 +29,7 @@ const FUENTE = process.env.FUENTE || "chileautos";
 const NOMBRE: Record<string, string> = { chileautos: "Chileautos", facebook: "Facebook", kavak: "Kavak", yapo: "Yapo", mercadolibre: "MercadoLibre" };
 const TIPO = process.env.TIPO === "corta" || process.env.TIPO === "completa" ? process.env.TIPO : "prueba";
 const MAX_PAGINAS = Number(process.env.MAX_PAGINAS || 5);
-const DETALLES = Number(process.env.DETALLES || (FUENTE === "facebook" ? 10 : 5));
+const DETALLES = Number(process.env.DETALLES || (FUENTE === "facebook" ? 25 : 5));
 const APP_URL = process.env.APP_URL?.replace(/\/$/, "");
 const RUN = process.env.GITHUB_RUN_ID
   ? `${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}`
@@ -175,8 +175,11 @@ async function main() {
           // Sin el detalle no hay km ni descripción (en Facebook la lista trae solo el título):
           // se abren los que pasan los límites que sí se ven, primero los que dicen Cross Country.
           elegirDetalles: (avisos) => {
+            // En Facebook la búsqueda es muy suelta (trae S60, XC60, T-Cross...): solo se abren los que nombran el modelo.
+            const familia = modeloCanonico(b.ficha.modeloPortal || b.ficha.modelo).replace(/cc$/, "");
+            const delModelo = (t: string) => FUENTE !== "facebook" || modeloCanonico(t).includes(familia);
             const elegidos = avisos
-              .filter((a) => !conDetalle.has(a.id) && evaluar(aNormalizado(datosDeLista(a)), b.ficha).tipo !== "fuera")
+              .filter((a) => !conDetalle.has(a.id) && delModelo(a.titulo) && evaluar(aNormalizado(datosDeLista(a)), b.ficha).tipo !== "fuera")
               .sort((x, y) => Number(leerTitulo(y.titulo).crossCountry) - Number(leerTitulo(x.titulo).crossCountry))
               .slice(0, DETALLES);
             // Las fichas se solapan (V40 y V40 CC): lo abierto para una no se vuelve a abrir para otra.

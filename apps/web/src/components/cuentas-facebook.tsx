@@ -98,7 +98,7 @@ export function CuentasFacebook({ activa, rotacion, pasadasPorDia, cuentas }: { 
             onChange={(e) => iniciar(() => y(configurarFacebook({ pasadas_por_dia: Number(e.target.value) })))}
             className="bg-transparent text-right text-muted-foreground outline-none"
           >
-            {[1, 2, 3, 4].map((n) => (
+            {[1, 2, 3, 4, 5, 6, 7, 8].map((n) => (
               <option key={n} value={n}>
                 {n}
               </option>
