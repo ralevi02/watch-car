@@ -96,7 +96,13 @@ export async function recolectarFacebook(s: Sesion, ficha: Seguimiento, op: Opci
       await cerrarDialogos(page);
       // Los avisos llegan después de la página: se esperan hasta 15 s.
       await page.waitForSelector('a[href*="/marketplace/item/"]', { timeout: 15_000 }).catch(() => {});
-      await scrollHumano(page, 4);
+      // La grilla carga más avisos al bajar: se baja hasta que no aparezcan nuevos (máx. 10 veces).
+      for (let i = 0, antes = -1; i < 10; i++) {
+        const ahora = await page.locator('a[href*="/marketplace/item/"]').count().catch(() => 0);
+        if (ahora === antes) break;
+        antes = ahora;
+        await scrollHumano(page, 2);
+      }
       let grilla = await leerGrilla(page);
       // La búsqueda general a veces sale vacía: se prueba dentro de Vehículos.
       let vehiculos: { url: string; enlaces: number } | undefined;
@@ -150,6 +156,8 @@ export async function recolectarFacebook(s: Sesion, ficha: Seguimiento, op: Opci
     for (const a of op.elegirDetalles?.(r.avisos) ?? []) {
       await pausa(6000, 12000);
       const p = await s.context.newPage();
+      // En el detalle solo interesa el texto: sin fotos ni videos se gasta mucho menos proxy.
+      await p.route("**/*", (ruta) => (["image", "media"].includes(ruta.request().resourceType()) ? ruta.abort() : ruta.fallback()));
       try {
         await p.goto(a.url, { waitUntil: "domcontentloaded", timeout: 45_000 });
         await pausa(3000, 5000);

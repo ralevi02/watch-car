@@ -10,7 +10,7 @@
  * MAX_PAGINAS (5), DETALLES (5 por búsqueda), PROXY_URL.
  */
 import { appendFile } from "node:fs/promises";
-import { evaluar, Seguimiento } from "@radar/core";
+import { evaluar, leerTitulo, Seguimiento } from "@radar/core";
 import { clienteServicio, type ClienteDb, type Json } from "@radar/db";
 import { procesarCompartidos } from "./compartidos.js";
 import { recolectarChileautos } from "./fuentes/chileautos/recolector.js";
@@ -29,7 +29,7 @@ const FUENTE = process.env.FUENTE || "chileautos";
 const NOMBRE: Record<string, string> = { chileautos: "Chileautos", facebook: "Facebook", kavak: "Kavak", yapo: "Yapo", mercadolibre: "MercadoLibre" };
 const TIPO = process.env.TIPO === "corta" || process.env.TIPO === "completa" ? process.env.TIPO : "prueba";
 const MAX_PAGINAS = Number(process.env.MAX_PAGINAS || 5);
-const DETALLES = Number(process.env.DETALLES || (FUENTE === "facebook" ? 4 : 5));
+const DETALLES = Number(process.env.DETALLES || (FUENTE === "facebook" ? 10 : 5));
 const APP_URL = process.env.APP_URL?.replace(/\/$/, "");
 const RUN = process.env.GITHUB_RUN_ID
   ? `${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}`
@@ -172,10 +172,17 @@ async function main() {
       try {
         r = await prep.recolectar(s, b.ficha, {
           maxPaginas: MAX_PAGINAS,
-          elegirDetalles: (avisos) =>
-            avisos
+          // Sin el detalle no hay km ni descripción (en Facebook la lista trae solo el título):
+          // se abren los que pasan los límites que sí se ven, primero los que dicen Cross Country.
+          elegirDetalles: (avisos) => {
+            const elegidos = avisos
               .filter((a) => !conDetalle.has(a.id) && evaluar(aNormalizado(datosDeLista(a)), b.ficha).tipo !== "fuera")
-              .slice(0, DETALLES),
+              .sort((x, y) => Number(leerTitulo(y.titulo).crossCountry) - Number(leerTitulo(x.titulo).crossCountry))
+              .slice(0, DETALLES);
+            // Las fichas se solapan (V40 y V40 CC): lo abierto para una no se vuelve a abrir para otra.
+            for (const a of elegidos) conDetalle.add(a.id);
+            return elegidos;
+          },
         });
         resultados.push(r);
         if (r.avisos.length) {
