@@ -88,6 +88,12 @@ try {
   };
   let filtros = "";
   try {
+    // En pantallas angostas los filtros están detrás de un botón "Filtros".
+    const botonFiltros = page.getByRole("button", { name: /^(filtros|filters)$/i }).or(page.getByText(/^(filtros|filters)$/i)).first();
+    if (await botonFiltros.count()) {
+      await botonFiltros.click({ timeout: 8000 });
+      await pausa(2000, 3000);
+    }
     await elegir(/^(marca|make)$/i, marca!);
     filtros = `marca ${marca}`;
     if (modelo) {
