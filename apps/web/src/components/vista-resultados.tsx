@@ -1,6 +1,6 @@
 "use client";
 
-import { GalleryHorizontalEnd, Handshake, LayoutGrid, Link2, List, Map as IconoMapa, MoreHorizontal, RectangleHorizontal, Search, Star, Trash2, Waves, X } from "lucide-react";
+import { GalleryHorizontalEnd, Handshake, SlidersHorizontal, LayoutGrid, Link2, List, Map as IconoMapa, MoreHorizontal, RectangleHorizontal, Search, Star, Trash2, Waves, X } from "lucide-react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
@@ -15,7 +15,9 @@ import { Hoja } from "@/components/ui/hoja";
 import { Segmentado } from "@/components/ui/segmentado";
 import { useAlmacen } from "@/lib/almacen";
 import type { Filtro, ResultadoAuto } from "@/lib/datos";
-import { FILTROS, filtrar, SEGMENTOS } from "@/lib/filtros";
+import { type Afinar, afinar, cuantosFiltros, FILTROS, filtrar, type Orden, ORDENES, ordenar, SEGMENTOS } from "@/lib/filtros";
+import { distanciaDeCasa } from "@/lib/lugares";
+import { FiltrosActivos, FiltrosHoja } from "@/components/filtros-hoja";
 import { cn } from "@/lib/utils";
 
 const TITULO_FILTRO: Partial<Record<Filtro, string>> = { favoritos: "Guardados", descartados: "Descartados", casi: "Casi calzan", contacto: "En contacto" };
@@ -37,6 +39,7 @@ function agrupar(visibles: ResultadoAuto[], busquedas: { id: string; nombre: str
 }
 
 const CLAVE_VISTA = "radar:vista";
+const CLAVE_AFINAR = "radar:afinar";
 const ICONO_VISTA: Record<Vista, { icono: typeof List; nombre: string }> = {
   riel: { icono: GalleryHorizontalEnd, nombre: "Riel" },
   vitrina: { icono: RectangleHorizontal, nombre: "Vitrina" },
@@ -96,6 +99,9 @@ export function VistaResultados() {
   const [buscando, setBuscando] = useState(false);
   const [menu, setMenu] = useState(false);
   const [vista, setVista] = useState<Vista>("riel");
+  const [afinados, setAfinados] = useState<Afinar>({});
+  const [orden, setOrden] = useState<Orden>("recomendado");
+  const [hojaFiltros, setHojaFiltros] = useState(false);
   // La hoja del auto: el id se queda mientras se anima la salida.
   const [idHoja, setIdHoja] = useState<string | null>(null);
   const [hojaAbierta, setHojaAbierta] = useState(false);
@@ -104,6 +110,9 @@ export function VistaResultados() {
     try {
       const v = localStorage.getItem(CLAVE_VISTA) as Vista | null;
       if (v && VISTAS.includes(v)) setVista(v);
+      const a = JSON.parse(localStorage.getItem(CLAVE_AFINAR) ?? "null") as { filtros?: Afinar; orden?: Orden } | null;
+      if (a?.filtros) setAfinados(a.filtros);
+      if (a?.orden && ORDENES.some((o) => o.id === a.orden)) setOrden(a.orden);
     } catch {}
     const a = new URLSearchParams(location.search).get("auto");
     if (a) {
@@ -117,6 +126,22 @@ export function VistaResultados() {
     window.addEventListener("popstate", alVolver);
     return () => window.removeEventListener("popstate", alVolver);
   }, []);
+
+  const guardarAfinar = (filtros: Afinar, o: Orden) => {
+    try {
+      localStorage.setItem(CLAVE_AFINAR, JSON.stringify({ filtros, orden: o }));
+    } catch {}
+  };
+  const cambiarFiltros = (f: Afinar) => {
+    setAfinados(f);
+    guardarAfinar(f, orden);
+  };
+  const cambiarOrden = (o: Orden) => {
+    setOrden(o);
+    guardarAfinar(afinados, o);
+  };
+  const nFiltros = cuantosFiltros(afinados) + (orden !== "recomendado" ? 1 : 0);
+  const fuentesVistas = [...new Set((datos?.resultados ?? []).flatMap((r) => r.enlaces.map((e) => e.fuente)))].sort();
 
   const elegirVista = (v: Vista) => {
     navigator.vibrate?.(5);
@@ -145,7 +170,14 @@ export function VistaResultados() {
 
   const busquedas = (datos?.busquedas ?? []).map((b) => ({ id: b.id, nombre: b.nombre }));
   const laBusqueda = busquedas.some((b) => b.id === busqueda) ? busqueda : undefined;
-  const { visibles, cuentas } = filtrar(datos?.resultados ?? [], filtro, laBusqueda, texto, datos?.casi ?? []);
+  // Filtros y orden de la hoja "Filtros y orden": se aplican antes de contar, para que los números calcen.
+  const casa = datos?.ajustes?.casa?.comuna ?? null;
+  const distancia = (r: ResultadoAuto) => distanciaDeCasa(r, casa)?.km ?? null;
+  const base = afinar(datos?.resultados ?? [], afinados, distancia);
+  const baseCasi = afinar(datos?.casi ?? [], afinados, distancia);
+  const filtrados = filtrar(base, filtro, laBusqueda, texto, baseCasi);
+  const visibles = ordenar(filtrados.visibles, orden, distancia);
+  const cuentas = filtrados.cuentas;
   const [rapida, setRapida] = useState(false);
   // Para revisar de a uno: primero lo nuevo sin marcar.
   const sinMarcar = visibles.filter((r) => !r.marca?.estado);
@@ -187,6 +219,12 @@ export function VistaResultados() {
   return (
     <>
       <Encabezado titulo={especial ?? "Resultados"}>
+        <button type="button" aria-label={nFiltros ? `Filtros y orden (${nFiltros})` : "Filtros y orden"} onClick={() => setHojaFiltros(true)} className="presionable relative flex size-9 items-center justify-center">
+          <SlidersHorizontal className="size-[21px]" strokeWidth={1.8} />
+          {nFiltros > 0 && (
+            <span className="absolute -right-0.5 top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-bold tabular-nums text-primary-foreground">{nFiltros}</span>
+          )}
+        </button>
         <button type="button" aria-label="Buscar" aria-pressed={buscando} onClick={() => setBuscando((b) => !b)} className="presionable flex size-9 items-center justify-center">
           <Search className="size-[21px]" strokeWidth={1.8} />
         </button>
@@ -266,6 +304,7 @@ export function VistaResultados() {
             </label>
           )}
           {!especial && <Segmentado etiqueta="Vista" valor={filtro} onCambio={(f) => cambiar(f, busqueda)} opciones={SEGMENTOS.map((s) => ({ ...s, cuenta: s.id === "todos" ? undefined : cuentas[s.id] }))} />}
+          <FiltrosActivos filtros={afinados} orden={orden} onFiltros={cambiarFiltros} onOrden={cambiarOrden} />
           {filtro === "casi" && <p className="text-[14px] text-muted-foreground">Quedaron fuera por poco: hasta 10% sobre tu tope de precio o km, o un año antes. Si varios te gustan, sube el tope en la ficha.</p>}
           {datos && colaRapida.length > 1 && filtro !== "descartados" && (
             <button type="button" onClick={() => setRapida(true)} className="presionable flex h-11 items-center justify-center rounded-xl bg-card text-[15px] font-semibold">
@@ -301,6 +340,18 @@ export function VistaResultados() {
           )}
         </main>
       </Pantalla>
+
+      <FiltrosHoja
+        abierta={hojaFiltros}
+        onCerrar={() => setHojaFiltros(false)}
+        orden={orden}
+        onOrden={cambiarOrden}
+        filtros={afinados}
+        onFiltros={cambiarFiltros}
+        fuentes={fuentesVistas}
+        hayCasa={Boolean(casa)}
+        cuantos={visibles.length}
+      />
 
       {rapida && <RevisionRapida autos={colaRapida} onCerrar={() => setRapida(false)} abrir={abrir} />}
 
