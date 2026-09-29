@@ -95,6 +95,16 @@ try {
       filtros += `, modelo ${modelo}`;
     }
   } catch (e) {
+    // Qué controles de filtro hay (solo sus etiquetas, que son textos de la interfaz de Facebook).
+    const controles = await page
+      .evaluate(() =>
+        [...document.querySelectorAll<HTMLElement>('[role="combobox"], [role="button"], [role="listbox"], label, select, input')]
+          .map((el) => (el.getAttribute("aria-label") || el.innerText || (el as HTMLInputElement).placeholder || "").trim().split("\n")[0]!)
+          // Solo lo que es de filtros: nada de nombres de cuentas ni de avisos en el log público.
+          .filter((t) => t && t.length < 40 && /marca|modelo|make|model|año|year|precio|price|kilometraje|mileage|tipo de veh|vehicle type|carrocer|body|transmis|filtr|categor/i.test(t)),
+      )
+      .catch(() => [] as string[]);
+    informe.push(`Controles que se ven: ${[...new Set(controles)].slice(0, 60).join(" | ")}`, "");
     informe.push(`Filtros de marca/modelo: no se pudieron elegir${filtros ? ` más allá de ${filtros}` : ""} (${e instanceof Error ? e.message.split("\n")[0] : String(e)}).`, "");
   }
   if (filtros) await contar(`Categoría Vehículos con filtros (${filtros})`, page.url());
