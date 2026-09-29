@@ -1,0 +1,42 @@
+name: Remates · cruce
+# Una vez al día: lotes de Karcal y Zárate de las marcas de las fichas, cruzados con los avisos.
+
+on:
+  schedule:
+    - cron: "30 13 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  remates:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      TIENE_SUPABASE: ${{ secrets.SUPABASE_SECRET_KEY != '' }}
+    steps:
+      - uses: actions/checkout@v5
+        if: env.TIENE_SUPABASE == 'true'
+      - uses: pnpm/action-setup@v4
+        if: env.TIENE_SUPABASE == 'true'
+      - uses: actions/setup-node@v5
+        if: env.TIENE_SUPABASE == 'true'
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Instalar dependencias
+        if: env.TIENE_SUPABASE == 'true'
+        run: pnpm install --frozen-lockfile --filter "@radar/worker..."
+      - name: Remates
+        if: env.TIENE_SUPABASE == 'true'
+        working-directory: apps/worker
+        env:
+          SUPABASE_URL: https://ssmtlqtpzzhkhibkcfhi.supabase.co
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+          VAPID_PUBLIC_KEY: ${{ vars.VAPID_PUBLIC_KEY }}
+          VAPID_PRIVATE_KEY: ${{ secrets.VAPID_PRIVATE_KEY }}
+          APP_URL: ${{ vars.APP_URL }}
+          GITHUB_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          TIPO: ${{ github.event_name == 'schedule' && 'corta' || 'prueba' }}
+        run: pnpm remates

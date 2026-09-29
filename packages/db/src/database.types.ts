@@ -16,6 +16,66 @@ export type Database = {
   }
   public: {
     Tables: {
+      remates: {
+        Row: {
+          anio: number | null
+          color: string | null
+          condicion: string | null
+          crudo: Json
+          fecha: string | null
+          fotos: string[]
+          fuente: string
+          id: string
+          km: number | null
+          lote: string | null
+          mandante: string | null
+          marca: string | null
+          modelo: string | null
+          patente: string | null
+          precio: number | null
+          url: string | null
+          visto_en: string
+        }
+        Insert: {
+          anio?: number | null
+          color?: string | null
+          condicion?: string | null
+          crudo?: Json
+          fecha?: string | null
+          fotos?: string[]
+          fuente: string
+          id: string
+          km?: number | null
+          lote?: string | null
+          mandante?: string | null
+          marca?: string | null
+          modelo?: string | null
+          patente?: string | null
+          precio?: number | null
+          url?: string | null
+          visto_en?: string
+        }
+        Update: {
+          anio?: number | null
+          color?: string | null
+          condicion?: string | null
+          crudo?: Json
+          fecha?: string | null
+          fotos?: string[]
+          fuente?: string
+          id?: string
+          km?: number | null
+          lote?: string | null
+          mandante?: string | null
+          marca?: string | null
+          modelo?: string | null
+          patente?: string | null
+          precio?: number | null
+          url?: string | null
+          visto_en?: string
+        }
+        Relationships: []
+      }
       uso_ia: {
         Row: {
           creado_en: string
@@ -210,6 +270,7 @@ export type Database = {
           version: string | null
           fotos: string[]
           separado: boolean
+          remate: Json | null
         }
         Insert: {
           alertas?: string[]
@@ -251,6 +312,7 @@ export type Database = {
           version?: string | null
           fotos?: string[]
           separado?: boolean
+          remate?: Json | null
         }
         Update: {
           alertas?: string[]
@@ -292,6 +354,7 @@ export type Database = {
           version?: string | null
           fotos?: string[]
           separado?: boolean
+          remate?: Json | null
         }
         Relationships: [
           {

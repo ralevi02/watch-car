@@ -5,7 +5,7 @@ export const pesos = (n: number) => `$${miles(n)}`;
 /** "$8,7 M" para lo que no necesita el número completo. */
 export const millones = (n: number) => `$${(n / 1_000_000).toLocaleString("es-CL", { maximumFractionDigits: 1 })} M`;
 
-export const NOMBRE_FUENTE: Record<string, string> = { chileautos: "Chileautos", facebook: "Facebook", mercadolibre: "MercadoLibre", kavak: "Kavak", yapo: "Yapo", brunofritsch: "Bruno Fritsch" };
+export const NOMBRE_FUENTE: Record<string, string> = { chileautos: "Chileautos", facebook: "Facebook", mercadolibre: "MercadoLibre", kavak: "Kavak", yapo: "Yapo", brunofritsch: "Bruno Fritsch", remates: "Remates" };
 
 /** Nombre corto de cada alerta, para las etiquetas. */
 export const ETIQUETA_ALERTA: Record<string, string> = {
@@ -30,10 +30,11 @@ function etiquetaMotivo(m: string) {
 }
 
 /** Etiquetas de lo que hay que revisar: alertas del aviso y por qué se sale de la ficha. */
-export function etiquetas(r: Pick<ResultadoAuto, "alertas" | "motivos" | "veredicto">) {
+export function etiquetas(r: Pick<ResultadoAuto, "alertas" | "motivos" | "veredicto"> & { remate?: ResultadoAuto["remate"] }) {
   const de = r.alertas.map((a) => ETIQUETA_ALERTA[a] ?? a);
   const por = r.veredicto === "advertencia" ? r.motivos.map(etiquetaMotivo) : [];
-  return [...new Set([...por, ...de])];
+  const remate = r.remate ? [r.remate.tipo === "patente" ? "Salió de remate" : "¿Salió de remate?"] : [];
+  return [...new Set([...remate, ...por, ...de])];
 }
 
 export const haceDias = (fecha: string) => {

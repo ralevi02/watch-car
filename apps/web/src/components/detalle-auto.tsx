@@ -172,6 +172,18 @@ export function DetalleAuto({ id: idHoja, alCerrar }: { id?: string; alCerrar?: 
           </div>
         )}
 
+        {r.remate && (
+          <a href={r.remate.url ?? undefined} target="_blank" rel="noopener noreferrer" className="presionable mt-4 block rounded-[14px] border border-advertencia-borde px-4 py-3">
+            <p className="text-[15px] font-semibold text-advertencia">{r.remate.tipo === "patente" ? "Salió de remate" : "Puede haber salido de remate"}</p>
+            <p className="mt-0.5 text-[14px] leading-[20px] text-suave">
+              {r.remate.tipo === "patente" ? "Misma patente que" : "Mismo modelo y año, con km parecido, que"} el lote {r.remate.lote ?? ""} de {r.remate.fuente === "karcal" ? "Karcal" : "Remates Zárate"}
+              {r.remate.fecha ? ` del ${new Date(r.remate.fecha).toLocaleDateString("es-CL", { day: "numeric", month: "short", year: "numeric" })}` : ""}
+              {r.remate.condicion ? `: ${r.remate.condicion}` : ""}
+              {r.remate.km ? `, ${miles(r.remate.km)} km` : ""}. Ver el lote.
+            </p>
+          </a>
+        )}
+
         <dl className="mt-5 flex flex-col divide-y divide-separador border-y border-separador text-[15px]">
           {datosTabla.map(([k, v]) => (
             <div key={k} className="flex items-baseline justify-between gap-4 py-2.5">

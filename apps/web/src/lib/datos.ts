@@ -38,6 +38,16 @@ export interface EnlaceAviso {
   estado: string;
 }
 
+export interface Remate {
+  tipo: "patente" | "posible";
+  fuente: string;
+  lote: string | null;
+  fecha: string | null;
+  condicion: string | null;
+  km: number | null;
+  url: string | null;
+}
+
 /** Lo que marca el dueño sobre un auto. */
 export interface MarcaAuto {
   estado: string | null;
@@ -82,6 +92,8 @@ export interface ResultadoAuto {
   fotos: string[];
   /** Quedó fuera por poco (se muestra en "Casi calzan"). */
   casi?: boolean;
+  /** Coincide con un lote de remate (misma patente, o parecido). */
+  remate?: Remate | null;
   /** Cambios de precio del aviso principal, del más antiguo al más nuevo. */
   historial: { precio: number; fecha: string }[];
   /** Foto principal (la del aviso más barato que tenga foto). */
@@ -96,7 +108,7 @@ const HORAS_NUEVO = 48;
  * aplican en el teléfono, sin volver al servidor.
  */
 const COLUMNAS_AVISO =
-  "id, auto_id, fuente_id, url, titulo, marca, anio, km, precio, precio_inicial, precio_descripcion, modelo, version, motor, caja, traccion, region, comuna, tipo_vendedor, vendedor, alertas, alerta_detalle, por_confirmar, estado, primera_vez, foto_url, fotos";
+  "id, auto_id, fuente_id, url, titulo, marca, anio, km, precio, precio_inicial, precio_descripcion, modelo, version, motor, caja, traccion, region, comuna, tipo_vendedor, vendedor, alertas, alerta_detalle, por_confirmar, estado, primera_vez, foto_url, fotos, remate";
 
 type FilaResultado = {
   veredicto: string;
@@ -106,7 +118,7 @@ type FilaResultado = {
     id: string; auto_id: string | null; fuente_id: string; url: string; titulo: string; marca: string | null; anio: number | null; km: number | null;
     precio: number | null; precio_inicial: number | null; precio_descripcion: number | null; modelo: string | null; version: string | null; motor: string | null;
     caja: string | null; traccion: string | null; region: string | null; comuna: string | null; tipo_vendedor: string | null; vendedor: string | null;
-    alertas: string[]; alerta_detalle: string | null; por_confirmar: string[]; estado: string; primera_vez: string; foto_url: string | null; fotos: string[];
+    alertas: string[]; alerta_detalle: string | null; por_confirmar: string[]; estado: string; primera_vez: string; foto_url: string | null; fotos: string[]; remate: unknown;
   };
 };
 
@@ -155,6 +167,7 @@ function agruparPorAuto(filas: FilaResultado[], marcaDe: Map<string, MarcaAuto>,
         historial: [],
         foto: a.foto_url,
         fotos: a.fotos ?? [],
+        remate: (a.remate as Remate | null) ?? null,
         ...(casi ? { casi: true } : {}),
       });
       principalCalza.set(clave, veredicto === "calza");
@@ -177,6 +190,9 @@ function agruparPorAuto(filas: FilaResultado[], marcaDe: Map<string, MarcaAuto>,
     if ((a.fotos?.length ?? 0) > actual.fotos.length) actual.fotos = a.fotos;
     if (veredicto === "calza") actual.veredicto = "calza";
     actual.alertas = [...new Set([...actual.alertas, ...a.alertas])];
+    // Si algún aviso del auto salió de remate, el auto también (la patente gana a "posible").
+    const r = a.remate as Remate | null;
+    if (r && (!actual.remate || (r.tipo === "patente" && actual.remate.tipo !== "patente"))) actual.remate = r;
   }
   return [...porAuto.values()];
 }

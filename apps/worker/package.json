@@ -13,7 +13,8 @@
     "prueba": "tsx src/prueba-lector.ts",
     "reevaluar": "tsx src/reevaluar.ts",
     "prueba-busqueda-fb": "tsx src/prueba-busqueda-fb.ts",
-    "resumen": "tsx src/resumen.ts"
+    "resumen": "tsx src/resumen.ts",
+    "remates": "tsx src/remates.ts"
   },
   "dependencies": {
     "@ai-sdk/google": "^4.0.82",

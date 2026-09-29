@@ -4,7 +4,7 @@ type Cliente = Awaited<ReturnType<typeof crearClienteServidor>>;
 
 export const REPO = process.env.GITHUB_REPO || "ralevi02/watch-car";
 
-export const FUENTES_CORRIBLES = ["chileautos", "facebook", "kavak", "yapo", "mercadolibre", "brunofritsch"] as const;
+export const FUENTES_CORRIBLES = ["chileautos", "facebook", "kavak", "yapo", "mercadolibre", "brunofritsch", "remates"] as const;
 export type FuenteCorrible = (typeof FUENTES_CORRIBLES)[number];
 export type EstadoCorrida = "pedida" | "en_cola" | "corriendo";
 
@@ -15,6 +15,7 @@ const WORKFLOW: Record<FuenteCorrible, string> = {
   yapo: "otros-portales.yml",
   mercadolibre: "otros-portales.yml",
   brunofritsch: "otros-portales.yml",
+  remates: "remates.yml",
 };
 
 /** Qué workflows lanzar (y con qué inputs) para correr una fuente o todas. */
@@ -24,6 +25,7 @@ export function pedidosPara(fuente: FuenteCorrible | "todas"): [string, Record<s
       ["chileautos.yml", {}],
       ["facebook.yml", {}],
       ["otros-portales.yml", { fuente: "todas" }],
+      ["remates.yml", {}],
     ];
   const w = WORKFLOW[fuente];
   return [[w, w === "otros-portales.yml" ? { fuente } : {}]];

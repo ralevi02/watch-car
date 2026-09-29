@@ -31,6 +31,7 @@ const HORARIO: Record<string, string> = {
   yapo: "2 veces al día, necesita proxy",
   mercadolibre: "2 veces al día",
   brunofritsch: "2 veces al día, Volvo usados de la automotora",
+  remates: "1 vez al día: Karcal y Zárate, cruzados con tus avisos",
 };
 
 /** Por qué falló la última pasada, en corto. */
@@ -101,7 +102,7 @@ export function VistaFuentes() {
                     ) : (
                       <>
                         {f.activa && <BotonCorrer fuente={f.id as FuenteCorrible} nombre={f.nombre} />}
-                        <InterruptorFuente id={f.id as "chileautos" | "kavak" | "yapo" | "mercadolibre" | "brunofritsch"} activa={f.activa} nombre={f.nombre} />
+                        <InterruptorFuente id={f.id as "chileautos" | "kavak" | "yapo" | "mercadolibre" | "brunofritsch" | "remates"} activa={f.activa} nombre={f.nombre} />
                       </>
                     )}
                   </div>
