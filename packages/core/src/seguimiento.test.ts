@@ -87,3 +87,8 @@ test("la duda de modelo se ajusta con lo que dice el aviso", async () => {
   assert.deepEqual(dudaDeModelo("V40", [], { titulo: "Volvo V40 2018" }, false), []);
   assert.deepEqual(dudaDeModelo("V40 Cross Country", ["modelo"], { titulo: "Volvo V40 AWD" }, false), ["modelo"]);
 });
+
+test("un precio muy bajo para la ficha queda para revisar, no se oculta", () => {
+  assert.deepEqual(evaluar({ anio: 2018, precio: 100000 }, EJEMPLO_V40CC), { tipo: "advertencia", motivos: ["Precio muy bajo ($100.000)"] });
+  assert.equal(evaluar({ anio: 2018, precio: 8000000 }, EJEMPLO_V40CC).tipo, "calza");
+});

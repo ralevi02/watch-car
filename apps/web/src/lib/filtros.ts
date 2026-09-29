@@ -50,7 +50,12 @@ export function filtrar(todos: ResultadoAuto[], filtro: Filtro, busqueda?: strin
   const deLaBusqueda = todos.flatMap((r) => paraBusqueda(r, busqueda) ?? []).filter((r) => coincide(r, texto));
   const visibles = deLaBusqueda
     .filter((r) => pasa(r, filtro))
-    .sort((x, y) => Number(y.marca?.estado === "favorito") - Number(x.marca?.estado === "favorito") || (x.precio ?? Infinity) - (y.precio ?? Infinity));
+    .sort(
+      (x, y) =>
+        Number(y.marca?.estado === "favorito") - Number(x.marca?.estado === "favorito") ||
+        Number(y.veredicto === "calza") - Number(x.veredicto === "calza") ||
+        (x.precio ?? Infinity) - (y.precio ?? Infinity),
+    );
   const cuentas = Object.fromEntries(FILTROS.map((f) => [f, deLaBusqueda.filter((r) => pasa(r, f)).length])) as Record<Filtro, number>;
   return { visibles, cuentas };
 }

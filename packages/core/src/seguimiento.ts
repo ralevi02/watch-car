@@ -109,6 +109,10 @@ export function evaluar(aviso: AvisoNormalizado, s: Seguimiento): Veredicto {
   revisarRango(aviso.anio, s.anio, "Año", fuera, adv, String);
   revisarRango(aviso.km, s.km, "Km", fuera, adv);
   revisarRango(aviso.precio, s.precio, "Precio", fuera, adv, (n) => `$${fmt(n)}`);
+  // Muy por debajo del tope casi nunca es el auto: repuestos, arriendo, el pie o un precio de mentira.
+  if (aviso.precio !== undefined && s.precio.max !== undefined && aviso.precio < s.precio.max * 0.25) {
+    adv.push(`Precio muy bajo ($${fmt(aviso.precio)})`);
+  }
   if (aviso.motor && s.motoresExcluidos.some((m) => m.toLowerCase() === aviso.motor!.toLowerCase())) {
     fuera.push(`Motor ${aviso.motor} excluido`);
   }
