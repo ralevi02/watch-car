@@ -61,7 +61,7 @@ export async function POST(req: Request) {
   }
 
   const datos = Object.fromEntries(Object.entries(salida.datos).filter((x): x is [string, string] => Boolean(x[1]?.trim())));
-  const llamada: Llamada = { fecha: new Date().toISOString(), texto: salida.resumen.replace(/—/g, ","), datos };
+  const llamada: Llamada = { fecha: new Date().toISOString(), texto: salida.resumen.replace(/\u2014/g, ","), datos };
   const supabase = await crearClienteServidor();
   const { data: marca } = await supabase.from("marcas").select("llamadas, contacto").eq("auto_id", autoId).maybeSingle();
   const llamadas = [...((marca?.llamadas ?? []) as unknown as Llamada[]), llamada];

@@ -35,7 +35,7 @@ export async function diagnosticar(
       providerOptions: { google: { thinkingConfig: { thinkingLevel: "low" } } satisfies GoogleLanguageModelOptions },
       maxRetries: 1,
     });
-    return { causa: output.causa, texto: output.texto.trim().replace(/—/g, ",").slice(0, 400) };
+    return { causa: output.causa, texto: output.texto.trim().replace(/\u2014/g, ",").slice(0, 400) };
   } catch {
     return null;
   } finally {
