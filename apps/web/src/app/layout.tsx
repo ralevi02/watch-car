@@ -1,26 +1,35 @@
 import type { Metadata, Viewport } from "next";
-import { Figtree } from "next/font/google";
+import { Instrument_Sans } from "next/font/google";
 import "./globals.css";
 
-const figtree = Figtree({ subsets: ["latin"], variable: "--font-figtree", display: "swap" });
+const instrument = Instrument_Sans({ subsets: ["latin"], variable: "--font-instrument", display: "swap" });
 
 export const metadata: Metadata = {
   title: "Radar seminuevos",
   description: "Seguimiento de autos usados en Chile",
-  appleWebApp: { capable: true, title: "Radar", statusBarStyle: "black-translucent" },
+  appleWebApp: { capable: true, title: "Radar", statusBarStyle: "default" },
 };
 
 export const viewport: Viewport = {
-  themeColor: "#17191c",
-  colorScheme: "dark",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
+    { media: "(prefers-color-scheme: dark)", color: "#0f0f10" },
+  ],
+  colorScheme: "light dark",
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
 };
 
+/** El tema elegido a mano (Fuentes > Apariencia) se aplica antes de pintar: sin parpadeo. */
+const TEMA = `try{var t=localStorage.getItem("radar:tema");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch(e){}`;
+
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="es-CL" className={`${figtree.variable} h-full antialiased`}>
+    <html lang="es-CL" className={`${instrument.variable} h-full antialiased`} suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: TEMA }} />
+      </head>
       <body className="min-h-full flex flex-col">{children}</body>
     </html>
   );

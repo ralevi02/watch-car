@@ -3,6 +3,7 @@
 import { ChevronRight, LogOut } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { salir } from "@/app/(app)/acciones";
+import { Apariencia } from "@/components/apariencia";
 import { BotonPush } from "@/components/boton-push";
 import { ConectarGithub } from "@/components/conectar-github";
 import { AvisoCorridas, BotonCorrer, BotonCorrerTodas, EstadoFuente, ProveedorCorridas } from "@/components/corridas";
@@ -116,6 +117,8 @@ export function VistaFuentes() {
             <BotonPush />
           </section>
 
+          <Apariencia />
+
           <ConectarGithub conectado={githubConectado} />
 
           <section>
@@ -144,7 +147,7 @@ export function VistaFuentes() {
                   </>
                 );
                 return d.run ? (
-                  <a key={p.id} href={d.run} target="_blank" rel="noopener noreferrer" className="fila-ios justify-between active:bg-white/5">
+                  <a key={p.id} href={d.run} target="_blank" rel="noopener noreferrer" className="fila-ios justify-between active:bg-presion">
                     {contenido}
                   </a>
                 ) : (
@@ -159,7 +162,7 @@ export function VistaFuentes() {
           {/* El form va adentro: Next le agrega inputs ocultos que moverían la línea separadora. */}
           <div className="lista-ios">
             <form action={salir} onSubmit={borrarGuardado}>
-              <button type="submit" className="fila-ios w-full justify-center text-destructive active:bg-white/5">
+              <button type="submit" className="fila-ios w-full justify-center text-destructive active:bg-presion">
                 <LogOut className="size-5" /> Cerrar sesión
               </button>
             </form>

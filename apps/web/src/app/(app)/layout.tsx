@@ -10,7 +10,7 @@ import { ProveedorAlmacen } from "@/lib/almacen";
 export default function LayoutApp({ children }: LayoutProps<"/">) {
   return (
     <ProveedorAlmacen>
-      <div className="mx-auto flex min-h-dvh w-full max-w-2xl flex-col pb-[calc(64px+env(safe-area-inset-bottom))]">
+      <div className="mx-auto flex min-h-dvh w-full max-w-2xl flex-col pb-[calc(84px+env(safe-area-inset-bottom))]">
         <AvisoNoDueno />
         {children}
         <NavInferior />

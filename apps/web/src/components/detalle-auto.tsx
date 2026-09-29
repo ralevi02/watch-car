@@ -13,8 +13,14 @@ import { cn } from "@/lib/utils";
 const fecha = (s: string) => new Date(s).toLocaleDateString("es-CL", { day: "numeric", month: "short", timeZone: "America/Santiago" });
 const NOMBRE_CAMPO: Record<string, string> = { modelo: "modelo", version: "versión", anio: "año", motor: "motor", caja: "caja", traccion: "tracción", km: "km", comuna: "comuna", tipoVendedor: "tipo de vendedor" };
 
-export function DetalleAuto() {
-  const id = useSearchParams().get("id") ?? "";
+/**
+ * El auto completo. Como página (/auto?id=, para links directos) o dentro de la
+ * hoja que se abre desde Resultados (enHoja, con alCerrar).
+ */
+export function DetalleAuto({ id: idHoja, alCerrar }: { id?: string; alCerrar?: () => void } = {}) {
+  const idUrl = useSearchParams().get("id") ?? "";
+  const id = idHoja ?? idUrl;
+  const enHoja = idHoja !== undefined;
   const router = useRouter();
   const { datos, cambiar, detalles, pedirDetalle } = useAlmacen();
   const r = datos?.resultados.find((x) => x.autoId === id || x.enlaces.some((e) => e.id === id));
@@ -28,7 +34,8 @@ export function DetalleAuto() {
   }, [autoId, pedirDetalle]);
 
   const volver = () => {
-    if (window.history.length > 1) router.back();
+    if (alCerrar) alCerrar();
+    else if (window.history.length > 1) router.back();
     else router.push("/resultados", { transitionTypes: ["nav-atras"] } as never);
   };
 
@@ -58,8 +65,15 @@ export function DetalleAuto() {
   const textoNota = nota ?? r.marca?.nota ?? "";
   const revisar = etiquetas({ ...r, alertas: r.alertas.filter((a) => a !== "precio_distinto") });
   const vende = r.tipoVendedor === "automotora" ? (r.vendedor?.replace(/\s*\/\s*Vehículo Usado$/i, "").replace(/^Automotora\s+/i, "") ?? "Automotora") : r.tipoVendedor === "particular" ? "Particular" : null;
+  const datosTabla = [
+    ["Año", r.anio ?? "?"],
+    ["Km", r.km !== null ? miles(r.km) : "?"],
+    ["Caja", caja(r.caja) ?? "?"],
+    ["Motor", r.motor],
+    ["Tracción", r.traccion === "AWD" ? "AWD" : r.traccion ? "4x2" : null],
+    ["Vende", [vende, lugar(r)].filter(Boolean).join(", ") || null],
+  ].filter((x): x is [string, string | number] => x[1] !== null && x[1] !== "");
   const pie = [
-    [vende, lugar(r)].filter(Boolean).join(" en "),
     r.porConfirmar.length ? `Por confirmar: ${r.porConfirmar.map((c) => NOMBRE_CAMPO[c] ?? c).join(", ")}` : null,
   ].filter(Boolean);
 
@@ -82,10 +96,16 @@ export function DetalleAuto() {
 
   return (
     <div className="animate-in fade-in duration-150">
-      <header className="flex items-center justify-between px-2 pt-[calc(env(safe-area-inset-top)+6px)]">
-        <button type="button" onClick={volver} className="presionable flex h-11 items-center gap-0.5 pr-2 text-[16px] font-medium text-suave">
-          <ChevronLeft className="size-6" strokeWidth={2} /> Resultados
-        </button>
+      <header className={cn("flex items-center justify-between px-2", enHoja ? "-mt-1" : "pt-[calc(env(safe-area-inset-top)+6px)]")}>
+        {enHoja ? (
+          <button type="button" onClick={volver} className="presionable flex h-11 items-center px-3 text-[16px] font-medium text-suave">
+            Cerrar
+          </button>
+        ) : (
+          <button type="button" onClick={volver} className="presionable flex h-11 items-center gap-0.5 pr-2 text-[16px] font-medium text-suave">
+            <ChevronLeft className="size-6" strokeWidth={2} /> Resultados
+          </button>
+        )}
         <div className="flex">
           <button type="button" aria-label="Compartir" onClick={compartir} className="presionable flex size-11 items-center justify-center">
             <Share className="size-[19px]" strokeWidth={1.8} />
@@ -96,7 +116,7 @@ export function DetalleAuto() {
         </div>
       </header>
 
-      <main className="flex flex-col px-5 pb-[calc(9rem+env(safe-area-inset-bottom))] pt-1.5">
+      <main className={cn("flex flex-col px-5 pt-1.5", enHoja ? "pb-6" : "pb-[calc(10rem+env(safe-area-inset-bottom))]")}>
         <div className="relative aspect-[3/2] overflow-hidden rounded-[18px] bg-card">
           {foto && r.foto ? (
             <>
@@ -131,20 +151,14 @@ export function DetalleAuto() {
           </div>
         )}
 
-        <div className="mt-5 grid grid-cols-3 gap-2">
-          <div className="flex flex-col gap-0.5 rounded-[14px] bg-card p-3">
-            <span className="text-[17px] font-bold tabular-nums">{r.anio ?? "?"}</span>
-            <span className="text-[12px] text-tenue">Año</span>
-          </div>
-          <div className="flex flex-col gap-0.5 rounded-[14px] bg-card p-3">
-            <span className="text-[17px] font-bold tabular-nums">{r.km !== null ? miles(r.km) : "?"}</span>
-            <span className="text-[12px] text-tenue">Km</span>
-          </div>
-          <div className="flex flex-col gap-0.5 rounded-[14px] bg-card p-3">
-            <span className="text-[17px] font-bold first-letter:uppercase">{caja(r.caja) ?? "?"}</span>
-            <span className="truncate text-[12px] text-tenue">{[r.motor, r.traccion === "AWD" ? "AWD" : r.traccion ? "4x2" : null].filter(Boolean).join(", ") || "Caja"}</span>
-          </div>
-        </div>
+        <dl className="mt-5 flex flex-col divide-y divide-separador border-y border-separador text-[15px]">
+          {datosTabla.map(([k, v]) => (
+            <div key={k} className="flex items-baseline justify-between gap-4 py-2.5">
+              <dt className="text-muted-foreground">{k}</dt>
+              <dd className="truncate text-right font-medium first-letter:uppercase">{v}</dd>
+            </div>
+          ))}
+        </dl>
 
         {detalle?.descripcion && (
           <div className="mt-5">
@@ -215,7 +229,12 @@ export function DetalleAuto() {
         </section>
       </main>
 
-      <div className="fixed inset-x-0 bottom-[calc(56px+env(safe-area-inset-bottom))] z-20 mx-auto flex max-w-2xl items-center gap-2.5 bg-background px-5 pb-3 pt-3">
+      <div
+        className={cn(
+          "z-20 mx-auto flex max-w-2xl items-center gap-2.5 px-5 pt-3",
+          enHoja ? "sticky bottom-0 bg-hoja pb-[calc(12px+env(safe-area-inset-bottom))]" : "fixed inset-x-0 bottom-[calc(78px+env(safe-area-inset-bottom))] bg-background pb-3",
+        )}
+      >
         <button type="button" onClick={() => marcar(descartado ? null : "descartado")} className="presionable h-[50px] shrink-0 rounded-full bg-card px-5 text-[15px] font-semibold">
           {descartado ? "Recuperar" : "Descartar"}
         </button>

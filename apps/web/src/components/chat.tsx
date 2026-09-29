@@ -148,7 +148,7 @@ export function Chat({ onGuardado }: { onGuardado?: () => void }) {
             <p className="mb-1 text-center text-[13px] text-muted-foreground">Cuéntame qué auto buscas, como se lo dirías a alguien.</p>
             <div className="lista-ios">
               {EJEMPLOS.map((e) => (
-                <button key={e} type="button" onClick={() => enviar(e)} className="fila-ios w-full text-left text-[15px] leading-5 active:bg-white/5">
+                <button key={e} type="button" onClick={() => enviar(e)} className="fila-ios w-full text-left text-[15px] leading-5 active:bg-presion">
                   {e}
                 </button>
               ))}

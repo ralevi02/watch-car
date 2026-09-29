@@ -37,7 +37,7 @@ export function ConectarGithub({ conectado }: { conectado: boolean }) {
           </div>
         ) : (
           <>
-            <a href={CREAR_TOKEN} target="_blank" rel="noopener noreferrer" className="fila-ios justify-between text-foreground active:bg-white/5">
+            <a href={CREAR_TOKEN} target="_blank" rel="noopener noreferrer" className="fila-ios justify-between text-foreground active:bg-presion">
               Crear token en GitHub <ExternalLink className="size-4 text-tenue" strokeWidth={2.4} />
             </a>
             <form

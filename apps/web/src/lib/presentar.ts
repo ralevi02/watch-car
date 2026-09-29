@@ -20,6 +20,7 @@ export const ETIQUETA_ALERTA: Record<string, string> = {
 /** Los motivos de evaluar() ("Km 125.000 sobre 120.000") en corto. */
 function etiquetaMotivo(m: string) {
   if (m.startsWith("Km ")) return "Km sobre tu tope";
+  if (m.startsWith("Precio muy bajo")) return "Precio muy bajo";
   if (m.startsWith("Precio ")) return "Sobre tu tope";
   if (m.startsWith("Año ")) return "Año fuera de rango";
   if (m.startsWith("Modelo por confirmar")) return "Modelo por confirmar";

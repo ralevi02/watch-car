@@ -19,7 +19,7 @@ export function Segmentado<T extends string>({
     <div role="radiogroup" aria-label={etiqueta} className="relative grid h-10 rounded-xl bg-card p-[3px]" style={{ gridTemplateColumns: `repeat(${opciones.length}, minmax(0, 1fr))` }}>
       <span
         aria-hidden
-        className="absolute bottom-[3px] left-[3px] top-[3px] rounded-[9px] bg-[#33373e] transition-transform duration-300 ease-[cubic-bezier(0.2,0.8,0.2,1)]"
+        className="absolute bottom-[3px] left-[3px] top-[3px] rounded-[9px] bg-[var(--pulgar)] shadow-[var(--pulgar-sombra)] transition-transform duration-[280ms] ease-[cubic-bezier(0.77,0,0.175,1)]"
         style={{ width: `calc((100% - 6px) / ${opciones.length})`, transform: `translateX(${i * 100}%)` }}
       />
       {opciones.map((o) => (

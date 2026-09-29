@@ -72,7 +72,7 @@ export default function Reconectar({ params }: { params: Promise<{ id: string }>
             </div>
             <div>
               <div className="lista-ios">
-                <a href={link} target="_blank" rel="noopener noreferrer" className="fila-ios justify-between text-primary active:bg-white/5">
+                <a href={link} target="_blank" rel="noopener noreferrer" className="fila-ios justify-between text-primary active:bg-presion">
                   Abrir en pantalla completa <ExternalLink className="size-4 text-tenue" strokeWidth={2.4} />
                 </a>
                 <button
@@ -81,7 +81,7 @@ export default function Reconectar({ params }: { params: Promise<{ id: string }>
                     await navigator.clipboard.writeText(rec?.clave ?? "");
                     setCopiado(true);
                   }}
-                  className="fila-ios w-full justify-between text-left text-primary active:bg-white/5"
+                  className="fila-ios w-full justify-between text-left text-primary active:bg-presion"
                 >
                   {copiado ? "Clave copiada" : "Copiar clave de la vista"}
                   {copiado && <Check className="size-5 text-calza" strokeWidth={2.6} />}
@@ -116,12 +116,12 @@ export default function Reconectar({ params }: { params: Promise<{ id: string }>
         {(rec?.run_url || terminado) && (
           <div className="lista-ios">
             {rec?.run_url && (
-              <a href={rec.run_url} target="_blank" rel="noopener noreferrer" className="fila-ios justify-between text-primary active:bg-white/5">
+              <a href={rec.run_url} target="_blank" rel="noopener noreferrer" className="fila-ios justify-between text-primary active:bg-presion">
                 Ver la corrida en GitHub <ExternalLink className="size-4 text-tenue" strokeWidth={2.4} />
               </a>
             )}
             {terminado && (
-              <Link href="/fuentes" transitionTypes={["nav-atras"]} className="fila-ios text-primary active:bg-white/5">
+              <Link href="/fuentes" transitionTypes={["nav-atras"]} className="fila-ios text-primary active:bg-presion">
                 Volver a Fuentes
               </Link>
             )}

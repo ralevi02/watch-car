@@ -62,7 +62,7 @@ export function CuentasFacebook({ activa, rotacion, pasadasPorDia, cuentas }: { 
           <Interruptor activo={activa} etiqueta="Buscar en Facebook" onCambio={(v) => y(configurarFacebook({ activa: v }))} />
         </div>
         {cuentas.map((c) => (
-          <button key={c.id} type="button" onClick={() => setAbierta(c.id)} className="fila-ios w-full justify-between text-left active:bg-white/5">
+          <button key={c.id} type="button" onClick={() => setAbierta(c.id)} className="fila-ios w-full justify-between text-left active:bg-presion">
             <span className="flex min-w-0 flex-col">
               <span>{c.nombre}</span>
               <span className={cn("text-[13px] leading-[18px]", ESTADO[c.estado]?.clase)}>
@@ -83,7 +83,7 @@ export function CuentasFacebook({ activa, rotacion, pasadasPorDia, cuentas }: { 
               else if (!r.ok) setError(r.error);
             })
           }
-          className="fila-ios w-full text-foreground active:bg-white/5"
+          className="fila-ios w-full text-foreground active:bg-presion"
         >
           <Plus className="size-5" strokeWidth={2.4} /> Agregar cuenta secundaria
         </button>
@@ -118,11 +118,11 @@ export function CuentasFacebook({ activa, rotacion, pasadasPorDia, cuentas }: { 
               {actual.ultimo_error && <div className="fila-ios text-[15px] text-destructive">{actual.ultimo_error}</div>}
             </div>
             <div className="lista-ios">
-              <button type="button" disabled={pendiente} onClick={() => reconectar(actual.id)} className="fila-ios w-full text-foreground active:bg-white/5">
+              <button type="button" disabled={pendiente} onClick={() => reconectar(actual.id)} className="fila-ios w-full text-foreground active:bg-presion">
                 {actual.estado === "sin_sesion" ? "Iniciar sesión" : "Reconectar"}
               </button>
               {(actual.estado === "activa" || actual.estado === "pausada") && (
-                <button type="button" disabled={pendiente} onClick={() => iniciar(() => y(cambiarCuentaFacebook(actual.id, actual.estado === "activa" ? "pausada" : "activa")))} className="fila-ios w-full text-foreground active:bg-white/5">
+                <button type="button" disabled={pendiente} onClick={() => iniciar(() => y(cambiarCuentaFacebook(actual.id, actual.estado === "activa" ? "pausada" : "activa")))} className="fila-ios w-full text-foreground active:bg-presion">
                   {actual.estado === "activa" ? "Pausar cuenta" : "Activar cuenta"}
                 </button>
               )}
@@ -134,7 +134,7 @@ export function CuentasFacebook({ activa, rotacion, pasadasPorDia, cuentas }: { 
                 onClick={() => {
                   if (confirm(`¿Borrar «${actual.nombre}» y su sesión guardada?`)) iniciar(async () => { await y(borrarCuentaFacebook(actual.id)); setAbierta(null); });
                 }}
-                className="fila-ios w-full justify-center text-destructive active:bg-white/5"
+                className="fila-ios w-full justify-center text-destructive active:bg-presion"
               >
                 Borrar cuenta
               </button>

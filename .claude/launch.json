@@ -4,9 +4,23 @@
     {
       "name": "web",
       "runtimeExecutable": "pnpm",
-      "runtimeArgs": ["dev"],
+      "runtimeArgs": [
+        "dev"
+      ],
       "port": 3100,
       "autoPort": true
+    },
+    {
+      "name": "web-prod",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": [
+        "--filter",
+        "@radar/web",
+        "start",
+        "--port",
+        "3200"
+      ],
+      "port": 3200
     }
   ]
 }

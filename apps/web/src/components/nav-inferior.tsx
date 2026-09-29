@@ -57,10 +57,16 @@ export function NavInferior() {
   useEffect(() => setActivo(indiceDe(ruta)), [ruta]);
 
   return (
-    <nav style={{ viewTransitionName: "nav-inferior" }} className="fixed inset-x-0 bottom-0 z-30 border-t border-separador bg-barra pb-[env(safe-area-inset-bottom)] backdrop-blur-xl">
-      <ul className="mx-auto grid h-[56px] max-w-2xl grid-cols-3">
+    <nav style={{ viewTransitionName: "nav-inferior" }} className="pointer-events-none fixed inset-x-0 bottom-0 z-30 flex justify-center px-4 pb-[calc(10px+env(safe-area-inset-bottom))]">
+      <ul className="pointer-events-auto relative grid h-[58px] w-full max-w-[340px] grid-cols-3 rounded-full border border-separador bg-barra p-1 shadow-[0_8px_30px_rgba(0,0,0,0.12)] backdrop-blur-xl">
+        {/* Marcador de la pestaña activa: se desliza al tocar otra. */}
+        <span
+          aria-hidden
+          className="absolute bottom-1 left-1 top-1 rounded-full bg-secondary transition-transform duration-[380ms] ease-[cubic-bezier(0.32,0.72,0,1)]"
+          style={{ width: "calc((100% - 8px) / 3)", transform: `translateX(${activo * 100}%)` }}
+        />
         {ITEMS.map(({ href, etiqueta, icono }, i) => (
-          <li key={href}>
+          <li key={href} className="relative">
             <Link
               href={href}
               prefetch
@@ -70,7 +76,7 @@ export function NavInferior() {
                 setActivo(i);
               }}
               aria-current={i === activo ? "page" : undefined}
-              className={cn("presionable flex h-full flex-col items-center justify-center gap-1 text-[11px]", i === activo ? "font-semibold text-foreground" : "font-medium text-tenue")}
+              className={cn("presionable flex h-full flex-col items-center justify-center gap-0.5 rounded-full text-[10.5px] transition-colors duration-200", i === activo ? "font-semibold text-foreground" : "font-medium text-tenue")}
             >
               {icono(i === activo)}
               {etiqueta}

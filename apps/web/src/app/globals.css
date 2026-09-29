@@ -7,9 +7,11 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-figtree), system-ui, sans-serif;
-  --font-heading: var(--font-figtree), system-ui, sans-serif;
+  --font-sans: var(--font-instrument), system-ui, sans-serif;
+  --font-heading: var(--font-instrument), system-ui, sans-serif;
   --color-suave: var(--suave);
+  --color-hoja: var(--hoja);
+  --color-presion: var(--presion);
   --color-tenue: var(--tenue);
   --color-advertencia-borde: var(--advertencia-borde);
   --color-advertencia: var(--advertencia);
@@ -57,49 +59,39 @@
 }
 
 :root {
-  /* Dirección F3 "Cabina en filas": oscuro, liviano, el ámbar solo para lo que hay que revisar. */
-  color-scheme: dark;
-  --background: #17191c;
-  --foreground: #eceef1;
-  --card: #212429;
-  --card-foreground: #eceef1;
-  --popover: #26292f;
-  --popover-foreground: #eceef1;
-  --primary: #eceef1;
-  --primary-foreground: #17191c;
-  --secondary: #2a2d33;
-  --secondary-foreground: #eceef1;
-  --muted: #212429;
-  --muted-foreground: #969ca5;
-  --suave: #b4bac2;
-  --tenue: #7d848d;
-  --accent: #2a2d33;
-  --accent-foreground: #eceef1;
-  --destructive: #ff7a70;
-  --border: #2c2f35;
-  --input: #2c2f35;
-  --ring: #eceef1;
-  --advertencia: #e8b25a;
-  --advertencia-borde: rgba(232, 178, 90, 0.35);
-  --advertencia-fondo: rgba(232, 178, 90, 0.1);
-  --calza: #72d3a2;
-  --calza-fondo: rgba(114, 211, 162, 0.1);
-  --separador: #2a2d33;
-  --barra: rgba(23, 25, 28, 0.94);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
+  /* Neutro claro y oscuro (dirección F, "Riel sencillo"): verde y ámbar solo para calza y revisar.
+     Sigue al sistema; data-theme (Fuentes > Apariencia) lo fija a mano. */
+  color-scheme: light;
+  --background: #ffffff; --foreground: #121314; --card: #f3f3f4; --card-foreground: #121314; --popover: #ffffff; --popover-foreground: #121314;
+  --primary: #121314; --primary-foreground: #ffffff; --secondary: #ebebed; --secondary-foreground: #121314; --muted: #f3f3f4; --muted-foreground: #6a6d72;
+  --suave: #45484d; --tenue: #86898e; --accent: #ebebed; --accent-foreground: #121314; --destructive: #d23b30; --border: #e6e6e8; --input: #e6e6e8; --ring: #121314;
+  --advertencia: #9a5700; --advertencia-borde: rgba(154, 87, 0, 0.32); --advertencia-fondo: rgba(154, 87, 0, 0.08);
+  --calza: #17794a; --calza-fondo: rgba(23, 121, 74, 0.08); --separador: #ececee; --barra: rgba(255, 255, 255, 0.9);
+  --hoja: #ffffff; --agarre: #d6d6d9; --pulgar: #ffffff; --pulgar-sombra: 0 1px 3px rgba(0, 0, 0, 0.12); --interruptor-off: #e3e3e6; --presion: rgba(0, 0, 0, 0.04); --velo: rgba(0, 0, 0, 0.32);
+  --chart-1: oklch(0.87 0 0); --chart-2: oklch(0.556 0 0); --chart-3: oklch(0.439 0 0); --chart-4: oklch(0.371 0 0); --chart-5: oklch(0.269 0 0);
   --radius: 0.75rem;
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  --sidebar: oklch(0.205 0 0); --sidebar-foreground: oklch(0.985 0 0); --sidebar-primary: oklch(0.488 0.243 264.376); --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.269 0 0); --sidebar-accent-foreground: oklch(0.985 0 0); --sidebar-border: oklch(1 0 0 / 10%); --sidebar-ring: oklch(0.556 0 0);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+  --background: #0f0f10; --foreground: #f1f1f2; --card: #1a1a1c; --card-foreground: #f1f1f2; --popover: #1f1f22; --popover-foreground: #f1f1f2;
+  --primary: #f1f1f2; --primary-foreground: #0f0f10; --secondary: #232326; --secondary-foreground: #f1f1f2; --muted: #1a1a1c; --muted-foreground: #9b9da2;
+  --suave: #c2c4c8; --tenue: #7f8287; --accent: #232326; --accent-foreground: #f1f1f2; --destructive: #ff7a70; --border: #26262a; --input: #26262a; --ring: #f1f1f2;
+  --advertencia: #eab35c; --advertencia-borde: rgba(234, 179, 92, 0.36); --advertencia-fondo: rgba(234, 179, 92, 0.1);
+  --calza: #6fd1a0; --calza-fondo: rgba(111, 209, 160, 0.1); --separador: #232326; --barra: rgba(15, 15, 16, 0.9);
+  --hoja: #18181a; --agarre: #3a3a3f; --pulgar: #34343a; --pulgar-sombra: none; --interruptor-off: #36363b; --presion: rgba(255, 255, 255, 0.05); --velo: rgba(0, 0, 0, 0.6);
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --background: #0f0f10; --foreground: #f1f1f2; --card: #1a1a1c; --card-foreground: #f1f1f2; --popover: #1f1f22; --popover-foreground: #f1f1f2;
+  --primary: #f1f1f2; --primary-foreground: #0f0f10; --secondary: #232326; --secondary-foreground: #f1f1f2; --muted: #1a1a1c; --muted-foreground: #9b9da2;
+  --suave: #c2c4c8; --tenue: #7f8287; --accent: #232326; --accent-foreground: #f1f1f2; --destructive: #ff7a70; --border: #26262a; --input: #26262a; --ring: #f1f1f2;
+  --advertencia: #eab35c; --advertencia-borde: rgba(234, 179, 92, 0.36); --advertencia-fondo: rgba(234, 179, 92, 0.1);
+  --calza: #6fd1a0; --calza-fondo: rgba(111, 209, 160, 0.1); --separador: #232326; --barra: rgba(15, 15, 16, 0.9);
+  --hoja: #18181a; --agarre: #3a3a3f; --pulgar: #34343a; --pulgar-sombra: none; --interruptor-off: #36363b; --presion: rgba(255, 255, 255, 0.05); --velo: rgba(0, 0, 0, 0.6);
 }
 
 .dark {
@@ -180,6 +172,24 @@ body {
 }
 .presionable:active {
   transform: scale(0.96);
+}
+
+/* Cambio de tema: el nuevo se abre en círculo desde abajo, donde está el control. */
+.cambio-tema::view-transition-old(root),
+.cambio-tema::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+.cambio-tema::view-transition-new(root) {
+  animation: revelar-tema 520ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+@keyframes revelar-tema {
+  from {
+    clip-path: circle(0 at 50% 60%);
+  }
+  to {
+    clip-path: circle(150vmax at 50% 60%);
+  }
 }
 
 /* Transiciones entre pantallas (View Transitions de React/Next). */
@@ -347,7 +357,7 @@ body {
 }
 .etiqueta-calza {
   color: var(--calza);
-  border-color: rgba(114, 211, 162, 0.35);
+  border-color: color-mix(in srgb, var(--calza) 35%, transparent);
 }
 .titulo-grupo {
   margin: 0 0 8px 4px;

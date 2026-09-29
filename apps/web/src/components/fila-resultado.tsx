@@ -1,17 +1,19 @@
 import { Car, Star } from "lucide-react";
 import Link from "next/link";
+import { type Abrir, alTocar } from "@/components/tarjetas";
 import type { ResultadoAuto } from "@/lib/datos";
 import { bajo, etiquetas, lineaAuto, miles, pesos, tituloAuto } from "@/lib/presentar";
 import { cn } from "@/lib/utils";
 
 /** Un auto en la lista: foto chica, precio, lo básico y qué revisar. */
-export function FilaResultado({ r, destacado }: { r: ResultadoAuto; destacado?: boolean }) {
+export function FilaResultado({ r, destacado, abrir }: { r: ResultadoAuto; destacado?: boolean; abrir?: Abrir }) {
   const revisar = etiquetas(r);
   const favorito = r.marca?.estado === "favorito";
   const descartado = r.marca?.estado === "descartado";
   return (
     <Link
       href={`/auto?id=${r.autoId}`}
+      onClick={abrir ? alTocar(abrir, r.autoId) : undefined}
       aria-label={`${tituloAuto(r)}, ${r.precio !== null ? pesos(r.precio) : "sin precio"}`}
       className={cn("presionable flex gap-3.5 py-3", descartado && "opacity-55", destacado && "rounded-xl bg-card px-2")}
     >

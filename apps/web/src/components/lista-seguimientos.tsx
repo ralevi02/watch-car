@@ -63,7 +63,7 @@ function DetalleFicha({ b, onCerrar }: { b: Busqueda; onCerrar: () => void }) {
             onCerrar();
             void borrarBusqueda(b.id).then(() => refrescar());
           }}
-          className="fila-ios w-full justify-center text-destructive active:bg-white/5"
+          className="fila-ios w-full justify-center text-destructive active:bg-presion"
         >
           Borrar seguimiento
         </button>
@@ -114,7 +114,7 @@ export function ListaSeguimientos() {
               <div className="lista-ios" style={{ "--sangria": "60px" } as React.CSSProperties}>
                 {busquedas.map((b) => (
                   <div key={b.id} className="flex items-center">
-                    <Link href={`/resultados?busqueda=${b.id}`} transitionTypes={["nav-adelante"]} className="flex min-w-0 flex-grow items-center gap-3 py-2.5 pl-4 active:bg-white/5">
+                    <Link href={`/resultados?busqueda=${b.id}`} transitionTypes={["nav-adelante"]} className="flex min-w-0 flex-grow items-center gap-3 py-2.5 pl-4 active:bg-presion">
                       <span className={cn("flex size-[30px] shrink-0 items-center justify-center rounded-[8px]", b.activa ? "bg-secondary text-foreground" : "bg-card text-tenue")}>
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
                           <path d="M5.5 10.5l1.6-4.2A2 2 0 019 5h6a2 2 0 011.9 1.3l1.6 4.2A2 2 0 0120 12.4V17a1 1 0 01-1 1h-1.2a1 1 0 01-1-1v-1H7.2v1a1 1 0 01-1 1H5a1 1 0 01-1-1v-4.6a2 2 0 011.5-1.9zM7.6 10h8.8l-1.2-3.2a.8.8 0 00-.7-.5H9.5a.8.8 0 00-.7.5z" />
