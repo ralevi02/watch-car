@@ -7,10 +7,11 @@ import { useAlmacen } from "@/lib/almacen";
 import type { ResultadoAuto } from "@/lib/datos";
 import { fotoGrande } from "@/lib/fotos";
 import { bajo, etiquetas, lugar, miles, millones, pesos, tituloAuto } from "@/lib/presentar";
+import { useLejos } from "@/lib/regiones";
 import { cn } from "@/lib/utils";
 
-export type Vista = "riel" | "vitrina" | "mosaico" | "lista";
-export const VISTAS: Vista[] = ["riel", "vitrina", "mosaico", "lista"];
+export type Vista = "riel" | "vitrina" | "mosaico" | "lista" | "mapa";
+export const VISTAS: Vista[] = ["riel", "vitrina", "mosaico", "lista", "mapa"];
 
 /** Abrir el auto en la hoja; con Ctrl/Cmd o clic medio se deja pasar el link a /auto. */
 export type Abrir = (autoId: string) => void;
@@ -64,11 +65,17 @@ function Estrella({ r }: { r: ResultadoAuto }) {
   );
 }
 
-const Etiquetas = ({ r, max = 3 }: { r: ResultadoAuto; max?: number }) => {
+export const NOMBRE_CONTACTO: Record<string, string> = { por_contactar: "Por contactar", escribi: "Escribí", respondio: "Respondió", visita: "Visita", comprado: "Comprado" };
+
+export const Etiquetas = ({ r, max = 3 }: { r: ResultadoAuto; max?: number }) => {
+  const lejos = useLejos()(r);
   const revisar = etiquetas(r).slice(0, max);
-  if (!revisar.length && !bajo(r)) return null;
+  const contacto = r.marca?.contacto ? NOMBRE_CONTACTO[r.marca.contacto] : null;
+  if (!revisar.length && !bajo(r) && !contacto && !lejos) return null;
   return (
     <span className="mt-2 flex flex-wrap gap-[5px]">
+      {contacto && <span className="etiqueta etiqueta-neutra">{contacto}</span>}
+      {lejos && <span className={cn("etiqueta", lejos.includes("menos") ? "etiqueta-calza" : "etiqueta-neutra")}>{lejos}</span>}
       {bajo(r) && <span className="etiqueta etiqueta-calza">Bajó ${miles(r.precioInicial! - r.precio!)}</span>}
       {revisar.map((e) => (
         <span key={e} className="etiqueta">

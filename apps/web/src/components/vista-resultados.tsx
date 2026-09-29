@@ -1,6 +1,7 @@
 "use client";
 
-import { GalleryHorizontalEnd, LayoutGrid, Link2, List, MoreHorizontal, RectangleHorizontal, Search, Star, Trash2, X } from "lucide-react";
+import { GalleryHorizontalEnd, Handshake, LayoutGrid, Link2, List, Map as IconoMapa, MoreHorizontal, RectangleHorizontal, Search, Star, Trash2, Waves, X } from "lucide-react";
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
@@ -9,6 +10,7 @@ import { Encabezado } from "@/components/encabezado";
 import { FilaEsqueleto, FilaResultado } from "@/components/fila-resultado";
 import { Pantalla } from "@/components/pantalla";
 import { Esqueleto, TarjetaMosaico, TarjetaRiel, TarjetaVitrina, type Vista, VISTAS } from "@/components/tarjetas";
+import { RevisionRapida } from "@/components/revision-rapida";
 import { Hoja } from "@/components/ui/hoja";
 import { Segmentado } from "@/components/ui/segmentado";
 import { useAlmacen } from "@/lib/almacen";
@@ -16,7 +18,13 @@ import type { Filtro, ResultadoAuto } from "@/lib/datos";
 import { FILTROS, filtrar, SEGMENTOS } from "@/lib/filtros";
 import { cn } from "@/lib/utils";
 
-const TITULO_FILTRO: Partial<Record<Filtro, string>> = { favoritos: "Guardados", descartados: "Descartados" };
+const TITULO_FILTRO: Partial<Record<Filtro, string>> = { favoritos: "Guardados", descartados: "Descartados", casi: "Casi calzan", contacto: "En contacto" };
+
+// Leaflet necesita el navegador: el mapa se carga solo si lo eliges.
+const MapaAutos = dynamic(() => import("@/components/mapa-autos").then((m) => m.MapaAutos), {
+  ssr: false,
+  loading: () => <div className="-mx-5 h-[calc(100dvh-300px)] min-h-[360px] animate-pulse bg-card" />,
+});
 
 /** Con todas las fichas a la vista, cada auto va bajo la primera ficha en que calza (o en que aparece). */
 function agrupar(visibles: ResultadoAuto[], busquedas: { id: string; nombre: string }[]) {
@@ -34,16 +42,17 @@ const ICONO_VISTA: Record<Vista, { icono: typeof List; nombre: string }> = {
   vitrina: { icono: RectangleHorizontal, nombre: "Vitrina" },
   mosaico: { icono: LayoutGrid, nombre: "Mosaico" },
   lista: { icono: List, nombre: "Lista" },
+  mapa: { icono: IconoMapa, nombre: "Mapa" },
 };
 
 /** Selector de vista: cuatro íconos con un fondo que se desliza al elegido. */
 function SelectorVista({ valor, onCambio }: { valor: Vista; onCambio: (v: Vista) => void }) {
   const i = VISTAS.indexOf(valor);
   return (
-    <div role="radiogroup" aria-label="Vista" className="relative ml-auto grid h-9 w-[152px] shrink-0 grid-cols-4 rounded-[10px] bg-card p-[3px]">
+    <div role="radiogroup" aria-label="Vista" className="relative ml-auto grid h-9 w-[184px] shrink-0 grid-cols-5 rounded-[10px] bg-card p-[3px]">
       <span
         aria-hidden
-        className="absolute bottom-[3px] left-[3px] top-[3px] w-[calc((100%-6px)/4)] rounded-[7px] bg-[var(--pulgar)] shadow-[var(--pulgar-sombra)] transition-transform duration-[280ms] ease-[cubic-bezier(0.77,0,0.175,1)]"
+        className="absolute bottom-[3px] left-[3px] top-[3px] w-[calc((100%-6px)/5)] rounded-[7px] bg-[var(--pulgar)] shadow-[var(--pulgar-sombra)] transition-transform duration-[280ms] ease-[cubic-bezier(0.77,0,0.175,1)]"
         style={{ transform: `translateX(${i * 100}%)` }}
       />
       {VISTAS.map((v) => {
@@ -136,7 +145,12 @@ export function VistaResultados() {
 
   const busquedas = (datos?.busquedas ?? []).map((b) => ({ id: b.id, nombre: b.nombre }));
   const laBusqueda = busquedas.some((b) => b.id === busqueda) ? busqueda : undefined;
-  const { visibles, cuentas } = filtrar(datos?.resultados ?? [], filtro, laBusqueda, texto);
+  const { visibles, cuentas } = filtrar(datos?.resultados ?? [], filtro, laBusqueda, texto, datos?.casi ?? []);
+  const [rapida, setRapida] = useState(false);
+  // Para revisar de a uno: primero lo nuevo sin marcar.
+  const sinMarcar = visibles.filter((r) => !r.marca?.estado);
+  const nuevosSinMarcar = sinMarcar.filter((r) => r.nuevo);
+  const colaRapida = nuevosSinMarcar.length ? nuevosSinMarcar : sinMarcar;
   const porFicha = !laBusqueda && busquedas.length > 1;
   const nombreFicha = busquedas.find((b) => b.id === laBusqueda)?.nombre ?? busquedas[0]?.nombre ?? "";
   const grupos = porFicha
@@ -147,7 +161,7 @@ export function VistaResultados() {
           { id: "revisar", nombre: "Para revisar", autos: visibles.filter((r) => r.veredicto !== "calza") },
         ].filter((g) => g.autos.length > 0)
       : [{ id: "todas", nombre: nombreFicha, autos: visibles }];
-  const conTitulo = porFicha || vista === "riel";
+  const conTitulo = (porFicha || vista === "riel") && vista !== "mapa";
 
   const cambiar = (f: Filtro, b: string | undefined) => {
     navigator.vibrate?.(5);
@@ -195,6 +209,12 @@ export function VistaResultados() {
               <div className="absolute right-0 top-10 z-40 w-60 origin-top-right animate-in overflow-hidden rounded-[14px] bg-popover text-[16px] text-foreground shadow-[0_12px_40px_rgba(0,0,0,0.5)] fade-in zoom-in-95 duration-150">
                 <button type="button" onClick={() => cambiar(filtro === "descartados" ? "todos" : "descartados", busqueda)} className="flex w-full items-center justify-between px-4 py-3 text-left active:bg-presion">
                   {filtro === "descartados" ? "Ver todos" : "Ver descartados"} <Trash2 className="size-[18px] text-suave" strokeWidth={1.8} />
+                </button>
+                <button type="button" onClick={() => cambiar(filtro === "casi" ? "todos" : "casi", busqueda)} className="flex w-full items-center justify-between border-t border-separador px-4 py-3 text-left active:bg-presion">
+                  {filtro === "casi" ? "Ver todos" : `Casi calzan${cuentas.casi ? ` (${cuentas.casi})` : ""}`} <Waves className="size-[18px] text-suave" strokeWidth={1.8} />
+                </button>
+                <button type="button" onClick={() => cambiar(filtro === "contacto" ? "todos" : "contacto", busqueda)} className="flex w-full items-center justify-between border-t border-separador px-4 py-3 text-left active:bg-presion">
+                  {filtro === "contacto" ? "Ver todos" : `En contacto${cuentas.contacto ? ` (${cuentas.contacto})` : ""}`} <Handshake className="size-[18px] text-suave" strokeWidth={1.8} />
                 </button>
                 <Link href="/compartir" className="flex items-center justify-between border-t border-separador px-4 py-3 active:bg-presion">
                   Agregar aviso por link <Link2 className="size-[18px] text-suave" strokeWidth={1.8} />
@@ -246,6 +266,12 @@ export function VistaResultados() {
             </label>
           )}
           {!especial && <Segmentado etiqueta="Vista" valor={filtro} onCambio={(f) => cambiar(f, busqueda)} opciones={SEGMENTOS.map((s) => ({ ...s, cuenta: s.id === "todos" ? undefined : cuentas[s.id] }))} />}
+          {filtro === "casi" && <p className="text-[14px] text-muted-foreground">Quedaron fuera por poco: hasta 10% sobre tu tope de precio o km, o un año antes. Si varios te gustan, sube el tope en la ficha.</p>}
+          {datos && colaRapida.length > 1 && filtro !== "descartados" && (
+            <button type="button" onClick={() => setRapida(true)} className="presionable flex h-11 items-center justify-center rounded-xl bg-card text-[15px] font-semibold">
+              {nuevosSinMarcar.length ? `Revisar ${nuevosSinMarcar.length} ${nuevosSinMarcar.length === 1 ? "nuevo" : "nuevos"} de a uno` : `Revisar ${sinMarcar.length} de a uno`}
+            </button>
+          )}
         </div>
 
         <main key={`${vista}-${filtro}-${laBusqueda ?? "todas"}`} className="flex flex-col px-5 pb-8 pt-4">
@@ -257,6 +283,8 @@ export function VistaResultados() {
             )
           ) : visibles.length === 0 ? (
             <p className="entrada-escalonada px-6 py-14 text-center text-[15px] text-muted-foreground">{vacio}</p>
+          ) : vista === "mapa" ? (
+            <MapaAutos autos={visibles} casa={datos.ajustes?.casa?.comuna} abrir={abrir} />
           ) : (
             grupos.map((g, gi) => (
               <section key={g.id} className={cn(gi > 0 && (vista === "lista" ? "mt-6" : "mt-8"))}>
@@ -273,6 +301,8 @@ export function VistaResultados() {
           )}
         </main>
       </Pantalla>
+
+      {rapida && <RevisionRapida autos={colaRapida} onCerrar={() => setRapida(false)} abrir={abrir} />}
 
       <Hoja abierta={hojaAbierta} onCerrar={cerrar} titulo="Auto" sinEncabezado>
         {idHoja && <DetalleAuto key={idHoja} id={idHoja} alCerrar={cerrar} />}

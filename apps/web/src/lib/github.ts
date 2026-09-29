@@ -4,7 +4,7 @@ type Cliente = Awaited<ReturnType<typeof crearClienteServidor>>;
 
 export const REPO = process.env.GITHUB_REPO || "ralevi02/watch-car";
 
-export const FUENTES_CORRIBLES = ["chileautos", "facebook", "kavak", "yapo", "mercadolibre"] as const;
+export const FUENTES_CORRIBLES = ["chileautos", "facebook", "kavak", "yapo", "mercadolibre", "brunofritsch"] as const;
 export type FuenteCorrible = (typeof FUENTES_CORRIBLES)[number];
 export type EstadoCorrida = "pedida" | "en_cola" | "corriendo";
 
@@ -14,6 +14,7 @@ const WORKFLOW: Record<FuenteCorrible, string> = {
   kavak: "otros-portales.yml",
   yapo: "otros-portales.yml",
   mercadolibre: "otros-portales.yml",
+  brunofritsch: "otros-portales.yml",
 };
 
 /** Qué workflows lanzar (y con qué inputs) para correr una fuente o todas. */
@@ -72,7 +73,7 @@ export async function corridasActivas(token: string): Promise<Partial<Record<Fue
     const estado: EstadoCorrida = run.status === "in_progress" ? "corriendo" : "en_cola";
     // "Otros portales" dice en el título qué fuente corre (ver run-name en otros-portales.yml).
     const fuentes = FUENTES_CORRIBLES.filter(
-      (f) => WORKFLOW[f] === archivo && (archivo !== "otros-portales.yml" || !/·\s*(kavak|yapo|mercadolibre)$/.test(run.display_title) || run.display_title.endsWith(f)),
+      (f) => WORKFLOW[f] === archivo && (archivo !== "otros-portales.yml" || !/·\s*(kavak|yapo|mercadolibre|brunofritsch)$/.test(run.display_title) || run.display_title.endsWith(f)),
     );
     for (const f of fuentes) if (activas[f] !== "corriendo") activas[f] = estado;
   }

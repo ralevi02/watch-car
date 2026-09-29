@@ -9,6 +9,7 @@ import { Chat } from "@/components/chat";
 import { Encabezado } from "@/components/encabezado";
 import { FichaCard } from "@/components/ficha-card";
 import { Pantalla } from "@/components/pantalla";
+import { SugerenciasFicha } from "@/components/sugerencias-ficha";
 import { Hoja } from "@/components/ui/hoja";
 import { Interruptor } from "@/components/ui/interruptor";
 import { useAlmacen } from "@/lib/almacen";
@@ -35,7 +36,11 @@ function resumen(f: Seguimiento) {
     .join(", ");
 }
 
-function DetalleFicha({ b, onCerrar }: { b: Busqueda; onCerrar: () => void }) {
+/** Lo que se le pide a la IA para proponer autos parecidos a una ficha. */
+const pedirAlternativas = (b: Busqueda) =>
+  `Propón 3 alternativas parecidas a mi ficha «${b.nombre}» (${resumen(b.ficha) || "sin límites"}${b.ficha.caja !== "cualquiera" ? `, caja ${b.ficha.caja === "automatica" ? "automática" : "manual"}` : ""}), que se vendan usadas en Chile y sean confiables. Para cada una dime en una línea por qué, y pregúntame cuál quiero seguir para armar la ficha.`;
+
+function DetalleFicha({ b, onCerrar, onAlternativas }: { b: Busqueda; onCerrar: () => void; onAlternativas: () => void }) {
   const { cambiar, refrescar } = useAlmacen();
   const ajustar = (cambios: { activa?: boolean; alertas?: boolean }) => {
     cambiar((d) => ({ ...d, busquedas: d.busquedas.map((x) => (x.id === b.id ? { ...x, ...cambios } : x)) }));
@@ -44,6 +49,10 @@ function DetalleFicha({ b, onCerrar }: { b: Busqueda; onCerrar: () => void }) {
   return (
     <div className="flex flex-col gap-6 px-4 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
       <FichaCard ficha={b.ficha} />
+      <SugerenciasFicha id={b.id} ficha={b.ficha} />
+      <button type="button" onClick={onAlternativas} className="presionable h-12 rounded-[14px] bg-card text-[15px] font-semibold">
+        Buscar alternativas parecidas
+      </button>
       <div className="lista-ios">
         <div className="fila-ios justify-between">
           <span>Buscar</span>
@@ -81,13 +90,18 @@ export function ListaSeguimientos() {
   }
   const busquedas: Busqueda[] = (datos?.busquedas ?? []).map((b) => ({ ...b, avisos: cuentas[b.id] ?? 0 }));
   const [nueva, setNueva] = useState(false);
+  // Chat que parte pidiendo alternativas a una ficha.
+  const [inicial, setInicial] = useState<string | undefined>(undefined);
   const [abierta, setAbierta] = useState<string | null>(null);
   const actual = busquedas.find((b) => b.id === abierta);
 
   return (
     <>
       <Encabezado titulo="Seguimientos">
-        <button type="button" aria-label="Nuevo seguimiento" onClick={() => setNueva(true)} className="presionable flex size-9 items-center justify-center">
+        <button type="button" aria-label="Nuevo seguimiento" onClick={() => {
+            setInicial(undefined);
+            setNueva(true);
+          }} className="presionable flex size-9 items-center justify-center">
           <Plus className="size-[24px]" strokeWidth={1.9} />
         </button>
       </Encabezado>
@@ -105,7 +119,7 @@ export function ListaSeguimientos() {
           ) : busquedas.length === 0 ? (
             <div className="flex flex-col items-center gap-4 px-6 py-16 text-center">
               <p className="text-[17px] text-muted-foreground">Todavía no sigues ningún auto. Cuéntale a la app qué buscas y ella trae los avisos que calcen.</p>
-              <button type="button" onClick={() => setNueva(true)} className="presionable h-[50px] rounded-full bg-primary px-6 text-[16px] font-semibold text-primary-foreground">
+              <button type="button" onClick={() => { setInicial(undefined); setNueva(true); }} className="presionable h-[50px] rounded-full bg-primary px-6 text-[16px] font-semibold text-primary-foreground">
                 Nuevo seguimiento
               </button>
             </div>
@@ -141,12 +155,34 @@ export function ListaSeguimientos() {
         </main>
       </Pantalla>
 
-      <Hoja abierta={nueva} onCerrar={() => setNueva(false)} titulo="Nuevo seguimiento" izquierda={<button type="button" onClick={() => setNueva(false)}>Cancelar</button>}>
-        <Chat onGuardado={() => { setNueva(false); void refrescar(); }} />
+      <Hoja
+        abierta={nueva}
+        onCerrar={() => setNueva(false)}
+        titulo={inicial ? "Alternativas" : "Nuevo seguimiento"}
+        izquierda={<button type="button" onClick={() => setNueva(false)}>Cancelar</button>}
+      >
+        <Chat
+          key={inicial ?? "nuevo"}
+          inicial={inicial}
+          onGuardado={() => {
+            setNueva(false);
+            void refrescar();
+          }}
+        />
       </Hoja>
 
       <Hoja abierta={Boolean(actual)} onCerrar={() => setAbierta(null)} titulo={actual?.nombre ?? ""} derecha={<button type="button" onClick={() => setAbierta(null)}>Listo</button>}>
-        {actual && <DetalleFicha b={actual} onCerrar={() => setAbierta(null)} />}
+        {actual && (
+          <DetalleFicha
+            b={actual}
+            onCerrar={() => setAbierta(null)}
+            onAlternativas={() => {
+              setAbierta(null);
+              setInicial(pedirAlternativas(actual));
+              setNueva(true);
+            }}
+          />
+        )}
       </Hoja>
     </>
   );

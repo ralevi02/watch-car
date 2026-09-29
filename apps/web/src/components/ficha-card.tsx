@@ -21,6 +21,7 @@ const NOMBRE_FUENTE: Record<Seguimiento["fuentes"][number], string> = {
   mercadolibre: "MercadoLibre",
   kavak: "Kavak",
   yapo: "Yapo",
+  brunofritsch: "Bruno Fritsch",
 };
 
 function Fila({ etiqueta, children }: { etiqueta: string; children: React.ReactNode }) {

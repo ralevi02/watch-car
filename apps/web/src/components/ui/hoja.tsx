@@ -7,6 +7,13 @@ import { cn } from "@/lib/utils";
 const CURVA = "cubic-bezier(0.32, 0.72, 0, 1)"; // cajón de iOS
 const DURACION = 460;
 
+// Puede haber hojas encima de otras (el detalle y, sobre él, la visita): el fondo se bloquea mientras quede alguna.
+let abiertas = 0;
+const bloquear = (si: boolean) => {
+  abiertas = Math.max(0, abiertas + (si ? 1 : -1));
+  document.body.style.overflow = abiertas ? "hidden" : "";
+};
+
 /**
  * Hoja modal que sube desde abajo. Se cierra tocando el velo, con los botones
  * del encabezado o arrastrándola hacia abajo: basta un gesto rápido (se mide la
@@ -53,10 +60,9 @@ export function Hoja({
   useEffect(() => {
     if (abierta) {
       setMontada(true);
-      document.body.style.overflow = "hidden";
-      return;
+      bloquear(true);
+      return () => bloquear(false);
     }
-    document.body.style.overflow = "";
     if (!hoja.current) return;
     poner(hoja.current.getBoundingClientRect().height, true);
     const t = setTimeout(() => setMontada(false), DURACION);
@@ -70,8 +76,6 @@ export function Hoja({
     const r = requestAnimationFrame(() => requestAnimationFrame(() => poner(0, true)));
     return () => cancelAnimationFrame(r);
   }, [montada]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  useEffect(() => () => void (document.body.style.overflow = ""), []);
 
   const empezar = (e: React.PointerEvent) => {
     if (arrastre.current || (e.target as HTMLElement).closest("button, a, input, textarea, select")) return;

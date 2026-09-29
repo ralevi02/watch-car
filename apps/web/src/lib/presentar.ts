@@ -5,7 +5,7 @@ export const pesos = (n: number) => `$${miles(n)}`;
 /** "$8,7 M" para lo que no necesita el número completo. */
 export const millones = (n: number) => `$${(n / 1_000_000).toLocaleString("es-CL", { maximumFractionDigits: 1 })} M`;
 
-export const NOMBRE_FUENTE: Record<string, string> = { chileautos: "Chileautos", facebook: "Facebook", mercadolibre: "MercadoLibre", kavak: "Kavak", yapo: "Yapo" };
+export const NOMBRE_FUENTE: Record<string, string> = { chileautos: "Chileautos", facebook: "Facebook", mercadolibre: "MercadoLibre", kavak: "Kavak", yapo: "Yapo", brunofritsch: "Bruno Fritsch" };
 
 /** Nombre corto de cada alerta, para las etiquetas. */
 export const ETIQUETA_ALERTA: Record<string, string> = {

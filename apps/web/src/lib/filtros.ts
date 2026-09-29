@@ -7,7 +7,7 @@ export const SEGMENTOS: { id: Filtro; etiqueta: string }[] = [
   { id: "bajo", etiqueta: "Bajaron" },
   { id: "advertencia", etiqueta: "Revisar" },
 ];
-export const FILTROS: Filtro[] = ["todos", "nuevos", "bajo", "advertencia", "favoritos", "descartados"];
+export const FILTROS: Filtro[] = ["todos", "nuevos", "bajo", "advertencia", "favoritos", "descartados", "casi", "contacto"];
 
 const bajo = (r: ResultadoAuto) => r.precio !== null && r.precioInicial !== null && r.precio < r.precioInicial;
 
@@ -25,6 +25,10 @@ function pasa(r: ResultadoAuto, filtro: Filtro) {
       return descartado;
     case "favoritos":
       return r.marca?.estado === "favorito";
+    case "contacto":
+      return !descartado && Boolean(r.marca?.contacto) && r.marca?.contacto !== "comprado";
+    case "casi":
+      return !descartado;
     case "nuevos":
       return !descartado && r.nuevo;
     case "bajo":
@@ -46,8 +50,10 @@ function coincide(r: ResultadoAuto, texto: string) {
     .every((t) => donde.includes(t));
 }
 
-export function filtrar(todos: ResultadoAuto[], filtro: Filtro, busqueda?: string, texto = "") {
-  const deLaBusqueda = todos.flatMap((r) => paraBusqueda(r, busqueda) ?? []).filter((r) => coincide(r, texto));
+/** `casi` son los que quedaron fuera por poco: solo se ven con el filtro "casi". */
+export function filtrar(todos: ResultadoAuto[], filtro: Filtro, busqueda?: string, texto = "", casi: ResultadoAuto[] = []) {
+  const base = filtro === "casi" ? casi : todos;
+  const deLaBusqueda = base.flatMap((r) => paraBusqueda(r, busqueda) ?? []).filter((r) => coincide(r, texto));
   const visibles = deLaBusqueda
     .filter((r) => pasa(r, filtro))
     .sort(
@@ -57,5 +63,6 @@ export function filtrar(todos: ResultadoAuto[], filtro: Filtro, busqueda?: strin
         (x.precio ?? Infinity) - (y.precio ?? Infinity),
     );
   const cuentas = Object.fromEntries(FILTROS.map((f) => [f, deLaBusqueda.filter((r) => pasa(r, f)).length])) as Record<Filtro, number>;
+  cuentas.casi = casi.flatMap((r) => paraBusqueda(r, busqueda) ?? []).filter((r) => coincide(r, texto) && pasa(r, "casi")).length;
   return { visibles, cuentas };
 }

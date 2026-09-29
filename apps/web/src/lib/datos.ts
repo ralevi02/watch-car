@@ -6,6 +6,7 @@ export const NOMBRE_FUENTE: Record<string, string> = {
   chileautos: "Chileautos",
   facebook: "Facebook",
   mercadolibre: "MercadoLibre",
+  brunofritsch: "Bruno Fritsch",
   kavak: "Kavak",
   yapo: "Yapo",
 };
@@ -26,7 +27,7 @@ export async function leerBusquedas() {
   });
 }
 
-export type Filtro = "todos" | "nuevos" | "bajo" | "advertencia" | "favoritos" | "descartados";
+export type Filtro = "todos" | "nuevos" | "bajo" | "advertencia" | "favoritos" | "descartados" | "casi" | "contacto";
 
 export interface EnlaceAviso {
   id: string;
@@ -35,6 +36,15 @@ export interface EnlaceAviso {
   precio: number | null;
   primeraVez: string;
   estado: string;
+}
+
+/** Lo que marca el dueño sobre un auto. */
+export interface MarcaAuto {
+  estado: string | null;
+  nota: string | null;
+  contacto?: string | null;
+  motivoDescarte?: string | null;
+  visitaEn?: string | null;
 }
 
 export interface ResultadoAuto {
@@ -67,7 +77,11 @@ export interface ResultadoAuto {
   nuevo: boolean;
   primeraVez: string;
   enlaces: EnlaceAviso[];
-  marca: { estado: string | null; nota: string | null } | null;
+  marca: MarcaAuto | null;
+  /** Todas las fotos del aviso principal (si el detalle las trajo). */
+  fotos: string[];
+  /** Quedó fuera por poco (se muestra en "Casi calzan"). */
+  casi?: boolean;
   /** Cambios de precio del aviso principal, del más antiguo al más nuevo. */
   historial: { precio: number; fecha: string }[];
   /** Foto principal (la del aviso más barato que tenga foto). */
@@ -81,24 +95,28 @@ const HORAS_NUEVO = 48;
  * tener avisos en varios portales y calzar en varias fichas). Los filtros se
  * aplican en el teléfono, sin volver al servidor.
  */
-export async function leerResultados(): Promise<ResultadoAuto[]> {
-  const supabase = await crearClienteServidor();
-  const q = supabase
-    .from("resultados")
-    .select(
-      "veredicto, motivos, busqueda_id, avisos!inner(id, auto_id, fuente_id, url, titulo, marca, anio, km, precio, precio_inicial, precio_descripcion, modelo, version, motor, caja, traccion, region, comuna, tipo_vendedor, vendedor, alertas, alerta_detalle, por_confirmar, estado, primera_vez, foto_url)",
-    )
-    .neq("veredicto", "fuera")
-    .neq("avisos.estado", "vendido");
-  const { data: filas } = await q;
+const COLUMNAS_AVISO =
+  "id, auto_id, fuente_id, url, titulo, marca, anio, km, precio, precio_inicial, precio_descripcion, modelo, version, motor, caja, traccion, region, comuna, tipo_vendedor, vendedor, alertas, alerta_detalle, por_confirmar, estado, primera_vez, foto_url, fotos";
 
-  const autoIds = [...new Set((filas ?? []).map((f) => f.avisos.auto_id).filter((x): x is string => Boolean(x)))];
-  const { data: marcas } = autoIds.length ? await supabase.from("marcas").select("auto_id, estado, nota").in("auto_id", autoIds) : { data: [] };
-  const marcaDe = new Map((marcas ?? []).map((m) => [m.auto_id, m]));
+type FilaResultado = {
+  veredicto: string;
+  motivos: string[];
+  busqueda_id: string;
+  avisos: {
+    id: string; auto_id: string | null; fuente_id: string; url: string; titulo: string; marca: string | null; anio: number | null; km: number | null;
+    precio: number | null; precio_inicial: number | null; precio_descripcion: number | null; modelo: string | null; version: string | null; motor: string | null;
+    caja: string | null; traccion: string | null; region: string | null; comuna: string | null; tipo_vendedor: string | null; vendedor: string | null;
+    alertas: string[]; alerta_detalle: string | null; por_confirmar: string[]; estado: string; primera_vez: string; foto_url: string | null; fotos: string[];
+  };
+};
 
+/** Junta las filas por auto: un auto puede tener avisos en varios portales y calzar en varias fichas. */
+function agruparPorAuto(filas: FilaResultado[], marcaDe: Map<string, MarcaAuto>, casi = false): ResultadoAuto[] {
   const porAuto = new Map<string, ResultadoAuto>();
+  // Si el precio que se muestra viene de un aviso que calza (no de uno con precio de mentira).
+  const principalCalza = new Map<string, boolean>();
   const ahora = Date.now();
-  for (const f of filas ?? []) {
+  for (const f of filas) {
     const a = f.avisos;
     const clave = a.auto_id ?? a.id;
     const veredicto = f.veredicto === "calza" ? "calza" : "advertencia";
@@ -136,31 +154,65 @@ export async function leerResultados(): Promise<ResultadoAuto[]> {
         marca: marcaDe.get(clave) ?? null,
         historial: [],
         foto: a.foto_url,
+        fotos: a.fotos ?? [],
+        ...(casi ? { casi: true } : {}),
       });
+      principalCalza.set(clave, veredicto === "calza");
       continue;
     }
     if (!actual.enlaces.some((e) => e.id === a.id)) actual.enlaces.push(enlace);
     const previo = actual.porBusqueda[f.busqueda_id];
     if (!previo || veredicto === "calza") actual.porBusqueda[f.busqueda_id] = { veredicto, motivos: f.motivos };
-    // Se muestra el precio más bajo entre todos los avisos del mismo auto.
-    if (a.precio !== null && (actual.precio === null || a.precio < actual.precio)) {
+    // Se muestra el precio más bajo entre los avisos que calzan (uno a $2,5 M "para revisar" no tapa al que calza).
+    const esCalza = veredicto === "calza";
+    const yaCalza = principalCalza.get(clave) ?? false;
+    const mejor = a.precio !== null && (actual.precio === null || (esCalza && !yaCalza) || (esCalza === yaCalza && a.precio < actual.precio));
+    if (mejor) {
       actual.precio = a.precio;
       actual.avisoPrincipal = a.id;
+      principalCalza.set(clave, esCalza);
       if (a.foto_url) actual.foto = a.foto_url;
     }
     actual.foto ??= a.foto_url;
+    if ((a.fotos?.length ?? 0) > actual.fotos.length) actual.fotos = a.fotos;
     if (veredicto === "calza") actual.veredicto = "calza";
     actual.alertas = [...new Set([...actual.alertas, ...a.alertas])];
   }
+  return [...porAuto.values()];
+}
 
-  const todos = [...porAuto.values()];
-  const principales = todos.map((r) => r.avisoPrincipal);
+/**
+ * Todos los resultados que no quedaron fuera, agrupados por auto, más los que
+ * quedaron fuera por poco ("casi"). Los filtros se aplican en el teléfono.
+ */
+export async function leerResultados(): Promise<{ resultados: ResultadoAuto[]; casi: ResultadoAuto[] }> {
+  const supabase = await crearClienteServidor();
+  const [{ data: filas }, { data: filasCasi }] = await Promise.all([
+    supabase.from("resultados").select(`veredicto, motivos, busqueda_id, avisos!inner(${COLUMNAS_AVISO})`).neq("veredicto", "fuera").neq("avisos.estado", "vendido"),
+    supabase.from("resultados").select(`veredicto, motivos, busqueda_id, avisos!inner(${COLUMNAS_AVISO})`).eq("veredicto", "fuera").eq("casi", true).neq("avisos.estado", "vendido"),
+  ]);
+
+  const todas = [...(filas ?? []), ...(filasCasi ?? [])] as FilaResultado[];
+  const autoIds = [...new Set(todas.map((f) => f.avisos.auto_id).filter((x): x is string => Boolean(x)))];
+  const { data: marcas } = autoIds.length
+    ? await supabase.from("marcas").select("auto_id, estado, nota, contacto, motivo_descarte, visita_en").in("auto_id", autoIds)
+    : { data: [] };
+  const marcaDe = new Map(
+    (marcas ?? []).map((m) => [m.auto_id, { estado: m.estado, nota: m.nota, contacto: m.contacto, motivoDescarte: m.motivo_descarte, visitaEn: m.visita_en } satisfies MarcaAuto]),
+  );
+
+  const resultados = agruparPorAuto((filas ?? []) as FilaResultado[], marcaDe);
+  const yaEstan = new Set(resultados.map((r) => r.autoId));
+  const casi = agruparPorAuto((filasCasi ?? []) as FilaResultado[], marcaDe, true).filter((r) => !yaEstan.has(r.autoId));
+
+  const principales = resultados.map((r) => r.avisoPrincipal);
   const { data: precios } = principales.length
     ? await supabase.from("precios").select("aviso_id, precio, visto_en").in("aviso_id", principales).order("visto_en")
     : { data: [] };
-  for (const r of todos) r.historial = (precios ?? []).filter((p) => p.aviso_id === r.avisoPrincipal).map((p) => ({ precio: p.precio, fecha: p.visto_en }));
-  todos.sort((x, y) => (x.precio ?? Infinity) - (y.precio ?? Infinity));
-  return todos;
+  for (const r of resultados) r.historial = (precios ?? []).filter((p) => p.aviso_id === r.avisoPrincipal).map((p) => ({ precio: p.precio, fecha: p.visto_en }));
+  resultados.sort((x, y) => (x.precio ?? Infinity) - (y.precio ?? Infinity));
+  casi.sort((x, y) => (x.precio ?? Infinity) - (y.precio ?? Infinity));
+  return { resultados, casi };
 }
 
 export async function leerFuentesYPasadas() {
@@ -203,27 +255,62 @@ export async function leerCompartidos() {
   return data ?? [];
 }
 
+export interface Opinion {
+  nombre: string;
+  voto: "me_gusta" | "no_me_convence" | "dudas";
+  texto: string | null;
+  creada_en: string;
+}
+
+/** Lo que contó el vendedor, sacado de una nota de voz. */
+export interface Llamada {
+  fecha: string;
+  texto: string;
+  datos: Record<string, string>;
+}
+
+export type EstadoItem = "bien" | "ojo" | "mal";
+export interface Visita {
+  items?: Record<string, { estado?: EstadoItem; nota?: string; fotos?: string[] }>;
+}
+
 export interface DetalleAuto {
   descripcion: string | null;
   fichas: { id: string; nombre: string; veredicto: string; motivos: string[] }[];
   precios: { aviso_id: string; precio: number; visto_en: string }[];
+  /** Fotos de todos los avisos del auto, sin repetir. */
+  fotos: string[];
+  /** Avisos del auto, para separar los que no son el mismo. */
+  avisos: { id: string; fuente: string; titulo: string; separado: boolean }[];
+  llamadas: Llamada[];
+  visita: Visita;
+  enlace: string | null;
+  opiniones: Opinion[];
+  correcciones: { campo: string; valor: string }[];
 }
 
 /**
- * Lo que la lista no trae de un auto: la descripción, el veredicto por ficha y
- * el historial de precios de todos sus avisos. `id` es el del auto o de un aviso.
+ * Lo que la lista no trae de un auto: la descripción, el veredicto por ficha,
+ * el historial de precios, todas las fotos, el contacto y las opiniones.
+ * `id` es el del auto o de un aviso.
  */
 export async function leerDetalle(id: string): Promise<DetalleAuto | null> {
   const supabase = await crearClienteServidor();
-  const { data: avisos } = await supabase.from("avisos").select("id, auto_id, descripcion, precio").or(`auto_id.eq.${id},id.eq.${id}`);
+  const columnas = "id, auto_id, descripcion, precio, fuente_id, titulo, separado, foto_url, fotos";
+  const { data: avisos } = await supabase.from("avisos").select(columnas).or(`auto_id.eq.${id},id.eq.${id}`);
   if (!avisos?.length) return null;
-  const autoId = avisos.find((a) => a.id === id)?.auto_id;
-  const todos = autoId ? ((await supabase.from("avisos").select("id, auto_id, descripcion, precio").eq("auto_id", autoId)).data ?? avisos) : avisos;
+  const autoId = avisos.find((a) => a.id === id)?.auto_id ?? avisos[0]?.auto_id ?? null;
+  const todos = autoId ? ((await supabase.from("avisos").select(columnas).eq("auto_id", autoId)).data ?? avisos) : avisos;
   const ids = todos.map((a) => a.id);
-  const [{ data: resultados }, { data: precios }] = await Promise.all([
+  const [{ data: resultados }, { data: precios }, { data: marca }, { data: enlaces }, { data: correcciones }] = await Promise.all([
     supabase.from("resultados").select("veredicto, motivos, busqueda_id, busquedas(nombre)").in("aviso_id", ids),
     supabase.from("precios").select("aviso_id, precio, visto_en").in("aviso_id", ids).order("visto_en"),
+    autoId ? supabase.from("marcas").select("llamadas, visita").eq("auto_id", autoId).maybeSingle() : Promise.resolve({ data: null }),
+    autoId ? supabase.from("enlaces_publicos").select("token").eq("auto_id", autoId).eq("activo", true).limit(1) : Promise.resolve({ data: [] }),
+    supabase.from("correcciones").select("campo, valor, aviso_id").in("aviso_id", ids),
   ]);
+  const enlace = enlaces?.[0]?.token ?? null;
+  const { data: opiniones } = enlace ? await supabase.from("opiniones").select("nombre, voto, texto, creada_en").eq("token", enlace).order("creada_en") : { data: [] };
   const fichas = new Map<string, { id: string; nombre: string; veredicto: string; motivos: string[] }>();
   for (const r of resultados ?? []) {
     const previo = fichas.get(r.busqueda_id);
@@ -232,19 +319,91 @@ export async function leerDetalle(id: string): Promise<DetalleAuto | null> {
   // La descripción del aviso más barato, o la primera que haya.
   const conPrecio = [...todos].sort((x, y) => (x.precio ?? Infinity) - (y.precio ?? Infinity));
   const descripcion = conPrecio.find((a) => a.descripcion)?.descripcion ?? null;
-  return { descripcion, fichas: [...fichas.values()], precios: precios ?? [] };
+  const fotos = [...new Set(conPrecio.flatMap((a) => (a.fotos?.length ? a.fotos : a.foto_url ? [a.foto_url] : [])))];
+  return {
+    descripcion,
+    fichas: [...fichas.values()],
+    precios: precios ?? [],
+    fotos,
+    avisos: todos.map((a) => ({ id: a.id, fuente: a.fuente_id, titulo: a.titulo, separado: a.separado })),
+    llamadas: (marca?.llamadas ?? []) as unknown as Llamada[],
+    visita: (marca?.visita ?? {}) as Visita,
+    enlace,
+    opiniones: (opiniones ?? []) as Opinion[],
+    correcciones: (correcciones ?? []).map((c) => ({ campo: c.campo, valor: c.valor })),
+  };
+}
+
+export interface Ajustes {
+  avisos: { modo: "inmediato" | "resumen"; hora: number };
+  /** Comuna desde donde se calculan las distancias. */
+  casa: { comuna: string } | null;
+}
+
+export async function leerAjustes(): Promise<Ajustes> {
+  const supabase = await crearClienteServidor();
+  const { data } = await supabase.from("ajustes").select("clave, valor").in("clave", ["avisos", "casa"]);
+  const de = (clave: string) => data?.find((x) => x.clave === clave)?.valor as Record<string, unknown> | undefined;
+  const avisos = de("avisos") ?? {};
+  const casa = de("casa");
+  return {
+    avisos: { modo: avisos.modo === "resumen" ? "resumen" : "inmediato", hora: typeof avisos.hora === "number" ? avisos.hora : 20 },
+    casa: typeof casa?.comuna === "string" && casa.comuna ? { comuna: casa.comuna } : null,
+  };
+}
+
+export interface Gastos {
+  /** Consultas a Gemini hoy, por modelo (la capa gratis da 20 diarias por modelo). */
+  ia: { modelo: string; consultas: number }[];
+  cuotaIa: number;
+  proxy: { usadoMb: number; limiteMb: number; desde: string };
+  /** Minutos de pasadas este mes (aproximado; en un repo público son gratis). */
+  actionsMin: number;
+}
+
+export async function leerGastos(): Promise<Gastos> {
+  const supabase = await crearClienteServidor();
+  const hoy = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Santiago" }).format(new Date());
+  const { data: ajusteProxy } = await supabase.from("ajustes").select("valor").eq("clave", "proxy").maybeSingle();
+  const proxy = (ajusteProxy?.valor ?? {}) as { limite_mb?: number; desde?: string };
+  const desde = proxy.desde ?? "2026-09-28";
+  const inicioMes = `${hoy.slice(0, 7)}-01`;
+  const [{ data: usos }, { data: pasadas }] = await Promise.all([
+    supabase.from("uso_ia").select("modelo").eq("dia", hoy),
+    supabase.from("pasadas").select("fuente_id, kb, inicio, fin, proxy:detalle->proxy").gte("inicio", desde < inicioMes ? desde : inicioMes),
+  ]);
+  const porModelo = new Map<string, number>();
+  for (const u of usos ?? []) porModelo.set(u.modelo, (porModelo.get(u.modelo) ?? 0) + 1);
+  // Antes de marcar "proxy" en cada pasada, Facebook, Kavak y Yapo ya iban siempre por el proxy.
+  const porProxy = (p: { fuente_id: string; proxy: unknown }) => p.proxy === true || (p.proxy == null && ["facebook", "kavak", "yapo"].includes(p.fuente_id));
+  const kb = (pasadas ?? []).filter((p) => p.inicio >= desde && porProxy(p)).reduce((t, p) => t + (p.kb ?? 0), 0);
+  const ms = (pasadas ?? []).filter((p) => p.inicio >= inicioMes && p.fin).reduce((t, p) => t + (new Date(p.fin!).getTime() - new Date(p.inicio).getTime()), 0);
+  return {
+    ia: [...porModelo.entries()].map(([modelo, consultas]) => ({ modelo, consultas })).sort((a, b) => b.consultas - a.consultas),
+    cuotaIa: 20,
+    proxy: { usadoMb: Math.round(kb / 1024), limiteMb: proxy.limite_mb ?? 1024, desde },
+    actionsMin: Math.round(ms / 60_000),
+  };
 }
 
 /** Todo lo que muestran las pestañas, en una sola lectura (el teléfono lo guarda). */
 export async function leerTodo() {
-  const [dueno, resultados, busquedas, fuentes, facebook] = await Promise.all([esDueno(), leerResultados(), leerBusquedas(), leerFuentesYPasadas(), leerFacebook()]);
+  const [dueno, { resultados, casi }, busquedas, fuentes, facebook, ajustes, gastos] = await Promise.all([
+    esDueno(),
+    leerResultados(),
+    leerBusquedas(),
+    leerFuentesYPasadas(),
+    leerFacebook(),
+    leerAjustes(),
+    leerGastos(),
+  ]);
   let usuario: { email?: string; id?: string } | null = null;
   if (!dueno) {
     const supabase = await crearClienteServidor();
     const { data } = await supabase.auth.getClaims();
     usuario = { email: data?.claims.email as string | undefined, id: data?.claims.sub };
   }
-  return { dueno, usuario, resultados, busquedas, fuentes, facebook, leidoEn: Date.now() };
+  return { dueno, usuario, resultados, casi, busquedas, fuentes, facebook, ajustes, gastos, leidoEn: Date.now() };
 }
 
 export type Todo = Awaited<ReturnType<typeof leerTodo>>;

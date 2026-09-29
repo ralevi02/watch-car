@@ -2,6 +2,7 @@ import type { GoogleLanguageModelOptions } from "@ai-sdk/google";
 import { modeloTranscripcion } from "@radar/ia";
 import { generateText } from "ai";
 import { esDueno } from "@/lib/datos";
+import { contarUso } from "@/lib/uso-ia";
 
 export const maxDuration = 30;
 
@@ -76,7 +77,7 @@ export async function POST(req: Request) {
     const texto = await conRelevo(
       async (abortSignal) => {
         const { text } = await generateText({
-          model: modeloTranscripcion(),
+          model: modeloTranscripcion(contarUso("dictado")),
           maxRetries: 0,
           abortSignal,
           providerOptions: { google: { thinkingConfig: { thinkingLevel: "low" } } satisfies GoogleLanguageModelOptions },

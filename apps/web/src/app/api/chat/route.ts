@@ -3,6 +3,7 @@ import { modeloChat } from "@radar/ia";
 import { convertToModelMessages, createUIMessageStreamResponse, isStepCount, streamText, toUIMessageStream } from "ai";
 import { herramientas, INSTRUCCIONES, type MensajeChat } from "@/lib/chat";
 import { esDueno } from "@/lib/datos";
+import { contarUso } from "@/lib/uso-ia";
 
 export const maxDuration = 30;
 
@@ -17,7 +18,7 @@ export async function POST(req: Request) {
   const { messages }: { messages: MensajeChat[] } = await req.json();
 
   const result = streamText({
-    model: modeloChat(),
+    model: modeloChat(contarUso("chat")),
     instructions: INSTRUCCIONES,
     messages: await convertToModelMessages(messages),
     tools: herramientas,

@@ -1,13 +1,12 @@
 import { Car, Star } from "lucide-react";
 import Link from "next/link";
-import { type Abrir, alTocar } from "@/components/tarjetas";
+import { type Abrir, alTocar, Etiquetas } from "@/components/tarjetas";
 import type { ResultadoAuto } from "@/lib/datos";
-import { bajo, etiquetas, lineaAuto, miles, pesos, tituloAuto } from "@/lib/presentar";
+import { lineaAuto, pesos, tituloAuto } from "@/lib/presentar";
 import { cn } from "@/lib/utils";
 
 /** Un auto en la lista: foto chica, precio, lo básico y qué revisar. */
 export function FilaResultado({ r, destacado, abrir }: { r: ResultadoAuto; destacado?: boolean; abrir?: Abrir }) {
-  const revisar = etiquetas(r);
   const favorito = r.marca?.estado === "favorito";
   const descartado = r.marca?.estado === "descartado";
   return (
@@ -36,16 +35,7 @@ export function FilaResultado({ r, destacado, abrir }: { r: ResultadoAuto; desta
         </div>
         <span className="mt-0.5 truncate text-[14px] text-suave">{tituloAuto(r)}</span>
         <span className="truncate text-[13.5px] text-tenue">{lineaAuto(r)}</span>
-        {(revisar.length > 0 || bajo(r)) && (
-          <span className="mt-1.5 flex flex-wrap gap-[5px]">
-            {bajo(r) && <span className="etiqueta etiqueta-calza">Bajó ${miles(r.precioInicial! - r.precio!)}</span>}
-            {revisar.map((e) => (
-              <span key={e} className="etiqueta">
-                {e}
-              </span>
-            ))}
-          </span>
-        )}
+        <Etiquetas r={r} />
       </div>
     </Link>
   );

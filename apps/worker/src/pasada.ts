@@ -13,6 +13,7 @@ import { appendFile } from "node:fs/promises";
 import { evaluar, leerTitulo, modeloCanonico, Seguimiento } from "@radar/core";
 import { clienteServicio, type ClienteDb, type Json } from "@radar/db";
 import { procesarCompartidos } from "./compartidos.js";
+import { recolectarBrunoFritsch } from "./fuentes/brunofritsch/recolector.js";
 import { recolectarChileautosTodo } from "./fuentes/chileautos/recolector.js";
 import { cargarSesion, elegirCuenta, leerConfig, registrarUso } from "./fuentes/facebook/cuentas.js";
 import { recolectarFacebook } from "./fuentes/facebook/recolector.js";
@@ -27,7 +28,7 @@ import { diagnosticar } from "./diagnostico.js";
 import { enviarPush, leerModoAvisos, type Notificacion } from "./push.js";
 
 const FUENTE = process.env.FUENTE || "chileautos";
-const NOMBRE: Record<string, string> = { chileautos: "Chileautos", facebook: "Facebook", kavak: "Kavak", yapo: "Yapo", mercadolibre: "MercadoLibre" };
+const NOMBRE: Record<string, string> = { chileautos: "Chileautos", facebook: "Facebook", kavak: "Kavak", yapo: "Yapo", mercadolibre: "MercadoLibre", brunofritsch: "Bruno Fritsch" };
 const TIPO = process.env.TIPO === "corta" || process.env.TIPO === "completa" ? process.env.TIPO : "prueba";
 const MAX_PAGINAS = Number(process.env.MAX_PAGINAS || 5);
 const DETALLES = Number(process.env.DETALLES || (FUENTE === "facebook" ? 25 : 5));
@@ -72,6 +73,11 @@ interface Preparada {
 
 async function preparar(db: ClienteDb): Promise<Preparada | { noCorre: string }> {
   if (FUENTE === "chileautos") return { recolectar: recolectarChileautosTodo };
+  if (FUENTE === "brunofritsch") {
+    const { data: f } = await db.from("fuentes").select("activa").eq("id", FUENTE).single();
+    if (!f?.activa) return { noCorre: "Bruno Fritsch está desactivado en Fuentes." };
+    return { recolectar: recolectarBrunoFritsch };
+  }
   if (FUENTE === "kavak" || FUENTE === "yapo" || FUENTE === "mercadolibre") {
     const { data: f } = await db.from("fuentes").select("activa").eq("id", FUENTE).single();
     if (!f?.activa) return { noCorre: `${NOMBRE[FUENTE]} está desactivado en Fuentes.` };

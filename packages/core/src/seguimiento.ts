@@ -24,7 +24,7 @@ const Rango = z
     { message: "maxConAdvertencia debe ser mayor o igual que max" },
   );
 
-export const Fuente = z.enum(["chileautos", "facebook", "mercadolibre", "kavak", "yapo"]);
+export const Fuente = z.enum(["chileautos", "facebook", "mercadolibre", "kavak", "yapo", "brunofritsch"]);
 export type Fuente = z.infer<typeof Fuente>;
 
 export const Seguimiento = z.object({
@@ -47,7 +47,7 @@ export const Seguimiento = z.object({
   traccion: z.enum(["cualquiera", "AWD", "FWD"]).default("cualquiera"),
   caja: z.enum(["cualquiera", "automatica", "manual"]).default("cualquiera"),
   regiones: z.array(z.string()).default([]).describe("Vacío = todo Chile"),
-  fuentes: z.array(Fuente).default(["chileautos", "facebook", "mercadolibre", "kavak", "yapo"]),
+  fuentes: z.array(Fuente).default(["chileautos", "facebook", "mercadolibre", "kavak", "yapo", "brunofritsch"]),
   frecuenciaHoras: z.number().int().min(1).max(24).default(3),
   notas: z.string().optional().describe("Cualquier criterio que no calce en los campos anteriores"),
 });

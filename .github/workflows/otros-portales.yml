@@ -1,6 +1,6 @@
-name: Kavak, Yapo y MercadoLibre · pasadas
+name: Kavak, Yapo, MercadoLibre y Bruno Fritsch · pasadas
 # La app lee la fuente desde el título para mostrar qué está corriendo.
-run-name: Kavak, Yapo y MercadoLibre · ${{ inputs.fuente || 'todas' }}
+run-name: Kavak, Yapo, MercadoLibre y Bruno Fritsch · ${{ inputs.fuente || 'todas' }}
 
 on:
   schedule:
@@ -11,7 +11,7 @@ on:
       fuente:
         description: "Qué portal correr"
         type: choice
-        options: [todas, kavak, yapo, mercadolibre]
+        options: [todas, kavak, yapo, mercadolibre, brunofritsch]
         default: todas
 
 permissions:
@@ -30,7 +30,7 @@ jobs:
       max-parallel: 1
       fail-fast: false
       matrix:
-        fuente: ${{ fromJSON((inputs.fuente && inputs.fuente != 'todas') && format('["{0}"]', inputs.fuente) || '["kavak","yapo","mercadolibre"]') }}
+        fuente: ${{ fromJSON((inputs.fuente && inputs.fuente != 'todas') && format('["{0}"]', inputs.fuente) || '["kavak","yapo","mercadolibre","brunofritsch"]') }}
     env:
       TIENE_SUPABASE: ${{ secrets.SUPABASE_SECRET_KEY != '' }}
     steps:

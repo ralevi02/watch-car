@@ -115,7 +115,7 @@ function Onda({ niveles }: { niveles: number[] }) {
 const reloj = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
 
 /** Chat que arma la ficha. Vive dentro de la hoja "Nuevo seguimiento". */
-export function Chat({ onGuardado }: { onGuardado?: () => void }) {
+export function Chat({ onGuardado, inicial }: { onGuardado?: () => void; /** Mensaje que se manda solo al abrir (ej. buscar alternativas). */ inicial?: string }) {
   const [texto, setTexto] = useState("");
   const { messages, sendMessage, status, error, regenerate } = useChat<MensajeChat>();
   const fin = useRef<HTMLDivElement>(null);
@@ -132,6 +132,13 @@ export function Chat({ onGuardado }: { onGuardado?: () => void }) {
   useEffect(() => {
     if (messages.length) fin.current?.scrollIntoView({ behavior: "smooth", block: "end" });
   }, [messages, status]);
+
+  const yaInicial = useRef(false);
+  useEffect(() => {
+    if (!inicial || yaInicial.current) return;
+    yaInicial.current = true;
+    void sendMessage({ text: inicial });
+  }, [inicial, sendMessage]);
 
   function enviar(t: string) {
     const limpio = t.trim();

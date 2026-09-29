@@ -1,6 +1,56 @@
-// Service worker de Radar seminuevos: notificaciones push.
-self.addEventListener("install", () => self.skipWaiting());
-self.addEventListener("activate", (e) => e.waitUntil(self.clients.claim()));
+// Service worker de Radar seminuevos: notificaciones push y uso sin señal.
+// Las pantallas son estáticas y los datos viven en el teléfono (localStorage):
+// basta guardar las páginas y los archivos de la app.
+const VERSION = "radar-v2";
+const PAGINAS = ["/", "/resultados", "/fuentes", "/auto"];
+
+self.addEventListener("install", (e) => {
+  e.waitUntil(
+    caches
+      .open(VERSION)
+      .then((c) => Promise.all(PAGINAS.map((p) => c.add(new Request(p, { credentials: "include" })).catch(() => {}))))
+      .then(() => self.skipWaiting()),
+  );
+});
+self.addEventListener("activate", (e) =>
+  e.waitUntil(
+    caches
+      .keys()
+      .then((ks) => Promise.all(ks.filter((k) => k !== VERSION).map((k) => caches.delete(k))))
+      .then(() => self.clients.claim()),
+  ),
+);
+
+self.addEventListener("fetch", (e) => {
+  const req = e.request;
+  if (req.method !== "GET") return;
+  const url = new URL(req.url);
+
+  // Fotos de los portales: no se guardan aquí (llegan "opacas" y Chrome cobra ~7 MB de cuota por cada una); las guarda el caché normal.
+  if (url.origin !== self.location.origin) return;
+  // Los datos van siempre a la red: si no hay señal, la app usa lo guardado en el teléfono.
+  if (url.pathname.startsWith("/api/") || url.pathname.startsWith("/auth/")) return;
+
+  // Archivos de la app (llevan hash en el nombre): primero lo guardado.
+  if (url.pathname.startsWith("/_next/static/") || url.pathname.startsWith("/icons/")) {
+    e.respondWith(
+      caches.open(VERSION).then(async (c) => (await c.match(req)) ?? fetch(req).then((r) => (r.ok && c.put(req, r.clone()), r))),
+    );
+    return;
+  }
+
+  // Páginas: primero la red; sin señal, la última versión guardada (o la de Resultados).
+  if (req.mode === "navigate") {
+    e.respondWith(
+      fetch(req)
+        .then((r) => {
+          if (r.ok && !r.redirected && PAGINAS.includes(url.pathname)) caches.open(VERSION).then((c) => c.put(url.pathname, r.clone()));
+          return r;
+        })
+        .catch(async () => (await caches.match(url.pathname)) ?? (await caches.match("/resultados")) ?? Response.error()),
+    );
+  }
+});
 
 self.addEventListener("push", (e) => {
   let datos = {};

@@ -18,7 +18,10 @@ interface Almacen {
   /** Cambia lo guardado al tiro (acciones optimistas); la próxima lectura lo confirma. */
   cambiar: (f: (d: Todo) => Todo) => void;
   detalles: Record<string, DetalleAuto>;
+  /** Pide (o vuelve a pedir) el detalle de un auto. */
   pedirDetalle: (id: string) => void;
+  /** Cambia el detalle guardado al tiro (llamadas, visita, opiniones). */
+  cambiarDetalle: (id: string, f: (d: DetalleAuto) => DetalleAuto) => void;
 }
 
 const Contexto = createContext<Almacen | null>(null);
@@ -112,6 +115,10 @@ export function ProveedorAlmacen({ children }: { children: React.ReactNode }) {
       .finally(() => pidiendo.current.delete(id));
   }, []);
 
+  const cambiarDetalle = useCallback((id: string, f: (d: DetalleAuto) => DetalleAuto) => {
+    setDetalles((x) => (x[id] ? { ...x, [id]: f(x[id]) } : x));
+  }, []);
+
   useEffect(() => {
     const guardado = leerGuardado();
     if (guardado) setDatos(guardado);
@@ -129,5 +136,5 @@ export function ProveedorAlmacen({ children }: { children: React.ReactNode }) {
     };
   }, [refrescar]);
 
-  return <Contexto value={{ datos, actualizando, error, refrescar, cambiar, detalles, pedirDetalle }}>{children}</Contexto>;
+  return <Contexto value={{ datos, actualizando, error, refrescar, cambiar, detalles, pedirDetalle, cambiarDetalle }}>{children}</Contexto>;
 }

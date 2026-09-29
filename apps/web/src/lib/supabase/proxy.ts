@@ -1,7 +1,8 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-const PUBLICAS = ["/login", "/auth", "/manifest.webmanifest", "/sw.js", "/icons", "/icon", "/apple-icon"];
+// /v/<token>: la página de un auto compartido para opinar (sin cuenta).
+const PUBLICAS = ["/login", "/auth", "/v/", "/manifest.webmanifest", "/sw.js", "/icons", "/icon", "/apple-icon"];
 
 /** Refresca la sesión en cada pedido y manda al login si no hay usuario. */
 export async function actualizarSesion(request: NextRequest) {

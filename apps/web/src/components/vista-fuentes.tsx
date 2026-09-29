@@ -3,7 +3,9 @@
 import { ChevronRight, LogOut } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { salir } from "@/app/(app)/acciones";
+import { AjustesAvisos, TuComuna } from "@/components/ajustes-avisos";
 import { Apariencia } from "@/components/apariencia";
+import { Gastos } from "@/components/gastos";
 import { BotonPush } from "@/components/boton-push";
 import { ConectarGithub } from "@/components/conectar-github";
 import { AvisoCorridas, BotonCorrer, BotonCorrerTodas, EstadoFuente, ProveedorCorridas } from "@/components/corridas";
@@ -28,6 +30,7 @@ const HORARIO: Record<string, string> = {
   kavak: "2 veces al día, necesita proxy",
   yapo: "2 veces al día, necesita proxy",
   mercadolibre: "2 veces al día",
+  brunofritsch: "2 veces al día, Volvo usados de la automotora",
 };
 
 /** Por qué falló la última pasada, en corto. */
@@ -98,7 +101,7 @@ export function VistaFuentes() {
                     ) : (
                       <>
                         {f.activa && <BotonCorrer fuente={f.id as FuenteCorrible} nombre={f.nombre} />}
-                        <InterruptorFuente id={f.id as "chileautos" | "kavak" | "yapo" | "mercadolibre"} activa={f.activa} nombre={f.nombre} />
+                        <InterruptorFuente id={f.id as "chileautos" | "kavak" | "yapo" | "mercadolibre" | "brunofritsch"} activa={f.activa} nombre={f.nombre} />
                       </>
                     )}
                   </div>
@@ -115,9 +118,14 @@ export function VistaFuentes() {
           <section>
             <h2 className="titulo-grupo">Notificaciones</h2>
             <BotonPush />
+            <AjustesAvisos />
           </section>
 
+          <TuComuna />
+
           <Apariencia />
+
+          <Gastos />
 
           <ConectarGithub conectado={githubConectado} />
 
@@ -126,7 +134,7 @@ export function VistaFuentes() {
             <div className="lista-ios">
               {pasadas.length === 0 && <div className="fila-ios text-muted-foreground">Todavía no corre ninguna pasada.</div>}
               {pasadas.map((p) => {
-                const d = (p.detalle ?? {}) as { run?: string; errores?: string[]; bloqueo?: string; nota?: string };
+                const d = (p.detalle ?? {}) as { run?: string; errores?: string[]; bloqueo?: string; nota?: string; diagnostico_ia?: string | null };
                 const contenido = (
                   <>
                     <span className="flex min-w-0 flex-col">
@@ -139,6 +147,7 @@ export function VistaFuentes() {
                       </span>
                       {Boolean(d.bloqueo || d.errores?.length) && <span className="text-[13px] leading-[18px] text-destructive">{[d.bloqueo, ...(d.errores ?? [])].filter(Boolean).join(". ")}</span>}
                       {d.nota && <span className="text-[13px] leading-[18px] text-muted-foreground">{d.nota}</span>}
+                      {d.diagnostico_ia && <span className="text-[13px] leading-[18px] text-advertencia">La IA cree que: {d.diagnostico_ia}</span>}
                     </span>
                     <span className={cn("flex shrink-0 items-center gap-1 text-[15px]", ESTADO[p.estado]?.clase)}>
                       {ESTADO[p.estado]?.texto ?? p.estado}
