@@ -66,6 +66,21 @@ export function puedeSerCrossCountry(modelo: string): boolean {
   return CON_CROSS_COUNTRY.has(modeloCanonico(modelo));
 }
 
+/** El aviso dice Cross Country con todas sus letras (título o descripción). */
+export const diceCrossCountry = (...textos: (string | null | undefined)[]) => textos.some((t) => t && /cross\s*-?\s*country|\bCC\b/i.test(t));
+
+/**
+ * Ajusta la duda de modelo que dejó la IA: si el aviso dice Cross Country y la
+ * IA también, no hay duda; si es un portal de texto libre (Facebook) y quedó
+ * el modelo base a secas, puede ser Cross Country.
+ */
+export function dudaDeModelo(modelo: string, porConfirmar: readonly string[], textos: { titulo?: string | null; descripcion?: string | null }, textoLibre: boolean): string[] {
+  const esCC = modeloCanonico(modelo).endsWith("cc");
+  if (esCC && diceCrossCountry(textos.titulo, textos.descripcion)) return porConfirmar.filter((c) => c !== "modelo");
+  if (textoLibre && puedeSerCrossCountry(modelo) && !porConfirmar.includes("modelo")) return [...porConfirmar, "modelo"];
+  return [...porConfirmar];
+}
+
 /**
  * ¿El modelo del aviso sirve para la ficha? Una ficha más general acepta
  * variantes ("V40" acepta un V40 Cross Country); una más específica no

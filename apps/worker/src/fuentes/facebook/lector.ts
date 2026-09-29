@@ -45,6 +45,8 @@ export function urlBusqueda(f: Seguimiento, consulta: string, ciudad = "santiago
   if (maxPrecio) p.set("maxPrice", String(maxPrecio));
   p.set("exact", "false");
   p.set("sortBy", "creation_time_descend");
+  // Radio en millas (Facebook usa 40 por defecto: ~65 km). 65 millas ≈ 105 km: llega a Rancagua y a la costa.
+  p.set("radius", process.env.FB_RADIO_MILLAS || "65");
   return `${BASE}/marketplace/${ciudad}/search/?${p.toString()}`;
 }
 

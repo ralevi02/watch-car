@@ -133,3 +133,34 @@ export async function recolectarChileautos(s: Sesion, ficha: Seguimiento, op: Op
   r.ms = Date.now() - t0;
   return r;
 }
+
+/**
+ * Chileautos tiene algunos Cross Country como modelo aparte ("V60 Cross
+ * Country") y otros dentro del modelo base ("V40"): se busca con los dos
+ * nombres y se juntan los avisos.
+ */
+export async function recolectarChileautosTodo(s: Sesion, ficha: Seguimiento, op: OpcionesRecoleccion = {}): Promise<ResultadoChileautos> {
+  const modelos = [...new Set([ficha.modeloPortal || ficha.modelo, ficha.modelo].map((m) => m.trim()))];
+  let total: ResultadoChileautos | undefined;
+  for (const [i, modelo] of modelos.entries()) {
+    if (i > 0) await pausa(6000, 12000);
+    const r = await recolectarChileautos(s, { ...ficha, modeloPortal: modelo }, op);
+    if (!total) {
+      total = r;
+      continue;
+    }
+    const ids = new Set(total.avisos.map((a) => a.id));
+    total.avisos.push(...r.avisos.filter((a) => !ids.has(a.id)));
+    Object.assign(total.detalles, r.detalles);
+    total.descartadas.push(...r.descartadas);
+    total.errores.push(...r.errores);
+    total.capturas.push(...r.capturas);
+    total.bloqueo ??= r.bloqueo;
+    total.paginasLeidas += r.paginasLeidas;
+    total.paginasTotales += r.paginasTotales;
+    total.kb += r.kb;
+    total.ms += r.ms;
+    total.totalAvisos = (total.totalAvisos ?? 0) + (r.totalAvisos ?? 0);
+  }
+  return total!;
+}

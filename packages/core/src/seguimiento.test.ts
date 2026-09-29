@@ -79,3 +79,11 @@ test("deduplica por foto en casos dudosos", async () => {
   assert.ok(!mismaFoto(a, { ...a, fotoHash: "5e4d3c2b1a09f8e7" }));
   assert.ok(!mismaFoto(a, { ...a, fotoHash: null }));
 });
+
+test("la duda de modelo se ajusta con lo que dice el aviso", async () => {
+  const { dudaDeModelo } = await import("./index.ts");
+  assert.deepEqual(dudaDeModelo("V40 Cross Country", ["modelo", "version"], { titulo: "2017 Volvo V40 Cross Country T4" }, false), ["version"]);
+  assert.deepEqual(dudaDeModelo("V40", [], { titulo: "Volvo V40 2018" }, true), ["modelo"]);
+  assert.deepEqual(dudaDeModelo("V40", [], { titulo: "Volvo V40 2018" }, false), []);
+  assert.deepEqual(dudaDeModelo("V40 Cross Country", ["modelo"], { titulo: "Volvo V40 AWD" }, false), ["modelo"]);
+});

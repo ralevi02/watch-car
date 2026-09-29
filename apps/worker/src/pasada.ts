@@ -13,7 +13,7 @@ import { appendFile } from "node:fs/promises";
 import { evaluar, leerTitulo, Seguimiento } from "@radar/core";
 import { clienteServicio, type ClienteDb, type Json } from "@radar/db";
 import { procesarCompartidos } from "./compartidos.js";
-import { recolectarChileautos } from "./fuentes/chileautos/recolector.js";
+import { recolectarChileautosTodo } from "./fuentes/chileautos/recolector.js";
 import { cargarSesion, elegirCuenta, leerConfig, registrarUso } from "./fuentes/facebook/cuentas.js";
 import { recolectarFacebook } from "./fuentes/facebook/recolector.js";
 import { recolectarKavak } from "./fuentes/kavak/recolector.js";
@@ -70,7 +70,7 @@ interface Preparada {
 }
 
 async function preparar(db: ClienteDb): Promise<Preparada | { noCorre: string }> {
-  if (FUENTE === "chileautos") return { recolectar: recolectarChileautos };
+  if (FUENTE === "chileautos") return { recolectar: recolectarChileautosTodo };
   if (FUENTE === "kavak" || FUENTE === "yapo" || FUENTE === "mercadolibre") {
     const { data: f } = await db.from("fuentes").select("activa").eq("id", FUENTE).single();
     if (!f?.activa) return { noCorre: `${NOMBRE[FUENTE]} está desactivado en Fuentes.` };

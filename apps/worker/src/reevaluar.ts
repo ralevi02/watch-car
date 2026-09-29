@@ -1,13 +1,13 @@
 /**
  * Vuelve a evaluar todos los avisos guardados contra las fichas activas, sin
  * entrar a los portales ni llamar a la IA. Sirve cuando cambian las reglas de
- * evaluar() o la ficha. También marca con el modelo por confirmar los "V40"
- * o "V60" a secas de Facebook que se normalizaron antes de esa regla.
+ * evaluar() o la ficha. También ajusta la duda de modelo (dudaDeModelo) en lo
+ * que se normalizó antes de esa regla.
  *
  * Variables: SUPABASE_URL, SUPABASE_SECRET_KEY.
  */
 import { resolve } from "node:path";
-import { puedeSerCrossCountry, Seguimiento } from "@radar/core";
+import { dudaDeModelo, Seguimiento } from "@radar/core";
 import { clienteServicio } from "@radar/db";
 import { evaluarAvisos } from "./guardar.js";
 
@@ -18,14 +18,16 @@ try {
 }
 const db = clienteServicio();
 
-const { data: fb } = await db.from("avisos").select("id, modelo, por_confirmar").eq("fuente_id", "facebook");
-let marcados = 0;
-for (const a of fb ?? []) {
-  if (!a.modelo || !puedeSerCrossCountry(a.modelo) || a.por_confirmar.includes("modelo")) continue;
-  await db.from("avisos").update({ por_confirmar: [...a.por_confirmar, "modelo"] }).eq("id", a.id);
-  marcados++;
+// La duda de modelo con la regla actual: no se duda si el aviso dice Cross Country; en Facebook un V40 a secas sí.
+const { data: todos } = await db.from("avisos").select("id, fuente_id, titulo, descripcion, modelo, por_confirmar").not("modelo", "is", null);
+let cambiados = 0;
+for (const a of todos ?? []) {
+  const nuevo = dudaDeModelo(a.modelo!, a.por_confirmar, a, a.fuente_id === "facebook");
+  if (nuevo.length === a.por_confirmar.length && nuevo.every((c) => a.por_confirmar.includes(c))) continue;
+  await db.from("avisos").update({ por_confirmar: nuevo }).eq("id", a.id);
+  cambiados++;
 }
-console.log(`Facebook: ${marcados} avisos quedaron con el modelo por confirmar`);
+console.log(`Duda de modelo ajustada en ${cambiados} avisos`);
 
 const { data: busquedas } = await db.from("busquedas").select("id, nombre, ficha").eq("activa", true);
 for (const b of busquedas ?? []) {
