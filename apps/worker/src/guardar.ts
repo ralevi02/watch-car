@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { dudaDeModelo, esMismoAuto, evaluar, leerTitulo, mismaFoto, modeloCanonico, type AvisoNormalizado, type Seguimiento } from "@radar/core";
+import { dudaDeModelo, esMismoAuto, evaluar, leerTitulo, mismaFoto, modeloCanonico, pareceNoAuto, TIPOS_AVISO, type AvisoNormalizado, type Seguimiento } from "@radar/core";
 import type { ClienteDb, Json, TablesInsert } from "@radar/db";
 import type { AvisoPortal, DetallePortal, ResultadoRecoleccion } from "./fuentes/tipos.js";
 import { normalizar, type EntradaNormalizacion } from "./normalizar.js";
@@ -40,6 +40,8 @@ export function datosDeDetalle(d: DetallePortal) {
 }
 
 export function aNormalizado(x: {
+  titulo?: string | null;
+  tipo?: string | null;
   modelo?: string | null;
   por_confirmar?: string[] | null;
   anio: number | null;
@@ -49,7 +51,10 @@ export function aNormalizado(x: {
   traccion: string | null;
   caja: string | null;
 }): AvisoNormalizado {
+  // Lo que dijo la IA manda; mientras tanto, el filtro por palabras del título.
+  const tipo = TIPOS_AVISO.find((t) => t === x.tipo) ?? (x.titulo ? pareceNoAuto(x.titulo) : undefined);
   return {
+    tipo,
     modelo: x.modelo ?? undefined,
     porConfirmar: x.por_confirmar ?? undefined,
     anio: x.anio ?? undefined,
@@ -206,7 +211,7 @@ const COLUMNAS_ENTRADA = "id, titulo, precio, anio, km, caja, combustible, carro
  * (nuevos, con detalle recién leído, etc.). Lo que viene estructurado del
  * portal (año, km, precio, caja, región) no se pisa; solo se completa si falta.
  */
-export async function normalizarPendientes(db: ClienteDb, FUENTE: string, idsExternos: string[]): Promise<{ normalizados: number; error?: string }> {
+export async function normalizarPendientes(db: ClienteDb, FUENTE: string, idsExternos: string[], op: { forzar?: boolean } = {}): Promise<{ normalizados: number; error?: string }> {
   if (!idsExternos.length) return { normalizados: 0 };
   if (!process.env.GOOGLE_GENERATIVE_AI_API_KEY) return { normalizados: 0, error: "Falta GOOGLE_GENERATIVE_AI_API_KEY: no se normalizó" };
   const filas = await leer(db.from("avisos").select(COLUMNAS_ENTRADA).eq("fuente_id", FUENTE).in("id_externo", idsExternos), "leer para normalizar");
@@ -230,7 +235,7 @@ export async function normalizarPendientes(db: ClienteDb, FUENTE: string, idsExt
       };
       return { entrada, hash: huella(entrada), anterior: f.normalizado_hash };
     })
-    .filter((p) => p.hash !== p.anterior);
+    .filter((p) => op.forzar || p.hash !== p.anterior);
   if (!pendientes.length) return { normalizados: 0 };
 
   let normalizados: Awaited<ReturnType<typeof normalizar>>;
@@ -251,6 +256,7 @@ export async function normalizarPendientes(db: ClienteDb, FUENTE: string, idsExt
       db
         .from("avisos")
         .update({
+          tipo: n.tipo,
           modelo: n.modelo,
           version: n.version,
           motor: n.motor,
@@ -332,7 +338,7 @@ export async function evaluarAvisos(
   const filas = await leer(
     db
       .from("avisos")
-      .select("id, titulo, url, modelo, por_confirmar, anio, km, precio, motor, traccion, caja")
+      .select("id, titulo, url, tipo, modelo, por_confirmar, anio, km, precio, motor, traccion, caja")
       .eq("fuente_id", FUENTE)
       .in("id_externo", idsExternos),
     "leer para evaluar",

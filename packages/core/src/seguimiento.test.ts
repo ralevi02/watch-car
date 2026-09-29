@@ -1,10 +1,10 @@
 import { strict as assert } from "node:assert";
 import { test } from "node:test";
-import { EJEMPLO_V40CC, evaluar, modeloCalza, modeloCanonico } from "./index.ts";
+import { EJEMPLO_V40CC, evaluar, modeloCalza, modeloCanonico, pareceNoAuto } from "./index.ts";
 
 test("evalúa km, precio y motor contra la ficha", () => {
   assert.deepEqual(evaluar({ anio: 2018, km: 90000, precio: 13000000, motor: "T4" }, EJEMPLO_V40CC), { tipo: "calza" });
-  assert.deepEqual(evaluar({ km: 125000 }, EJEMPLO_V40CC), { tipo: "advertencia", motivos: ["Km 125.000 sobre 120.000"] });
+  assert.deepEqual(evaluar({ km: 125000, precio: 10000000 }, EJEMPLO_V40CC), { tipo: "advertencia", motivos: ["Km 125.000 sobre 120.000"] });
   assert.equal(evaluar({ km: 160000 }, EJEMPLO_V40CC).tipo, "fuera");
   assert.equal(evaluar({ motor: "D2" }, EJEMPLO_V40CC).tipo, "fuera");
 });
@@ -14,20 +14,20 @@ test("compara el modelo: el V40 base no sirve para una ficha de V40 CC", () => {
   assert.equal(modeloCanonico("V40 CC"), "v40cc");
   assert.ok(modeloCalza("V40 Cross Country", "V40"));
   assert.ok(!modeloCalza("V40", "V40 Cross Country"));
-  assert.deepEqual(evaluar({ modelo: "V40" }, EJEMPLO_V40CC), { tipo: "fuera", motivos: ["Es V40, no V40 Cross Country"] });
-  assert.deepEqual(evaluar({ modelo: "V40", porConfirmar: ["modelo"] }, EJEMPLO_V40CC), {
+  assert.deepEqual(evaluar({ modelo: "V40", precio: 10000000 }, EJEMPLO_V40CC), { tipo: "fuera", motivos: ["Es V40, no V40 Cross Country"] });
+  assert.deepEqual(evaluar({ modelo: "V40", porConfirmar: ["modelo"], precio: 10000000 }, EJEMPLO_V40CC), {
     tipo: "advertencia",
     motivos: ["¿Es V40 Cross Country? Publicado como V40"],
   });
-  assert.deepEqual(evaluar({ modelo: "V40 CC" }, EJEMPLO_V40CC), { tipo: "calza" });
-  assert.deepEqual(evaluar({ modelo: "V40 Cross Country", porConfirmar: ["modelo"] }, EJEMPLO_V40CC), {
+  assert.deepEqual(evaluar({ modelo: "V40 CC", precio: 10000000 }, EJEMPLO_V40CC), { tipo: "calza" });
+  assert.deepEqual(evaluar({ modelo: "V40 Cross Country", porConfirmar: ["modelo"], precio: 10000000 }, EJEMPLO_V40CC), {
     tipo: "advertencia",
     motivos: ["¿Es V40 Cross Country? Publicado como V40 Cross Country"],
   });
   // La duda base/Cross Country no importa si la ficha acepta el modelo base, ni si es de otra familia.
   const fichaV40 = { ...EJEMPLO_V40CC, modelo: "V40" };
-  assert.deepEqual(evaluar({ modelo: "V40", porConfirmar: ["modelo"] }, fichaV40), { tipo: "calza" });
-  assert.deepEqual(evaluar({ modelo: "V40", porConfirmar: ["modelo"] }, { ...EJEMPLO_V40CC, modelo: "V60 Cross Country" }), {
+  assert.deepEqual(evaluar({ modelo: "V40", porConfirmar: ["modelo"], precio: 10000000 }, fichaV40), { tipo: "calza" });
+  assert.deepEqual(evaluar({ modelo: "V40", porConfirmar: ["modelo"], precio: 10000000 }, { ...EJEMPLO_V40CC, modelo: "V60 Cross Country" }), {
     tipo: "fuera",
     motivos: ["Es V40, no V60 Cross Country"],
   });
@@ -91,4 +91,19 @@ test("la duda de modelo se ajusta con lo que dice el aviso", async () => {
 test("un precio muy bajo para la ficha queda para revisar, no se oculta", () => {
   assert.deepEqual(evaluar({ anio: 2018, precio: 100000 }, EJEMPLO_V40CC), { tipo: "advertencia", motivos: ["Precio muy bajo ($100.000)"] });
   assert.equal(evaluar({ anio: 2018, precio: 8000000 }, EJEMPLO_V40CC).tipo, "calza");
+});
+
+test("lo que no es un auto queda fuera", () => {
+  assert.deepEqual(evaluar({ tipo: "repuesto", modelo: "V40" }, EJEMPLO_V40CC), { tipo: "fuera", motivos: ["No es un auto (repuesto)"] });
+  assert.equal(evaluar({ tipo: "otro", anio: 2018, precio: 9000000 }, EJEMPLO_V40CC).tipo, "fuera");
+  assert.deepEqual(evaluar({ anio: 2018 }, EJEMPLO_V40CC), { tipo: "advertencia", motivos: ["Sin precio publicado"] });
+});
+
+test("reconoce repuestos por el título sin IA", () => {
+  for (const t of ["Frontal Volvo V40", "Tapabarro Volvo v60 mk2", "Capot Volvo V40", "Cubre motor Volvo xc40 2017 2018", "Ópticos volvo v60", "Mascara Volvo V40", "Portalón Volvo v40", "Polera Volvo"]) {
+    assert.equal(pareceNoAuto(t), "repuesto", t);
+  }
+  for (const t of ["2018 Volvo V40", "Volvo v60 2012", "Volvo V40 turbo 5 puertas", "2017 Volvo v40 llantas nuevas"]) {
+    assert.equal(pareceNoAuto(t), undefined, t);
+  }
 });

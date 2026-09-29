@@ -80,6 +80,7 @@ export type Database = {
           primera_vez: string
           region: string | null
           tipo_vendedor: string | null
+          tipo: string | null
           titulo: string
           traccion: string | null
           ultima_vez: string
@@ -118,6 +119,7 @@ export type Database = {
           primera_vez?: string
           region?: string | null
           tipo_vendedor?: string | null
+          tipo?: string | null
           titulo: string
           traccion?: string | null
           ultima_vez?: string
@@ -156,6 +158,7 @@ export type Database = {
           primera_vez?: string
           region?: string | null
           tipo_vendedor?: string | null
+          tipo?: string | null
           titulo?: string
           traccion?: string | null
           ultima_vez?: string

@@ -4,12 +4,16 @@
  * evaluar() o la ficha. También ajusta la duda de modelo (dudaDeModelo) en lo
  * que se normalizó antes de esa regla.
  *
+ * Con --ia, antes de evaluar vuelve a normalizar con Gemini los avisos que hoy
+ * aparecen en Resultados y no tienen tipo (auto, repuesto…): sirve cuando cambian
+ * las instrucciones de la IA. Gasta cuota de Gemini (un lote cada 20 avisos).
+ *
  * Variables: SUPABASE_URL, SUPABASE_SECRET_KEY.
  */
 import { resolve } from "node:path";
 import { dudaDeModelo, Seguimiento } from "@radar/core";
 import { clienteServicio } from "@radar/db";
-import { evaluarAvisos } from "./guardar.js";
+import { evaluarAvisos, normalizarPendientes } from "./guardar.js";
 
 try {
   process.loadEnvFile(resolve(process.cwd(), "../../.env"));
@@ -28,6 +32,16 @@ for (const a of todos ?? []) {
   cambiados++;
 }
 console.log(`Duda de modelo ajustada en ${cambiados} avisos`);
+
+if (process.argv.includes("--ia")) {
+  const { data: visibles } = await db.from("resultados").select("avisos!inner(id_externo, fuente_id, tipo)").neq("veredicto", "fuera").is("avisos.tipo", null);
+  const porFuente = new Map<string, Set<string>>();
+  for (const r of visibles ?? []) porFuente.set(r.avisos.fuente_id, (porFuente.get(r.avisos.fuente_id) ?? new Set()).add(r.avisos.id_externo));
+  for (const [fuente, ids] of porFuente) {
+    const n = await normalizarPendientes(db, fuente, [...ids], { forzar: true });
+    console.log(`${fuente}: ${n.normalizados} de ${ids.size} avisos normalizados de nuevo${n.error ? ` (${n.error})` : ""}`);
+  }
+}
 
 const { data: busquedas } = await db.from("busquedas").select("id, nombre, ficha").eq("activa", true);
 for (const b of busquedas ?? []) {

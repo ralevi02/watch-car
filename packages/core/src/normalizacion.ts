@@ -8,6 +8,10 @@ import { z } from "zod";
 export const ALERTAS = ["dano", "remate", "perdida_total", "compania_seguros", "precio_distinto", "datos_inconsistentes"] as const;
 export type Alerta = (typeof ALERTAS)[number];
 
+/** Qué vende el aviso. Solo "auto" sirve para una ficha. */
+export const TIPOS_AVISO = ["auto", "repuesto", "accesorio", "otro"] as const;
+export type TipoAviso = (typeof TIPOS_AVISO)[number];
+
 export const CAMPOS_DUDOSOS = ["modelo", "version", "anio", "motor", "caja", "traccion", "km", "comuna", "tipoVendedor"] as const;
 
 export const VERSIONES = [
@@ -26,6 +30,7 @@ export const VERSIONES = [
 
 export const Normalizacion = z.object({
   id: z.string().describe("El mismo id que viene en la entrada"),
+  tipo: z.enum(TIPOS_AVISO).describe("auto: se vende el vehículo completo. repuesto: piezas, partes o desarme. accesorio: llantas, portaequipajes, fundas, etc. otro: ropa, juguetes, servicios, arriendo o cualquier otra cosa"),
   marca: z.string(),
   modelo: z
     .string()
@@ -44,6 +49,31 @@ export const Normalizacion = z.object({
   porConfirmar: z.array(z.enum(CAMPOS_DUDOSOS)),
 });
 export type Normalizacion = z.infer<typeof Normalizacion>;
+
+// Solo palabras que en el título casi nunca describen un auto entero ("turbo", "5 puertas" o "radio" sí pueden).
+const PIEZAS = [
+  "repuesto", "repuestos", "desarme", "desarmo", "pieza", "piezas",
+  "capot", "tapabarro", "tapabarros", "parachoque", "parachoques", "mascara", "máscara", "parrilla",
+  "optico", "opticos", "óptico", "ópticos", "foco", "focos", "faro", "faros", "neblinero", "neblineros",
+  "espejo", "espejos", "retrovisor", "portalon", "portalón", "frontal", "corner", "moldura", "molduras",
+  "spoiler", "alerón", "aleron", "radiador", "alternador", "amortiguador", "amortiguadores",
+  "bandeja", "bandejas", "rotula", "rótula", "cubre motor", "carter", "cárter",
+  "llanta", "llantas", "neumatico", "neumático", "neumaticos", "neumáticos", "alfombra", "alfombras",
+  "funda", "fundas", "cubreasiento", "cubreasientos", "portaequipaje", "portaequipajes", "computador",
+  "polera", "poleras", "chaqueta", "jockey", "gorro", "polerón", "poleron", "llavero", "juguete", "maqueta",
+];
+const RE_PIEZAS = new RegExp(`(^|[^\\p{L}])(${PIEZAS.join("|")})([^\\p{L}]|$)`, "iu");
+
+/**
+ * Filtro rápido, sin IA, para el título: un aviso cuyo título nombra una pieza
+ * o prenda y no parte con el año casi nunca es un auto. En Facebook los autos
+ * publicados como vehículo siempre parten con el año ("2018 Volvo V40").
+ */
+export function pareceNoAuto(titulo: string): TipoAviso | undefined {
+  const t = titulo.trim();
+  if (/^(19|20)\d{2}\b/.test(t)) return undefined;
+  return RE_PIEZAS.test(t) ? "repuesto" : undefined;
+}
 
 /** "V40 Cross Country", "V40 CC" y "v40 cross-country" son el mismo modelo. */
 export function modeloCanonico(m: string): string {

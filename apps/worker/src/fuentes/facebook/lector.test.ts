@@ -31,6 +31,12 @@ test("lee el km en sus formatos", () => {
   assert.equal(kmDeTexto("sin datos"), undefined);
 });
 
+const pick = (a: ReturnType<typeof leerTarjeta>) => {
+  if (!a) return a;
+  const { titulo, precio, region, km } = a;
+  return { titulo, precio, region, ...(km !== undefined ? { km } : {}) };
+};
+
 test("lee una tarjeta de la grilla", () => {
   assert.deepEqual(leerTarjeta("123456789", "$12.500.000\n$13.000.000\n2017 Volvo V40 cross country\nSantiago, RM\n120 mil km"), {
     id: "123456789",
@@ -44,6 +50,18 @@ test("lee una tarjeta de la grilla", () => {
   });
   assert.equal(leerTarjeta("1", "$12.500.000"), null, "sin título no hay aviso");
   assert.equal(leerTarjeta("2", "CLP 9.990.000\nVolvo v40\nMaipú, RM")?.precio, 9990000);
+  // Precios chicos (repuestos, ropa) no se confunden con el título.
+  assert.deepEqual(pick(leerTarjeta("3", "$100\nPolera Volvo\nLas Condes, RM")), { titulo: "Polera Volvo", precio: 100, region: "Las Condes, RM" });
+  // La etiqueta "Recién publicado" no es el título.
+  assert.equal(leerTarjeta("4", "Recién publicado\n$12.000.000\n2018 Volvo V40\nÑuñoa, RM")?.titulo, "2018 Volvo V40");
+  // Si el título trae km, sigue siendo el título.
+  assert.deepEqual(pick(leerTarjeta("5", "$8.999.990\nVolvo v40 200.000 km\nProvidencia, RM")), { titulo: "Volvo v40 200.000 km", precio: 8999990, region: "Providencia, RM", km: 200000 });
+  // Texto pegado.
+  assert.deepEqual(pick(leerTarjeta("6", "$13.990.0002016 Volvo v60 cross country,2.4 dieselSantiago, RM")), {
+    titulo: "2016 Volvo v60 cross country,2.4 diesel",
+    precio: 13990000,
+    region: "Santiago, RM",
+  });
 });
 
 test("detecta muros de login y checkpoint", () => {

@@ -59,6 +59,8 @@ export type Veredicto =
   | { tipo: "fuera"; motivos: string[] };
 
 export interface AvisoNormalizado {
+  /** Qué vende el aviso; lo que no es un auto queda fuera. */
+  tipo?: "auto" | "repuesto" | "accesorio" | "otro";
   /** Modelo según la normalización, ej. "V40" o "V40 Cross Country". */
   modelo?: string;
   /** Campos que la normalización marcó como dudosos. */
@@ -96,6 +98,7 @@ function revisarRango(
 export function evaluar(aviso: AvisoNormalizado, s: Seguimiento): Veredicto {
   const fuera: string[] = [];
   const adv: string[] = [];
+  if (aviso.tipo && aviso.tipo !== "auto") return { tipo: "fuera", motivos: [`No es un auto (${aviso.tipo})`] };
   if (aviso.modelo) {
     // La duda de modelo es casi siempre "¿base o Cross Country?". Solo importa
     // si la ficha pide el Cross Country; si acepta el modelo base, calza igual.
@@ -110,6 +113,7 @@ export function evaluar(aviso: AvisoNormalizado, s: Seguimiento): Veredicto {
   revisarRango(aviso.km, s.km, "Km", fuera, adv);
   revisarRango(aviso.precio, s.precio, "Precio", fuera, adv, (n) => `$${fmt(n)}`);
   // Muy por debajo del tope casi nunca es el auto: repuestos, arriendo, el pie o un precio de mentira.
+  if (aviso.precio === undefined && s.precio.max !== undefined) adv.push("Sin precio publicado");
   if (aviso.precio !== undefined && s.precio.max !== undefined && aviso.precio < s.precio.max * 0.25) {
     adv.push(`Precio muy bajo ($${fmt(aviso.precio)})`);
   }

@@ -58,8 +58,12 @@ export function tramosDePrecio(min: number | undefined, max: number | undefined,
   return Array.from({ length: partes }, (_, i) => ({ min: desde + i * paso, max: i === partes - 1 ? max : desde + (i + 1) * paso - 1 }));
 }
 
-const RE_PRECIO = /^(?:CLP\s*)?\$\s?[\d.]{4,}(?:\s*CLP)?$|^CLP\s?[\d.]{4,}$/i;
+const RE_PRECIO = /^(?:CLP\s*)?\$\s?\d[\d.]*(?:\s*CLP)?$|^CLP\s?\d[\d.]*$/i;
 const RE_KM = /(\d[\d.,]*)\s*(mil|k)?\s*(?:km|kil[oó]metros)\b/i;
+/** La línea del km en la tarjeta es solo eso ("120 mil km"); si el título trae km, sigue siendo título. */
+const RE_LINEA_KM = /^(?:\d[\d.,]*)\s*(?:mil|k)?\s*(?:km|kil[oó]metros)$/i;
+/** Etiquetas de Facebook que no son parte del aviso. */
+const RE_ETIQUETA = /^(gratis|reci[eé]n publicado|nuevo|disponible|vendido|pendiente|env[ií]o gratis|just listed|free)$/i;
 const RE_ANIO = /\b(19[5-9]\d|20[0-4]\d)\b/;
 
 export function kmDeTexto(s: string): number | undefined {
@@ -75,21 +79,30 @@ export function kmDeTexto(s: string): number | undefined {
  * "$12.500.000" / ("$13.000.000" tachado) / "2017 Volvo V40 cross country" / "Santiago, RM" / "120 mil km".
  */
 export function leerTarjeta(id: string, texto: string): AvisoPortal | null {
-  const lineas = texto.split("\n").map((l) => l.trim()).filter(Boolean);
+  const lineas = texto
+    .split("\n")
+    .map((l) => l.trim())
+    // A veces el texto llega pegado: "$13.990.0002016 Volvo v60…" y "…dieselSantiago, RM".
+    .flatMap((l) => l.replace(/^((?:CLP\s*)?\$\s?\d{1,3}(?:\.\d{3})*)(?=(?:19|20)\d{2}\b|[^\d.\s])/i, "$1\n").split("\n"))
+    .flatMap((l) => l.replace(/([a-záéíóúñ\d])([A-ZÁÉÍÓÚÑ][\p{L} ]+, [A-Z]{2,3})$/u, "$1\n$2").split("\n"))
+    .map((l) => l.trim())
+    .filter((l) => l && !RE_ETIQUETA.test(l));
   const precios = lineas.filter((l) => RE_PRECIO.test(l));
-  const kmLinea = lineas.find((l) => RE_KM.test(l) && !RE_PRECIO.test(l));
-  const resto = lineas.filter((l) => !RE_PRECIO.test(l) && l !== kmLinea && !/^gratis$/i.test(l));
+  const kmLinea = lineas.find((l) => RE_LINEA_KM.test(l));
+  const resto = lineas.filter((l) => !RE_PRECIO.test(l) && l !== kmLinea);
   const titulo = resto[0];
   if (!titulo) return null;
   const precio = precios[0] ? entero(precios[0]) : undefined;
   const anio = titulo.match(RE_ANIO)?.[1];
+  const km = kmLinea ?? (RE_KM.test(titulo) ? titulo : undefined);
   return {
     id,
     url: `${BASE}/marketplace/item/${id}/`,
     titulo,
-    precio: precio && precio >= 100_000 ? precio : undefined,
+    // Precios de mentira ($1, $100) se guardan igual: son señal de que no es un auto.
+    precio: precio && precio > 0 ? precio : undefined,
     anio: anio ? Number(anio) : undefined,
-    km: kmLinea ? kmDeTexto(kmLinea) : undefined,
+    km: km ? kmDeTexto(km) : undefined,
     region: resto[1],
     destacado: false,
   };
