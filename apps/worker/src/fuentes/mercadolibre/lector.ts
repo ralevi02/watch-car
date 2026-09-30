@@ -37,6 +37,21 @@ export interface ResultadoML {
 const attr = (r: ResultadoML, id: string) => r.attributes?.find((a) => a.id === id)?.value_name ?? undefined;
 const entero = (s?: string) => (s ? Number(s.replace(/\D/g, "")) || undefined : undefined);
 
+/** Un aviso por ID, con la API: lo único que MercadoLibre deja leer desde 2025 (la búsqueda responde 403). */
+export async function leerItem(id: string, token: string): Promise<{ aviso: AvisoPortal; detalle: DetallePortal }> {
+  const h = { Authorization: `Bearer ${token}`, Accept: "application/json" };
+  const r = await fetch(`${API}/items/${id}`, { headers: h });
+  if (!r.ok) throw new Error(`MercadoLibre no entregó el aviso ${id} (HTTP ${r.status})`);
+  const item = (await r.json()) as ResultadoML & { pictures?: { secure_url?: string; url?: string }[]; seller_address?: { state?: { name?: string } } };
+  const d = await fetch(`${API}/items/${id}/description`, { headers: h }).then((x) => (x.ok ? (x.json() as Promise<{ plain_text?: string }>) : null)).catch(() => null);
+  const { aviso, detalle } = leerResultado({ ...item, location: item.location ?? item.seller_address });
+  const fotos = (item.pictures ?? []).map((f) => f.secure_url ?? f.url?.replace(/^http:/, "https:")).filter((u): u is string => Boolean(u));
+  return {
+    aviso: { ...aviso, foto: fotos[0] ?? aviso.foto },
+    detalle: { ...detalle, ...(d?.plain_text ? { descripcion: d.plain_text } : {}), ...(fotos.length ? { fotos } : {}) },
+  };
+}
+
 export function leerResultado(r: ResultadoML): { aviso: AvisoPortal; detalle: DetallePortal } {
   const trim = attr(r, "TRIM");
   const esDealer = r.seller?.car_dealer || r.seller?.tags?.some((t) => /car_dealer|dealer/i.test(t));

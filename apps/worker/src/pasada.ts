@@ -18,7 +18,7 @@ import { recolectarChileautosTodo } from "./fuentes/chileautos/recolector.js";
 import { cargarSesion, elegirCuenta, leerConfig, registrarUso } from "./fuentes/facebook/cuentas.js";
 import { recolectarFacebook } from "./fuentes/facebook/recolector.js";
 import { recolectarKavak } from "./fuentes/kavak/recolector.js";
-import { crearRecolectorML } from "./fuentes/mercadolibre/recolector.js";
+import { busquedaCerrada, crearRecolectorML, tokenVigente } from "./fuentes/mercadolibre/recolector.js";
 import { recolectarYapo } from "./fuentes/yapo/recolector.js";
 import { hashearFotos } from "./fotos.js";
 import type { Recolector, ResultadoRecoleccion } from "./fuentes/tipos.js";
@@ -71,6 +71,8 @@ interface Preparada {
   alAbrir?: (s: Sesion) => Promise<string | null>;
   /** Se llama al final con todos los resultados (Facebook registra el uso de la cuenta). */
   alTerminar?: (resultados: ResultadoRecoleccion[]) => Promise<Notificacion[]>;
+  /** La fuente no deja buscar: no se recorren las fichas, solo los links compartidos. */
+  sinBusqueda?: string;
 }
 
 async function preparar(db: ClienteDb): Promise<Preparada | { noCorre: string }> {
@@ -89,6 +91,10 @@ async function preparar(db: ClienteDb): Promise<Preparada | { noCorre: string }>
     if (malProxy) return { noCorre: malProxy };
     if (FUENTE === "kavak") return { recolectar: recolectarKavak };
     if (FUENTE === "yapo") return { recolectar: recolectarYapo };
+    const token = await tokenVigente(db).catch(() => null);
+    if (!token) return { noCorre: "MercadoLibre no está conectado: conéctalo en Fuentes." };
+    if (await busquedaCerrada(token))
+      return { recolectar: crearRecolectorML(db), sinBusqueda: "MercadoLibre cerró la búsqueda de su API (responde 403 aunque la cuenta esté conectada). Solo se leen los links que compartes." };
     return { recolectar: crearRecolectorML(db) };
   }
   if (FUENTE !== "facebook") return { noCorre: `Fuente desconocida: ${FUENTE}` };
@@ -165,6 +171,12 @@ async function main() {
   // Sin fotos, videos ni fuentes: recorrer la grilla entera de Facebook con fotos gastaba ~300 MB de proxy por pasada.
   const s = await abrirNavegador();
   try {
+    if (prep.sinBusqueda) {
+      console.log(prep.sinBusqueda);
+      informe.push(prep.sinBusqueda, "");
+      await registrarSiEsManual(db, "ok", prep.sinBusqueda);
+      fichas.length = 0;
+    }
     const motivo = await prep.alAbrir?.(s);
     if (motivo) {
       informe.push(`No se corrió: ${motivo}`);

@@ -36,6 +36,16 @@ export async function tokenVigente(db: ClienteDb): Promise<string> {
   return nuevos.access_token;
 }
 
+/**
+ * ¿Sigue cerrada la búsqueda? Desde 2025 MercadoLibre responde 403 en
+ * /sites/MLC/search a las apps sin permiso especial (el token sí vale para
+ * /items). Se prueba una vez por pasada, por si la vuelven a abrir.
+ */
+export async function busquedaCerrada(token: string): Promise<boolean> {
+  const r = await fetch(`${API}/sites/MLC/search?category=MLC1744&limit=1`, { headers: { Authorization: `Bearer ${token}`, Accept: "application/json" } });
+  return r.status === 403;
+}
+
 /** Recolector sin navegador: consulta la API con el token del dueño. */
 export function crearRecolectorML(db: ClienteDb) {
   return async (_s: unknown, ficha: Seguimiento, op: OpcionesRecoleccion): Promise<ResultadoRecoleccion> => {

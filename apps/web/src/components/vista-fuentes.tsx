@@ -31,7 +31,7 @@ const HORARIO: Record<string, string> = {
   chileautos: "cada 3 horas de 8:00 a 23:00",
   kavak: "1 vez al día, necesita proxy",
   yapo: "1 vez al día, necesita proxy",
-  mercadolibre: "2 veces al día",
+  mercadolibre: "solo los links que compartes: MercadoLibre cerró la búsqueda",
   brunofritsch: "2 veces al día, Volvo usados de la automotora",
   remates: "1 vez al día: Karcal y Zárate, cruzados con tus avisos",
 };

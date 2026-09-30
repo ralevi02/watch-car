@@ -2,6 +2,8 @@ import type { Seguimiento } from "@radar/core";
 import type { ClienteDb } from "@radar/db";
 import { leerDetalle as leerDetalleChileautos } from "./fuentes/chileautos/lector.js";
 import { leerDetalle as leerDetalleFacebook } from "./fuentes/facebook/lector.js";
+import { leerItem } from "./fuentes/mercadolibre/lector.js";
+import { tokenVigente } from "./fuentes/mercadolibre/recolector.js";
 import type { AvisoPortal, DetallePortal, ResultadoRecoleccion } from "./fuentes/tipos.js";
 import { deduplicar, evaluarAvisos, guardarPasada, normalizarPendientes } from "./guardar.js";
 import { hashearFotos } from "./fotos.js";
@@ -10,7 +12,12 @@ import { pausa, type Sesion } from "./lib/navegador.js";
 const entero = (s?: string) => (s ? Number(s.replace(/\D/g, "")) || undefined : undefined);
 
 /** Arma el aviso a partir de la página de detalle (cuando no viene de una lista). */
-async function leerAvisoCompartido(s: Sesion, fuente: string, id: string, url: string): Promise<{ aviso: AvisoPortal; detalle: DetallePortal }> {
+async function leerAvisoCompartido(db: ClienteDb, s: Sesion, fuente: string, id: string, url: string): Promise<{ aviso: AvisoPortal; detalle: DetallePortal }> {
+  // MercadoLibre: el sitio pide cuenta, pero la API entrega el aviso por su ID.
+  if (fuente === "mercadolibre") {
+    const r = await leerItem(id, await tokenVigente(db));
+    return { ...r, aviso: { ...r.aviso, url: r.aviso.url || url } };
+  }
   const page = await s.context.newPage();
   try {
     await page.goto(url, { waitUntil: "domcontentloaded", timeout: 45_000 });
@@ -74,7 +81,7 @@ export async function procesarCompartidos(
   for (const c of pendientes ?? []) {
     await pausa(3000, 6000);
     try {
-      const { aviso, detalle } = await leerAvisoCompartido(s, fuente, c.id_externo ?? "", c.url);
+      const { aviso, detalle } = await leerAvisoCompartido(db, s, fuente, c.id_externo ?? "", c.url);
       const r: ResultadoRecoleccion = {
         url: c.url,
         paginasLeidas: 0,
