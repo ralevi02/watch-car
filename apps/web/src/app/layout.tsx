@@ -8,6 +8,13 @@ export const metadata: Metadata = {
   title: "Radar seminuevos",
   description: "Seguimiento de autos usados en Chile",
   appleWebApp: { capable: true, title: "Radar", statusBarStyle: "default" },
+  // Pestaña del navegador: D2 (auto oscuro sobre blanco) en modo claro y D1 en modo oscuro.
+  icons: {
+    icon: [
+      { url: "/icons/64-claro", type: "image/png", sizes: "64x64", media: "(prefers-color-scheme: light)" },
+      { url: "/icons/64", type: "image/png", sizes: "64x64", media: "(prefers-color-scheme: dark)" },
+    ],
+  },
 };
 
 export const viewport: Viewport = {
