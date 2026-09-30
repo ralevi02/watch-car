@@ -73,6 +73,10 @@ Las tres fases están en código. Supabase `watch-car` (id `ssmtlqtpzzhkhibkcfhi
     - gastos (`uso_ia`, proxy por `pasadas.kb`), avisos al tiro o resumen diario (`ajustes.avisos`, `resumen.yml` cada hora), tu comuna (`ajustes.casa`);
     - diagnóstico con IA cuando una pasada trae 0 avisos.
   - La app abre sin señal (service worker).
+- **Decidir mejor (30 sept 2026):**
+  - Worker: `fotos-ia.ts` (`fotos-ia.yml`, 10 por día): la IA mira las fotos (Cross Country, km del tablero, patente, daños) y queda en `avisos.vision`; fotos repetidas en otro aviso van a `avisos.senales`, junto con las de estafa (`core/senales.ts`). `avisos.resumen` es el resumen corto. `resumen.ts` avisa de fuente caída, manda el resumen semanal y los recordatorios de Mi auto.
+  - Precio justo (`core/mercado.ts`, mínimos cuadrados por modelo o familia, robusto con MAD): rango, días para venderse, margen para negociar, costo real y cuota (`auto/precio-justo.tsx`).
+  - Detalle: historia, patente, papeles, grabar el motor en la visita, seguir el auto (`marcas.seguir`). Resultados: nuevos desde tu última visita (`lib/visto.ts`), buscar hablando (`core/interpretar.ts`), comparar (`lib/comparar.ts`), ¿cuál me conviene? (`/api/conviene`), ruta de visitas, exportar CSV, revendedores (autos por teléfono). Mi auto en Seguimientos (`ajustes.mi_auto`). Accesos directos en `manifest.ts`.
 - **Fuentes nuevas:**
   - **Bruno Fritsch** (`brunofritsch`, API JSON pública del catálogo "Volvo Usados", funciona desde Actions sin proxy).
   - **Remates** (`remates.yml` diario): lotes de Karcal (Algolia; la clave pública se lee del JS del sitio en cada corrida, no va al repo) y Zárate (HTML), cruzados con los avisos por patente o por modelo, año y km (`avisos.remate`).
