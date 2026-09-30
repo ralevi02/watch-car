@@ -26,6 +26,7 @@ import { aNormalizado, datosDeLista, deduplicar, evaluarAvisos, guardarPasada, n
 import { abrirNavegador, pausa, type Sesion } from "./lib/navegador.js";
 import { avisosDeOportunidad, avisosDeReaparecidos, avisosDeSeguidos } from "./alertas-extra.js";
 import { diagnosticar } from "./diagnostico.js";
+import { revisarProxy } from "./lib/proxy.js";
 import { enviarPush, leerModoAvisos, type Notificacion } from "./push.js";
 
 const FUENTE = process.env.FUENTE || "chileautos";
@@ -84,6 +85,8 @@ async function preparar(db: ClienteDb): Promise<Preparada | { noCorre: string }>
     if (!f?.activa) return { noCorre: `${NOMBRE[FUENTE]} está desactivado en Fuentes.` };
     // Probado en septiembre 2026: Kavak (CloudFront) y Yapo (Cloudflare) bloquean las IPs de GitHub.
     if (FUENTE !== "mercadolibre" && !process.env.PROXY_URL) return { noCorre: `${NOMBRE[FUENTE]} bloquea las IPs de GitHub: se necesita PROXY_URL.` };
+    const malProxy = FUENTE !== "mercadolibre" ? await revisarProxy(process.env.PROXY_URL) : null;
+    if (malProxy) return { noCorre: malProxy };
     if (FUENTE === "kavak") return { recolectar: recolectarKavak };
     if (FUENTE === "yapo") return { recolectar: recolectarYapo };
     return { recolectar: crearRecolectorML(db) };
@@ -93,6 +96,9 @@ async function preparar(db: ClienteDb): Promise<Preparada | { noCorre: string }>
   const { activa, config } = await leerConfig(db);
   if (!activa) return { noCorre: "Facebook está desactivado en Fuentes." };
   if (!process.env.PROXY_URL && process.env.FB_SIN_PROXY !== "1") return { noCorre: "Falta PROXY_URL: Facebook no se corre sin la IP fija." };
+  // Con el proxy caído no se sale por otra IP: la cuenta tiene que ver siempre la misma.
+  const malProxy = await revisarProxy(process.env.PROXY_URL);
+  if (malProxy) return { noCorre: `${malProxy} Facebook no se corre sin la IP fija.` };
   const cuenta = await elegirCuenta(db, config);
   if (!cuenta) return { noCorre: "No hay cuentas de Facebook activas con pasadas disponibles hoy." };
   console.log(`Cuenta de Facebook: ${cuenta.nombre}`);

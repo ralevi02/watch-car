@@ -13,6 +13,7 @@ import { clienteServicio } from "@radar/db";
 import { cargarSesion, guardarSesion, haySesion } from "./fuentes/facebook/cuentas.js";
 import { detectarMuro } from "./fuentes/facebook/lector.js";
 import { abrirNavegador, esperar } from "./lib/navegador.js";
+import { revisarProxy } from "./lib/proxy.js";
 
 const ID = process.env.RECONEXION_ID;
 const ESPERA_MAXIMA_MS = 25 * 60_000;
@@ -34,6 +35,12 @@ async function main() {
     return;
   }
   if (!process.env.PROXY_URL) console.warn("Sin PROXY_URL: el login saldrá desde la IP de GitHub, distinta a la del worker.");
+  const malProxy = await revisarProxy(process.env.PROXY_URL);
+  if (malProxy) {
+    await actualizar({ estado: "error", error: malProxy });
+    console.log(malProxy);
+    return;
+  }
   await actualizar({ estado: "abriendo", run_url: RUN });
 
   // Ventana del tamaño de la pantalla virtual, cómoda de manejar desde el celular.
