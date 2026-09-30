@@ -306,7 +306,7 @@ export async function leerFuentesYPasadas() {
   ]);
   const { data: secretos } = await supabase.from("secretos_app").select("nombre");
   const hay = (nombre: string) => (secretos ?? []).some((x) => x.nombre === nombre);
-  return { fuentes: fuentes ?? [], pasadas: pasadas ?? [], mlConectado: hay("mercadolibre"), githubConectado: hay("github") || Boolean(process.env.GITHUB_DISPATCH_TOKEN) };
+  return { fuentes: fuentes ?? [], pasadas: pasadas ?? [], mlConectado: hay("mercadolibre"), mlSesionWeb: hay("mercadolibre_sesion"), githubConectado: hay("github") || Boolean(process.env.GITHUB_DISPATCH_TOKEN) };
 }
 
 export async function leerFacebook() {

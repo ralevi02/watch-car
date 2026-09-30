@@ -763,9 +763,10 @@ export type Database = {
           actualizada_en: string
           clave: string | null
           creada_en: string
-          cuenta_id: string
+          cuenta_id: string | null
           error: string | null
           estado: string
+          fuente: string
           id: string
           run_url: string | null
           url: string | null
@@ -774,9 +775,10 @@ export type Database = {
           actualizada_en?: string
           clave?: string | null
           creada_en?: string
-          cuenta_id: string
+          cuenta_id?: string | null
           error?: string | null
           estado?: string
+          fuente?: string
           id?: string
           run_url?: string | null
           url?: string | null
@@ -785,9 +787,10 @@ export type Database = {
           actualizada_en?: string
           clave?: string | null
           creada_en?: string
-          cuenta_id?: string
+          cuenta_id?: string | null
           error?: string | null
           estado?: string
+          fuente?: string
           id?: string
           run_url?: string | null
           url?: string | null

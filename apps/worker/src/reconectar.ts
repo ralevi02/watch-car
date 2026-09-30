@@ -1,5 +1,6 @@
 /**
- * Reconexión de una cuenta de Facebook. El workflow "Facebook · reconectar"
+ * Reconexión de una cuenta de Facebook (o de la sesión del sitio de
+ * MercadoLibre, que desde 2025 pide cuenta para ver la lista). El workflow "Facebook · reconectar"
  * levanta una pantalla virtual con vista remota (noVNC) detrás de un túnel
  * temporal de Cloudflare; este script abre ahí el mismo Chrome del worker (mismo
  * proxy e IP fija), deja el link y la clave en Supabase para que la app los
@@ -12,6 +13,7 @@
 import { clienteServicio } from "@radar/db";
 import { cargarSesion, guardarSesion, haySesion } from "./fuentes/facebook/cuentas.js";
 import { detectarMuro } from "./fuentes/facebook/lector.js";
+import { cargarSesionML, guardarSesionML, pideCuenta } from "./fuentes/mercadolibre/sesion.js";
 import { abrirNavegador, esperar } from "./lib/navegador.js";
 import { revisarProxy } from "./lib/proxy.js";
 
@@ -28,13 +30,16 @@ async function main() {
     if (error) throw new Error(`Supabase (reconexión): ${error.message}`);
   };
 
-  const { data: rec, error } = await db.from("reconexiones").select("id, estado, cuenta_id, cuentas_facebook(nombre, secreto_id)").eq("id", ID).single();
+  const { data: rec, error } = await db.from("reconexiones").select("id, estado, fuente, cuenta_id, cuentas_facebook(nombre, secreto_id)").eq("id", ID).single();
   if (error || !rec) throw new Error(`No existe la reconexión ${ID}`);
   if (rec.estado !== "pedida") {
     console.log(`La reconexión está en estado ${rec.estado}; nada que hacer.`);
     return;
   }
-  if (!process.env.PROXY_URL) console.warn("Sin PROXY_URL: el login saldrá desde la IP de GitHub, distinta a la del worker.");
+  const ml = rec.fuente === "mercadolibre";
+  // MercadoLibre va sin proxy (como sus pasadas): el proxy se paga por GB y su sitio es pesado.
+  if (ml) delete process.env.PROXY_URL;
+  if (!process.env.PROXY_URL && !ml) console.warn("Sin PROXY_URL: el login saldrá desde la IP de GitHub, distinta a la del worker.");
   const malProxy = await revisarProxy(process.env.PROXY_URL);
   if (malProxy) {
     await actualizar({ estado: "error", error: malProxy });
@@ -46,9 +51,15 @@ async function main() {
   // Ventana del tamaño de la pantalla virtual, cómoda de manejar desde el celular.
   const s = await abrirNavegador({ args: ["--window-position=0,0", "--window-size=540,960"], bloquearRecursos: false });
   try {
-    const conSesion = rec.cuentas_facebook?.secreto_id ? await cargarSesion(db, s.context, rec.cuenta_id) : false;
     const page = s.context.pages()[0] ?? (await s.context.newPage());
-    await page.goto(conSesion ? "https://www.facebook.com/marketplace/" : "https://www.facebook.com/login/", { waitUntil: "domcontentloaded", timeout: 60_000 });
+    if (ml) {
+      await cargarSesionML(db, s.context);
+      // Sin sesión, el sitio de autos manda solo al inicio de sesión.
+      await page.goto("https://autos.mercadolibre.cl/", { waitUntil: "domcontentloaded", timeout: 60_000 });
+    } else {
+      const conSesion = rec.cuentas_facebook?.secreto_id && rec.cuenta_id ? await cargarSesion(db, s.context, rec.cuenta_id) : false;
+      await page.goto(conSesion ? "https://www.facebook.com/marketplace/" : "https://www.facebook.com/login/", { waitUntil: "domcontentloaded", timeout: 60_000 });
+    }
 
     await actualizar({ estado: "lista", url: `${process.env.VNC_URL}/vnc.html?autoconnect=1&resize=scale&reconnect=1`, clave: process.env.VNC_CLAVE });
     console.log("Vista remota lista; esperando que el usuario inicie sesión.");
@@ -70,6 +81,21 @@ async function main() {
       return;
     }
 
+    if (ml) {
+      // Confirmar que la lista de autos se ve con la sesión antes de guardarla.
+      const p2 = await s.context.newPage();
+      await p2.goto("https://autos.mercadolibre.cl/volvo", { waitUntil: "domcontentloaded", timeout: 60_000 });
+      await esperar(4000);
+      if (pideCuenta(p2.url())) {
+        await actualizar({ estado: "error", url: null, clave: null, error: "MercadoLibre sigue pidiendo iniciar sesión o verificar la cuenta. Vuelve a intentarlo." });
+        return;
+      }
+      await guardarSesionML(db, s.context);
+      await actualizar({ estado: "ok", url: null, clave: null, error: null });
+      console.log("Sesión de MercadoLibre guardada.");
+      return;
+    }
+    if (!rec.cuenta_id) throw new Error("La reconexión de Facebook no tiene cuenta");
     // Confirmar que la sesión sirve para Marketplace antes de guardarla.
     if (!(await haySesion(s.context))) {
       await actualizar({ estado: "error", url: null, clave: null, error: "No se detectó una sesión iniciada. Vuelve a intentarlo." });

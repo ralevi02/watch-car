@@ -34,11 +34,12 @@ export default function Reconectar({ params }: { params: Promise<{ id: string }>
   const estado = rec?.estado ?? "pedida";
   const link = rec?.url && rec.clave ? `${rec.url}&password=${encodeURIComponent(rec.clave)}` : null;
   const terminado = ["ok", "error", "vencida"].includes(estado);
+  const ml = rec?.fuente === "mercadolibre";
 
   return (
     <>
       <Encabezado
-        titulo="Reconectar Facebook"
+        titulo={ml ? "Sesión de MercadoLibre" : "Reconectar Facebook"}
         izquierda={
           <Link href="/fuentes" transitionTypes={["nav-atras"]} className="presionable -ml-2 flex items-center text-[17px] text-primary">
             <ChevronLeft className="size-7" strokeWidth={2.2} /> Fuentes
@@ -50,12 +51,13 @@ export default function Reconectar({ params }: { params: Promise<{ id: string }>
           <div className="lista-ios">
             <div className="fila-ios justify-between">
               <span>Cuenta</span>
-              <span className="text-muted-foreground">{rec?.cuentas_facebook?.nombre ?? "…"}</span>
+              <span className="text-muted-foreground">{ml ? "Tu cuenta de MercadoLibre" : (rec?.cuentas_facebook?.nombre ?? "…")}</span>
             </div>
           </div>
           <p className="pie-grupo">
-            Se abre un navegador seguro en la nube con la misma IP del buscador. Inicia sesión ahí (usuario, clave y la verificación si la pide) y después toca «Ya inicié
-            sesión».
+            {ml
+              ? "Se abre un navegador seguro en la nube. Inicia sesión con tu cuenta de MercadoLibre (y el código que te mande, si lo pide) y después toca «Ya inicié sesión». Solo se guarda la sesión, cifrada; nunca la clave."
+              : "Se abre un navegador seguro en la nube con la misma IP del buscador. Inicia sesión ahí (usuario, clave y la verificación si la pide) y después toca «Ya inicié sesión»."}
           </p>
         </div>
 
@@ -102,13 +104,13 @@ export default function Reconectar({ params }: { params: Promise<{ id: string }>
 
         {estado === "guardando" && (
           <Aviso>
-            <LoaderCircle className="size-5 shrink-0 animate-spin text-muted-foreground" /> Revisando que la sesión sirva para Marketplace y guardándola cifrada.
+            <LoaderCircle className="size-5 shrink-0 animate-spin text-muted-foreground" /> {ml ? "Revisando que se vea la lista de autos y guardando la sesión cifrada." : "Revisando que la sesión sirva para Marketplace y guardándola cifrada."}
           </Aviso>
         )}
 
         {estado === "ok" && (
           <Aviso clase="bg-calza-fondo text-calza">
-            <Check className="size-5 shrink-0" strokeWidth={2.6} /> Listo: la sesión quedó guardada y la cuenta activa.
+            <Check className="size-5 shrink-0" strokeWidth={2.6} /> {ml ? "Listo: la sesión quedó guardada. Las pasadas de MercadoLibre ya pueden buscar." : "Listo: la sesión quedó guardada y la cuenta activa."}
           </Aviso>
         )}
         {(estado === "error" || estado === "vencida") && <Aviso clase="bg-card text-destructive">{rec?.error ?? "No se pudo reconectar."}</Aviso>}

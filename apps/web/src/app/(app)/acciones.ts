@@ -111,9 +111,10 @@ export async function configurarFacebook(cambios: { activa?: boolean; rotacion?:
  * Pide una reconexión: crea el registro y lanza el workflow "Facebook ·
  * reconectar" con la API de GitHub (token con permiso de Actions en el repo).
  */
-export async function pedirReconexion(cuentaId: string): Promise<Resultado & { id?: string }> {
+export async function pedirReconexion(cuentaId: string | null, fuente: "facebook" | "mercadolibre" = "facebook"): Promise<Resultado & { id?: string }> {
   const supabase = await crearClienteServidor();
-  const { data, error } = await supabase.from("reconexiones").insert({ cuenta_id: z.uuid().parse(cuentaId) }).select("id").single();
+  const fila: { fuente: string; cuenta_id: string | null } = { fuente, cuenta_id: fuente === "mercadolibre" ? null : z.uuid().parse(cuentaId) };
+  const { data, error } = await supabase.from("reconexiones").insert(fila).select("id").single();
   if (error) return { ok: false, error: error.message };
   const token = await tokenGithub(supabase);
   if (!token) {
@@ -132,7 +133,7 @@ export async function leerReconexion(id: string) {
   const supabase = await crearClienteServidor();
   const { data } = await supabase
     .from("reconexiones")
-    .select("id, estado, url, clave, error, run_url, cuentas_facebook(nombre)")
+    .select("id, estado, fuente, url, clave, error, run_url, cuentas_facebook(nombre)")
     .eq("id", z.uuid().parse(id))
     .single();
   return data;

@@ -1,9 +1,9 @@
 "use client";
 
 import { ChevronRight, LogOut } from "lucide-react";
-import { useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
-import { salir } from "@/app/(app)/acciones";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useState, useTransition } from "react";
+import { pedirReconexion, salir } from "@/app/(app)/acciones";
 import { AjustesAvisos, TuComuna } from "@/components/ajustes-avisos";
 import { Apariencia } from "@/components/apariencia";
 import { Gastos } from "@/components/gastos";
@@ -89,7 +89,7 @@ export function VistaFuentes() {
       </>
     );
   }
-  const { fuentes, pasadas, mlConectado, githubConectado } = datos.fuentes;
+  const { fuentes, pasadas, mlConectado, mlSesionWeb, githubConectado } = datos.fuentes;
   const facebook = datos.facebook;
   const ultima = (id: string) => pasadas.find((p) => p.fuente_id === id);
   const portales = fuentes.filter((f) => f.id !== "facebook");
@@ -127,6 +127,7 @@ export function VistaFuentes() {
                             HORARIO[f.id]
                           )}
                         </EstadoFuente>
+                        {f.id === "mercadolibre" && mlConectado && <SesionMercadoLibre guardada={Boolean(mlSesionWeb)} />}
                       </span>
                     </span>
                     {f.id === "mercadolibre" && !mlConectado ? (
@@ -221,5 +222,32 @@ export function VistaFuentes() {
         </main>
       </Pantalla>
     </ProveedorCorridas>
+  );
+}
+
+/** MercadoLibre ya no deja buscar por la API: se busca en el sitio con tu sesión, que se inicia en la vista remota. */
+function SesionMercadoLibre({ guardada }: { guardada: boolean }) {
+  const router = useRouter();
+  const [abriendo, iniciar] = useTransition();
+  const [error, setError] = useState<string | null>(null);
+  return (
+    <>
+      <button
+        type="button"
+        disabled={abriendo}
+        onClick={() =>
+          iniciar(async () => {
+            setError(null);
+            const r = await pedirReconexion(null, "mercadolibre");
+            if (r.ok && r.id) router.push(`/fuentes/reconectar/${r.id}`);
+            else if (!r.ok) setError(r.error);
+          })
+        }
+        className="presionable mt-0.5 block text-left text-primary"
+      >
+        {abriendo ? "Abriendo…" : guardada ? "Volver a iniciar sesión en el sitio" : "Iniciar sesión en el sitio para buscar"}
+      </button>
+      {error && <span className="block text-destructive">{error}</span>}
+    </>
   );
 }

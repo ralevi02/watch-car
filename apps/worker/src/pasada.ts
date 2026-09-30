@@ -19,6 +19,8 @@ import { cargarSesion, elegirCuenta, leerConfig, registrarUso } from "./fuentes/
 import { recolectarFacebook } from "./fuentes/facebook/recolector.js";
 import { recolectarKavak } from "./fuentes/kavak/recolector.js";
 import { busquedaCerrada, crearRecolectorML, tokenVigente } from "./fuentes/mercadolibre/recolector.js";
+import { cargarSesionML, haySesionML } from "./fuentes/mercadolibre/sesion.js";
+import { recolectarMLWeb } from "./fuentes/mercadolibre/web.js";
 import { recolectarYapo } from "./fuentes/yapo/recolector.js";
 import { hashearFotos } from "./fotos.js";
 import type { Recolector, ResultadoRecoleccion } from "./fuentes/tipos.js";
@@ -91,11 +93,23 @@ async function preparar(db: ClienteDb): Promise<Preparada | { noCorre: string }>
     if (malProxy) return { noCorre: malProxy };
     if (FUENTE === "kavak") return { recolectar: recolectarKavak };
     if (FUENTE === "yapo") return { recolectar: recolectarYapo };
+    // Primero la API (liviana); desde 2025 no deja buscar, y entonces se usa el sitio con la sesión del dueño.
     const token = await tokenVigente(db).catch(() => null);
-    if (!token) return { noCorre: "MercadoLibre no está conectado: conéctalo en Fuentes." };
-    if (await busquedaCerrada(token))
-      return { recolectar: crearRecolectorML(db), sinBusqueda: "MercadoLibre cerró la búsqueda de su API (responde 403 aunque la cuenta esté conectada). Solo se leen los links que compartes." };
-    return { recolectar: crearRecolectorML(db) };
+    if (token && !(await busquedaCerrada(token))) return { recolectar: crearRecolectorML(db) };
+    // El sitio va sin proxy: el proxy se paga por GB y las páginas de MercadoLibre pesan varios MB.
+    delete process.env.PROXY_URL;
+    if (!(await haySesionML(db)))
+      return { recolectar: recolectarMLWeb, sinBusqueda: "MercadoLibre cerró la búsqueda de su API y el sitio pide cuenta: inicia sesión en MercadoLibre desde Fuentes. Mientras, solo se leen los links que compartes." };
+    return {
+      recolectar: recolectarMLWeb,
+      alAbrir: async (s) => ((await cargarSesionML(db, s.context)) ? null : "No se pudo cargar la sesión de MercadoLibre."),
+      alTerminar: async (resultados) => {
+        const muro = resultados.find((r) => r.bloqueo)?.bloqueo;
+        return muro
+          ? [{ titulo: "Vuelve a iniciar sesión en MercadoLibre", cuerpo: `${muro}. Ábrelo en Fuentes para iniciar sesión otra vez.`, url: APP_URL ? `${APP_URL}/fuentes` : undefined, etiqueta: "sesion-mercadolibre", tipo: "sistema" }]
+          : [];
+      },
+    };
   }
   if (FUENTE !== "facebook") return { noCorre: `Fuente desconocida: ${FUENTE}` };
 
@@ -277,7 +291,8 @@ async function main() {
           });
         }
       }
-      if (estado === "bloqueo" && FUENTE !== "facebook") {
+      // Facebook y MercadoLibre avisan el bloqueo al final (es la sesión, no el proxy).
+      if (estado === "bloqueo" && FUENTE !== "facebook" && FUENTE !== "mercadolibre") {
         notificaciones.push({ titulo: `${NOMBRE[FUENTE] ?? FUENTE} bloqueó la pasada`, cuerpo: `${r?.bloqueo}. Se reintenta en la próxima; si se repite, hay que activar el proxy.`, etiqueta: `bloqueo-${FUENTE}` });
       }
 
