@@ -29,8 +29,8 @@ const ESTADO: Record<string, { texto: string; clase: string }> = {
 
 const HORARIO: Record<string, string> = {
   chileautos: "cada 3 horas de 8:00 a 23:00",
-  kavak: "2 veces al día, necesita proxy",
-  yapo: "2 veces al día, necesita proxy",
+  kavak: "1 vez al día, necesita proxy",
+  yapo: "1 vez al día, necesita proxy",
   mercadolibre: "2 veces al día",
   brunofritsch: "2 veces al día, Volvo usados de la automotora",
   remates: "1 vez al día: Karcal y Zárate, cruzados con tus avisos",

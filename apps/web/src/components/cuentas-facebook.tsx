@@ -106,7 +106,7 @@ export function CuentasFacebook({ activa, rotacion, pasadasPorDia, cuentas }: { 
           </select>
         </label>
       </div>
-      <p className="pie-grupo">Solo cuentas secundarias, nunca la personal. Se guarda la sesión cifrada, nunca la contraseña. Corre a las 10:40, 15:40 y 20:40.</p>
+      <p className="pie-grupo">Solo cuentas secundarias, nunca la personal. Se guarda la sesión cifrada, nunca la contraseña. Corre 1 vez al día, a las 20:00, porque el proxy se paga por GB. Con ▶ la corres a mano cuando quieras.</p>
       {error && <p className="pie-grupo text-destructive">{error}</p>}
 
       <Hoja abierta={Boolean(actual)} onCerrar={() => setAbierta(null)} titulo={actual?.nombre ?? ""} derecha={<button type="button" onClick={() => setAbierta(null)}>Listo</button>}>
