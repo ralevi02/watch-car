@@ -4,7 +4,7 @@ import { GalleryHorizontalEnd, Handshake, SlidersHorizontal, LayoutGrid, Link2, 
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { DetalleAuto } from "@/components/detalle-auto";
 import { Encabezado } from "@/components/encabezado";
 import { FilaEsqueleto, FilaResultado } from "@/components/fila-resultado";
@@ -326,7 +326,7 @@ export function VistaResultados() {
             <MapaAutos autos={visibles} casa={datos.ajustes?.casa?.comuna} abrir={abrir} />
           ) : (
             grupos.map((g, gi) => (
-              <section key={g.id} className={cn(gi > 0 && (vista === "lista" ? "mt-6" : "mt-8"))}>
+              <section key={g.id} className={cn(gi > 0 && (vista === "lista" ? "mt-6" : "mt-8"), vista === "riel" && gi > 1 && "fuera-de-vista")} style={{ "--alto-estimado": "420px" } as React.CSSProperties}>
                 {conTitulo && (
                   <div className="entrada-escalonada mb-3 flex items-baseline justify-between gap-3" style={{ "--i": 0 } as React.CSSProperties}>
                     <h2 className="truncate text-[17px] font-semibold tracking-[-0.2px]">{g.nombre}</h2>
@@ -362,48 +362,92 @@ export function VistaResultados() {
   );
 }
 
-const escalon = (i: number) => ({ "--i": Math.min(i, 8) }) as React.CSSProperties;
+/** Solo las primeras tarjetas entran animadas: animar cien a la vez pesa en el teléfono. */
+const animar = (i: number) => (i < 8 ? "entrada-escalonada" : "");
+const escalon = (i: number) => ({ "--i": i }) as React.CSSProperties;
 
 /** Los autos de un grupo en la vista elegida. */
+const EN_RIEL = 10;
+const DE_A = 24;
+
+/** Cuántas tarjetas dibujar: de a DE_A, y más cuando el final de la lista se acerca a la pantalla. */
+function useProgresivo(total: number, minimo = DE_A) {
+  const [limite, setLimite] = useState(Math.max(DE_A, minimo));
+  const fin = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = fin.current;
+    if (!el || limite >= total) return;
+    const io = new IntersectionObserver(([e]) => e?.isIntersecting && setLimite((l) => l + DE_A), { rootMargin: "800px 0px" });
+    io.observe(el);
+    return () => io.disconnect();
+  }, [limite, total]);
+  return { limite, fin };
+}
+
+/** Los autos de un grupo en la vista elegida. Se dibujan de a poco: todo de una vez hacía lento el cambio de pestaña. */
 function Grupo({ vista, autos, abrir, aviso }: { vista: Vista; autos: ResultadoAuto[]; abrir: (id: string) => void; aviso?: string }) {
-  if (vista === "riel")
+  // Si una notificación trae un aviso, que quede dibujado aunque esté abajo.
+  const posAviso = aviso ? autos.findIndex((r) => r.enlaces.some((e) => e.id === aviso)) + 1 : 0;
+  const { limite, fin } = useProgresivo(autos.length, posAviso);
+  const [todoRiel, setTodoRiel] = useState(false);
+  if (vista === "riel") {
+    const visibles = todoRiel ? autos : autos.slice(0, Math.max(EN_RIEL, posAviso));
+    const quedan = autos.length - visibles.length;
     return (
       <div className="-mx-5 flex snap-x snap-mandatory scroll-px-5 gap-3 overflow-x-auto overscroll-x-contain px-5 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-        {autos.map((r, i) => (
-          <div key={r.autoId} className="entrada-escalonada w-[72%] max-w-[320px] shrink-0 snap-start" style={escalon(i)}>
+        {visibles.map((r, i) => (
+          <div key={r.autoId} className={cn(animar(i), "w-[72%] max-w-[320px] shrink-0 snap-start")} style={escalon(i)}>
             <TarjetaRiel r={r} abrir={abrir} />
           </div>
         ))}
+        {quedan > 0 && (
+          <button
+            type="button"
+            onClick={() => setTodoRiel(true)}
+            className="presionable flex aspect-[4/3] w-[40%] max-w-[180px] shrink-0 snap-start flex-col items-center justify-center gap-1 self-start rounded-2xl bg-card text-center"
+          >
+            <span className="text-[22px] font-bold tabular-nums">+{quedan}</span>
+            <span className="text-[13px] text-muted-foreground">Ver el resto</span>
+          </button>
+        )}
         <div className="w-2 shrink-0" aria-hidden />
       </div>
     );
+  }
+  const dibujados = autos.slice(0, limite);
+  const cola = limite < autos.length && <div ref={fin} className="h-px" aria-hidden />;
   if (vista === "vitrina")
     return (
       <div className="flex flex-col gap-7">
-        {autos.map((r, i) => (
-          <div key={r.autoId} className="entrada-escalonada" style={escalon(i)}>
+        {dibujados.map((r, i) => (
+          <div key={r.autoId} className={cn(animar(i), "fuera-de-vista")} style={{ ...escalon(i), "--alto-estimado": "340px" } as React.CSSProperties}>
             <TarjetaVitrina r={r} abrir={abrir} />
           </div>
         ))}
+        {cola}
       </div>
     );
   if (vista === "mosaico")
     return (
-      <div className="grid grid-cols-2 gap-x-3 gap-y-5">
-        {autos.map((r, i) => (
-          <div key={r.autoId} className="entrada-escalonada min-w-0" style={escalon(i)}>
-            <TarjetaMosaico r={r} abrir={abrir} />
-          </div>
-        ))}
-      </div>
+      <>
+        <div className="grid grid-cols-2 gap-x-3 gap-y-5">
+          {dibujados.map((r, i) => (
+            <div key={r.autoId} className={cn(animar(i), "fuera-de-vista min-w-0")} style={{ ...escalon(i), "--alto-estimado": "240px" } as React.CSSProperties}>
+              <TarjetaMosaico r={r} abrir={abrir} />
+            </div>
+          ))}
+        </div>
+        {cola}
+      </>
     );
   return (
     <div className="flex flex-col divide-y divide-separador">
-      {autos.map((r, i) => (
-        <div key={r.autoId} className="entrada-escalonada" style={escalon(i)}>
+      {dibujados.map((r, i) => (
+        <div key={r.autoId} className={cn(animar(i), "fuera-de-vista")} style={{ ...escalon(i), "--alto-estimado": "116px" } as React.CSSProperties}>
           <FilaResultado r={r} destacado={r.enlaces.some((e) => e.id === aviso)} abrir={abrir} />
         </div>
       ))}
+      {cola}
     </div>
   );
 }

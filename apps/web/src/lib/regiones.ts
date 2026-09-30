@@ -1,7 +1,6 @@
 "use client";
 
 import { modeloCanonico } from "@radar/core";
-import { useMemo } from "react";
 import { useAlmacen } from "@/lib/almacen";
 import type { ResultadoAuto } from "@/lib/datos";
 import { costoViaje, distanciaDeCasa, lugarDe } from "@/lib/lugares";
@@ -18,18 +17,30 @@ const clave = (r: Pick<ResultadoAuto, "modelo" | "anio">) => `${modeloCanonico(r
  * Para autos lejos de la casa: si está más barato que lo que se pide en la
  * Región Metropolitana por el mismo modelo y año, y el ahorro paga el viaje.
  */
+/** Medianas de precio en la RM por modelo y año, calculadas una vez por cada lista de resultados (no por tarjeta). */
+const cache = new WeakMap<ResultadoAuto[], Map<string, number>>();
+function medianasRM(resultados: ResultadoAuto[]) {
+  const guardada = cache.get(resultados);
+  if (guardada) return guardada;
+  const grupos = new Map<string, number[]>();
+  for (const r of resultados) {
+    if (r.precio === null || !r.anio || !r.modelo) continue;
+    if (lugarDe(r)?.region !== "Metropolitana") continue;
+    grupos.set(clave(r), [...(grupos.get(clave(r)) ?? []), r.precio]);
+  }
+  const m = new Map([...grupos].filter(([, xs]) => xs.length >= 3).map(([k, xs]) => [k, mediana(xs)]));
+  cache.set(resultados, m);
+  return m;
+}
+
+/**
+ * Para autos lejos de la casa: si está más barato que lo que se pide en la
+ * Región Metropolitana por el mismo modelo y año, y el ahorro paga el viaje.
+ */
 export function useLejos() {
   const { datos } = useAlmacen();
   const casa = datos?.ajustes?.casa?.comuna ?? null;
-  const medianas = useMemo(() => {
-    const grupos = new Map<string, number[]>();
-    for (const r of datos?.resultados ?? []) {
-      if (r.precio === null || !r.anio || !r.modelo) continue;
-      if (lugarDe(r)?.region !== "Metropolitana") continue;
-      grupos.set(clave(r), [...(grupos.get(clave(r)) ?? []), r.precio]);
-    }
-    return new Map([...grupos].filter(([, xs]) => xs.length >= 3).map(([k, xs]) => [k, mediana(xs)]));
-  }, [datos?.resultados]);
+  const medianas = datos?.resultados ? medianasRM(datos.resultados) : new Map<string, number>();
 
   return (r: ResultadoAuto): string | null => {
     const d = distanciaDeCasa(r, casa);

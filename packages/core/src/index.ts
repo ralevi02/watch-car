@@ -4,3 +4,5 @@ export * from "./normalizacion.ts";
 export * from "./links.ts";
 export * from "./remates.ts";
 export * from "./contacto.ts";
+export * from "./mercado.ts";
+export * from "./senales.ts";

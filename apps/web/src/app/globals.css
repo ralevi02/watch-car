@@ -285,6 +285,15 @@ body {
   animation: var(--entrada) ease-out both desvanecer, var(--desplazo) var(--curva) both subir;
   animation-delay: calc(var(--i, 0) * 30ms);
 }
+/* Al cambiar de pestaña: un fundido corto, sin mover nada (solo opacidad, lo más barato). */
+.pantalla-entra {
+  animation: 140ms ease-out both desvanecer;
+}
+/* Lo que está fuera de la pantalla no se dibuja hasta que se acerca (listas largas de Resultados). */
+.fuera-de-vista {
+  content-visibility: auto;
+  contain-intrinsic-size: auto var(--alto-estimado, 320px);
+}
 
 /* Seguimientos: el detalle se despliega en vez de aparecer de golpe. */
 details::details-content {

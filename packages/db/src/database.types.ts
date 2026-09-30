@@ -272,6 +272,9 @@ export type Database = {
           separado: boolean
           remate: Json | null
           contacto: Json | null
+          vision: Json | null
+          resumen: string | null
+          senales: string[]
         }
         Insert: {
           alertas?: string[]
@@ -315,6 +318,9 @@ export type Database = {
           separado?: boolean
           remate?: Json | null
           contacto?: Json | null
+          vision?: Json | null
+          resumen?: string | null
+          senales?: string[]
         }
         Update: {
           alertas?: string[]
@@ -358,6 +364,9 @@ export type Database = {
           separado?: boolean
           remate?: Json | null
           contacto?: Json | null
+          vision?: Json | null
+          resumen?: string | null
+          senales?: string[]
         }
         Relationships: [
           {
@@ -597,6 +606,7 @@ export type Database = {
           llamadas: Json
           visita: Json
           visita_en: string | null
+          seguir: boolean
         }
         Insert: {
           actualizada_en?: string
@@ -608,6 +618,7 @@ export type Database = {
           llamadas?: Json
           visita?: Json
           visita_en?: string | null
+          seguir?: boolean
         }
         Update: {
           actualizada_en?: string
@@ -619,6 +630,7 @@ export type Database = {
           llamadas?: Json
           visita?: Json
           visita_en?: string | null
+          seguir?: boolean
         }
         Relationships: [
           {
