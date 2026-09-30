@@ -8,6 +8,7 @@ import { borrarBusqueda, cambiarBusqueda } from "@/app/(app)/acciones";
 import { Chat } from "@/components/chat";
 import { Encabezado } from "@/components/encabezado";
 import { FichaCard } from "@/components/ficha-card";
+import { MiAuto } from "@/components/mi-auto";
 import { Pantalla } from "@/components/pantalla";
 import { SugerenciasFicha } from "@/components/sugerencias-ficha";
 import { Hoja } from "@/components/ui/hoja";
@@ -89,6 +90,15 @@ export function ListaSeguimientos() {
     for (const id of Object.keys(r.porBusqueda)) cuentas[id] = (cuentas[id] ?? 0) + 1;
   }
   const busquedas: Busqueda[] = (datos?.busquedas ?? []).map((b) => ({ ...b, avisos: cuentas[b.id] ?? 0 }));
+  // Mercado de cada ficha: precio mediano de lo que está a la venta y cuánto tardan en venderse.
+  const mercado = (id: string) => {
+    const autos = (datos?.resultados ?? []).filter((r) => r.porBusqueda[id] && r.marca?.estado !== "descartado" && r.precio !== null);
+    if (autos.length < 3) return null;
+    const precios = autos.map((r) => r.precio!).sort((a, b) => a - b);
+    const mediana = precios[Math.floor(precios.length / 2)]!;
+    const dias = autos.find((r) => r.diasVenta)?.diasVenta ?? null;
+    return `Mediana ${(mediana / 1_000_000).toLocaleString("es-CL", { maximumFractionDigits: 1 })} M${dias ? `, se venden en unos ${dias} días` : ""}`;
+  };
   const [nueva, setNueva] = useState(false);
   // Chat que parte pidiendo alternativas a una ficha.
   const [inicial, setInicial] = useState<string | undefined>(undefined);
@@ -124,6 +134,8 @@ export function ListaSeguimientos() {
               </button>
             </div>
           ) : (
+            <>
+            <MiAuto />
             <section>
               <div className="lista-ios" style={{ "--sangria": "60px" } as React.CSSProperties}>
                 {busquedas.map((b) => (
@@ -137,6 +149,7 @@ export function ListaSeguimientos() {
                       <span className="flex min-w-0 flex-col">
                         <span className="truncate text-[16px] font-medium leading-[22px]">{b.nombre}</span>
                         <span className="truncate text-[13px] leading-[18px] text-muted-foreground">{b.activa ? resumen(b.ficha) : "En pausa"}</span>
+                        {b.activa && mercado(b.id) && <span className="truncate text-[12.5px] leading-[17px] text-tenue">{mercado(b.id)}</span>}
                       </span>
                       <span className="ml-auto flex shrink-0 items-center gap-1 text-[16px] text-muted-foreground">
                         {b.avisos}
@@ -151,6 +164,7 @@ export function ListaSeguimientos() {
               </div>
               <p className="pie-grupo">El número es cuántos avisos calzan o entran con advertencia. La ⓘ abre la ficha.</p>
             </section>
+            </>
           )}
         </main>
       </Pantalla>

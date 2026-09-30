@@ -1,6 +1,6 @@
 "use client";
 
-import { GalleryHorizontalEnd, Handshake, SlidersHorizontal, LayoutGrid, Link2, List, Map as IconoMapa, MoreHorizontal, RectangleHorizontal, Search, Star, Trash2, Waves, X } from "lucide-react";
+import { Columns3, Download, GalleryHorizontalEnd, Handshake, LoaderCircle, Mic, Route, Sparkles, SlidersHorizontal, LayoutGrid, Link2, List, Map as IconoMapa, MoreHorizontal, RectangleHorizontal, Search, Star, Trash2, Waves, X } from "lucide-react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
@@ -18,6 +18,14 @@ import type { Filtro, ResultadoAuto } from "@/lib/datos";
 import { type Afinar, afinar, cuantosFiltros, FILTROS, filtrar, type Orden, ORDENES, ordenar, SEGMENTOS } from "@/lib/filtros";
 import { distanciaDeCasa } from "@/lib/lugares";
 import { FiltrosActivos, FiltrosHoja } from "@/components/filtros-hoja";
+import { CompararHoja } from "@/components/comparar-hoja";
+import { ConvieneHoja } from "@/components/conviene-hoja";
+import { interpretarBusqueda } from "@radar/core";
+import { useComparar } from "@/lib/comparar";
+import { useDictado } from "@/lib/dictado";
+import { compartirCsv } from "@/lib/exportar";
+import { rutaDeVisitas } from "@/lib/ruta";
+import { iniciarVisita } from "@/lib/visto";
 import { cn } from "@/lib/utils";
 
 const TITULO_FILTRO: Partial<Record<Filtro, string>> = { favoritos: "Guardados", descartados: "Descartados", casi: "Casi calzan", contacto: "En contacto" };
@@ -102,6 +110,11 @@ export function VistaResultados() {
   const [afinados, setAfinados] = useState<Afinar>({});
   const [orden, setOrden] = useState<Orden>("recomendado");
   const [hojaFiltros, setHojaFiltros] = useState(false);
+  const [hojaComparar, setHojaComparar] = useState(false);
+  const [hojaConviene, setHojaConviene] = useState(false);
+  const comparar = useComparar();
+  // La fecha de tu visita anterior queda fija mientras la app está abierta (para "Nuevo para ti").
+  if (typeof window !== "undefined") iniciarVisita();
   // La hoja del auto: el id se queda mientras se anima la salida.
   const [idHoja, setIdHoja] = useState<string | null>(null);
   const [hojaAbierta, setHojaAbierta] = useState(false);
@@ -141,6 +154,19 @@ export function VistaResultados() {
     guardarAfinar(afinados, o);
   };
   const nFiltros = cuantosFiltros(afinados) + (orden !== "recomendado" ? 1 : 0);
+
+  /** "V40 automático bajo 12 millones del 2018": pasa lo que entiende a filtros y deja el resto como texto. */
+  const aplicarFrase = (frase: string) => {
+    const b = interpretarBusqueda(frase);
+    const { texto: resto, orden: o, ...filtros } = b;
+    const hay = Object.values(filtros).some((v) => v !== undefined);
+    if (hay) cambiarFiltros({ ...afinados, ...filtros });
+    if (o) cambiarOrden(o);
+    setTexto(hay || o ? resto : frase);
+    navigator.vibrate?.(6);
+  };
+  const dictado = useDictado({ alCambiar: (t) => setTexto(t), alTerminar: (t) => t.trim() && aplicarFrase(t) });
+  const escuchando = dictado.estado === "escuchando";
   const fuentesVistas = [...new Set((datos?.resultados ?? []).flatMap((r) => r.enlaces.map((e) => e.fuente)))].sort();
 
   const elegirVista = (v: Vista) => {
@@ -257,6 +283,16 @@ export function VistaResultados() {
                 <Link href="/compartir" className="flex items-center justify-between border-t border-separador px-4 py-3 active:bg-presion">
                   Agregar aviso por link <Link2 className="size-[18px] text-suave" strokeWidth={1.8} />
                 </Link>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMenu(false);
+                    void compartirCsv(visibles);
+                  }}
+                  className="flex w-full items-center justify-between border-t border-separador px-4 py-3 text-left active:bg-presion"
+                >
+                  Exportar a planilla ({visibles.length}) <Download className="size-[18px] text-suave" strokeWidth={1.8} />
+                </button>
               </div>
             </>
           )}
@@ -292,10 +328,22 @@ export function VistaResultados() {
                 autoFocus
                 value={texto}
                 onChange={(e) => setTexto(e.target.value)}
-                placeholder="Versión, comuna o vendedor"
+                onKeyDown={(e) => e.key === "Enter" && texto.trim() && aplicarFrase(texto)}
+                placeholder={escuchando ? "Te escucho…" : "Ej: V40 automático bajo 12 millones"}
                 aria-label="Buscar"
+                enterKeyHint="search"
                 className="min-w-0 flex-grow bg-transparent text-[16px] text-foreground outline-none placeholder:text-tenue"
               />
+              {dictado.disponible && !texto && (
+                <button
+                  type="button"
+                  aria-label={escuchando ? "Terminar de dictar" : "Buscar hablando"}
+                  onClick={() => (escuchando ? dictado.detener() : dictado.iniciar())}
+                  className={cn("-mr-1 flex size-7 items-center justify-center rounded-full", escuchando && "bg-destructive text-white")}
+                >
+                  {dictado.estado === "transcribiendo" ? <LoaderCircle className="size-4 animate-spin" /> : <Mic className="size-4" strokeWidth={2} />}
+                </button>
+              )}
               {texto && (
                 <button type="button" aria-label="Borrar búsqueda" onClick={() => setTexto("")} className="-mr-1 flex size-7 items-center justify-center">
                   <X className="size-4" strokeWidth={2} />
@@ -305,6 +353,19 @@ export function VistaResultados() {
           )}
           {!especial && <Segmentado etiqueta="Vista" valor={filtro} onCambio={(f) => cambiar(f, busqueda)} opciones={SEGMENTOS.map((s) => ({ ...s, cuenta: s.id === "todos" ? undefined : cuentas[s.id] }))} />}
           <FiltrosActivos filtros={afinados} orden={orden} onFiltros={cambiarFiltros} onOrden={cambiarOrden} />
+          {filtro === "favoritos" && visibles.length >= 2 && (
+            <button type="button" onClick={() => setHojaConviene(true)} className="presionable flex h-11 items-center justify-center gap-2 rounded-xl bg-card text-[15px] font-semibold">
+              <Sparkles className="size-[18px]" strokeWidth={1.8} /> ¿Cuál me conviene?
+            </button>
+          )}
+          {filtro === "contacto" && visibles.length >= 1 && (() => {
+            const ruta = rutaDeVisitas(visibles.filter((r) => r.marca?.contacto === "visita").length ? visibles.filter((r) => r.marca?.contacto === "visita") : visibles, casa);
+            return ruta ? (
+              <a href={ruta.url} target="_blank" rel="noopener noreferrer" className="presionable flex h-11 items-center justify-center gap-2 rounded-xl bg-card text-[15px] font-semibold">
+                <Route className="size-[18px]" strokeWidth={1.8} /> Armar la ruta para verlos ({ruta.orden.length})
+              </a>
+            ) : null;
+          })()}
           {filtro === "casi" && <p className="text-[14px] text-muted-foreground">Quedaron fuera por poco: hasta 10% sobre tu tope de precio o km, o un año antes. Si varios te gustan, sube el tope en la ficha.</p>}
           {datos && colaRapida.length > 1 && filtro !== "descartados" && (
             <button type="button" onClick={() => setRapida(true)} className="presionable flex h-11 items-center justify-center rounded-xl bg-card text-[15px] font-semibold">
@@ -340,6 +401,18 @@ export function VistaResultados() {
           )}
         </main>
       </Pantalla>
+
+      {comparar.ids.length > 0 && !hojaAbierta && (
+        <button
+          type="button"
+          onClick={() => setHojaComparar(true)}
+          className="presionable fixed bottom-[calc(80px+env(safe-area-inset-bottom))] left-1/2 z-30 flex h-11 -translate-x-1/2 animate-in items-center gap-2 rounded-full bg-primary px-5 text-[15px] font-semibold text-primary-foreground shadow-[0_8px_30px_rgba(0,0,0,0.2)] fade-in slide-in-from-bottom-2 duration-200"
+        >
+          <Columns3 className="size-[18px]" strokeWidth={2} /> Comparar {comparar.ids.length}
+        </button>
+      )}
+      <CompararHoja abierta={hojaComparar} onCerrar={() => setHojaComparar(false)} abrir={abrir} />
+      <ConvieneHoja abierta={hojaConviene} onCerrar={() => setHojaConviene(false)} autos={visibles} abrir={abrir} />
 
       <FiltrosHoja
         abierta={hojaFiltros}

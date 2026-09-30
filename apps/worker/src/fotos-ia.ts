@@ -102,7 +102,7 @@ for (const a of candidatos.slice(0, MAX)) {
     });
     revisados++;
     const cambios: TablesUpdate<"avisos"> = {
-      vision: { ...output, patente: normalizarPatente(output.patente), porQue: output.porQue.replace(/—/g, ","), fotos: imagenes.length, revisado_en: new Date().toISOString() } as Json,
+      vision: { ...output, patente: normalizarPatente(output.patente), porQue: output.porQue.replace(/\u2014/g, ","), fotos: imagenes.length, revisado_en: new Date().toISOString() } as Json,
     };
     // La duda "¿es Cross Country?" se resuelve con la foto si la IA lo ve claro.
     const base = (a.modelo ?? "").replace(/\s*cross\s*country\s*$/i, "").trim();

@@ -30,7 +30,7 @@ export function Encabezado({ titulo, children, izquierda }: { titulo: string; ch
       >
         <div className="relative flex h-11 items-center px-5">
           <div className="relative z-10 flex items-center gap-4">{izquierda}</div>
-          <span className={cn("pointer-events-none absolute inset-x-24 truncate text-center text-[16px] font-semibold transition-opacity duration-200", compacto ? "opacity-100" : "opacity-0")}>
+          <span className={cn("pointer-events-none absolute truncate text-[17px] font-semibold transition-opacity duration-200", izquierda ? "inset-x-24 text-center" : "left-5 right-44 text-left", compacto ? "opacity-100" : "opacity-0")}>
             {titulo}
           </span>
           <div className="relative z-10 -mr-2 ml-auto flex items-center gap-1 text-foreground">{children}</div>

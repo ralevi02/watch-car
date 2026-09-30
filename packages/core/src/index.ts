@@ -7,3 +7,4 @@ export * from "./contacto.ts";
 export * from "./mercado.ts";
 export * from "./senales.ts";
 export * from "./fotos.ts";
+export * from "./interpretar.ts";

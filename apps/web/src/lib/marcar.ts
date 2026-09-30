@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback } from "react";
-import { cambiarContacto, type Contacto, marcarConMotivo } from "@/app/(app)/acciones-auto";
+import { cambiarContacto, cambiarSeguir, type Contacto, marcarConMotivo } from "@/app/(app)/acciones-auto";
 import { useAlmacen } from "@/lib/almacen";
 import type { MarcaAuto } from "@/lib/datos";
 
@@ -32,5 +32,13 @@ export function useMarcar() {
     },
     [tocar],
   );
-  return { estado, contacto, tocar };
+  const seguir = useCallback(
+    (autoId: string, si: boolean) => {
+      navigator.vibrate?.(8);
+      tocar(autoId, (m) => ({ ...m, seguir: si }));
+      void cambiarSeguir(autoId, si);
+    },
+    [tocar],
+  );
+  return { estado, contacto, seguir, tocar };
 }

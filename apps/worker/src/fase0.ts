@@ -50,10 +50,10 @@ function tabla(rs: ResultadoPrueba[]) {
   const filas = rs.map((r) =>
     [
       r.nombre,
-      r.status ?? "—",
+      r.status ?? "-",
       r.error ? `Error: ${r.error}` : r.bloqueo ?? "No",
       r.avisosTrasScroll !== undefined ? `${r.avisos} → ${r.avisosTrasScroll}` : r.avisos,
-      r.muroLogin === undefined ? "—" : r.muroLogin ? "Sí" : "No",
+      r.muroLogin === undefined ? "-" : r.muroLogin ? "Sí" : "No",
       r.kb,
       (r.ms / 1000).toFixed(1),
     ].join(" | "),

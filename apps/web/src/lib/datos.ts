@@ -1,5 +1,5 @@
 import "server-only";
-import { type Contacto, Seguimiento } from "@radar/core";
+import { type Contacto, diasParaVender, entrenarMercado, familiaDe, normalizarPatente, precioJusto, type PrecioJusto, Seguimiento } from "@radar/core";
 import { crearClienteServidor } from "@/lib/supabase/server";
 
 export const NOMBRE_FUENTE: Record<string, string> = {
@@ -38,6 +38,16 @@ export interface EnlaceAviso {
   estado: string;
 }
 
+export interface VisionAuto {
+  fotosDeAuto?: boolean;
+  crossCountry?: "si" | "no" | "no_se";
+  porQue?: string;
+  kmTablero?: number | null;
+  patente?: string | null;
+  danos?: string[];
+  danoSerio?: boolean;
+}
+
 export interface Remate {
   tipo: "patente" | "posible";
   fuente: string;
@@ -55,6 +65,8 @@ export interface MarcaAuto {
   contacto?: string | null;
   motivoDescarte?: string | null;
   visitaEn?: string | null;
+  /** Avisar de cualquier cambio de precio o si deja de aparecer. */
+  seguir?: boolean;
 }
 
 export interface ResultadoAuto {
@@ -96,6 +108,20 @@ export interface ResultadoAuto {
   remate?: Remate | null;
   /** Cómo contactar al vendedor (teléfono, correo, código de publicación). */
   contacto?: Contacto | null;
+  /** Lo importante de la descripción, en 2 o 3 frases (lo escribe la IA al normalizar). */
+  resumen?: string | null;
+  /** Señales de posible estafa (del texto, de la cuenta y de fotos repetidas). */
+  senales?: string[];
+  /** Lo que la IA vio en las fotos. */
+  vision?: VisionAuto | null;
+  /** Patente, si se conoce (de las fotos o del portal). */
+  patente?: string | null;
+  /** Lo que debería costar según los avisos guardados. */
+  justo?: PrecioJusto | null;
+  /** Mediana de días que tardan en venderse los de su familia. */
+  diasVenta?: number | null;
+  /** Cuántos otros autos publica el mismo teléfono (revendedor). */
+  otrosDelVendedor?: number;
   /** Cambios de precio del aviso principal, del más antiguo al más nuevo. */
   historial: { precio: number; fecha: string }[];
   /** Foto principal (la del aviso más barato que tenga foto). */
@@ -110,7 +136,7 @@ const HORAS_NUEVO = 48;
  * aplican en el teléfono, sin volver al servidor.
  */
 const COLUMNAS_AVISO =
-  "id, auto_id, fuente_id, url, titulo, marca, anio, km, precio, precio_inicial, precio_descripcion, modelo, version, motor, caja, traccion, region, comuna, tipo_vendedor, vendedor, alertas, alerta_detalle, por_confirmar, estado, primera_vez, foto_url, fotos, remate, contacto";
+  "id, auto_id, fuente_id, url, titulo, marca, anio, km, precio, precio_inicial, precio_descripcion, modelo, version, motor, caja, traccion, region, comuna, tipo_vendedor, vendedor, alertas, alerta_detalle, por_confirmar, estado, primera_vez, foto_url, fotos, remate, contacto, tipo, resumen, senales, vision";
 
 type FilaResultado = {
   veredicto: string;
@@ -121,6 +147,7 @@ type FilaResultado = {
     precio: number | null; precio_inicial: number | null; precio_descripcion: number | null; modelo: string | null; version: string | null; motor: string | null;
     caja: string | null; traccion: string | null; region: string | null; comuna: string | null; tipo_vendedor: string | null; vendedor: string | null;
     alertas: string[]; alerta_detalle: string | null; por_confirmar: string[]; estado: string; primera_vez: string; foto_url: string | null; fotos: string[]; remate: unknown; contacto: unknown;
+    tipo: string | null; resumen: string | null; senales: string[]; vision: unknown;
   };
 };
 
@@ -171,6 +198,10 @@ function agruparPorAuto(filas: FilaResultado[], marcaDe: Map<string, MarcaAuto>,
         fotos: a.fotos ?? [],
         remate: (a.remate as Remate | null) ?? null,
         contacto: (a.contacto as Contacto | null) ?? null,
+        resumen: a.resumen,
+        senales: a.senales ?? [],
+        vision: (a.vision as VisionAuto | null) ?? null,
+        patente: normalizarPatente((a.vision as VisionAuto | null)?.patente) ?? (a.fuente_id === "brunofritsch" ? normalizarPatente(a.url.split("/").pop()) : null),
         ...(casi ? { casi: true } : {}),
       });
       principalCalza.set(clave, veredicto === "calza");
@@ -196,6 +227,11 @@ function agruparPorAuto(filas: FilaResultado[], marcaDe: Map<string, MarcaAuto>,
     // El contacto más completo entre los avisos del auto (con teléfono gana).
     const c = a.contacto as Contacto | null;
     if (c && (!actual.contacto || (c.telefono && !actual.contacto.telefono))) actual.contacto = c;
+    actual.resumen ??= a.resumen;
+    actual.senales = [...new Set([...(actual.senales ?? []), ...(a.senales ?? [])])];
+    const v = a.vision as VisionAuto | null;
+    if (v && (!actual.vision || (actual.vision.crossCountry === "no_se" && v.crossCountry !== "no_se"))) actual.vision = v;
+    actual.patente ??= normalizarPatente(v?.patente);
     // Si algún aviso del auto salió de remate, el auto también (la patente gana a "posible").
     const r = a.remate as Remate | null;
     if (r && (!actual.remate || (r.tipo === "patente" && actual.remate.tipo !== "patente"))) actual.remate = r;
@@ -217,10 +253,10 @@ export async function leerResultados(): Promise<{ resultados: ResultadoAuto[]; c
   const todas = [...(filas ?? []), ...(filasCasi ?? [])] as FilaResultado[];
   const autoIds = [...new Set(todas.map((f) => f.avisos.auto_id).filter((x): x is string => Boolean(x)))];
   const { data: marcas } = autoIds.length
-    ? await supabase.from("marcas").select("auto_id, estado, nota, contacto, motivo_descarte, visita_en").in("auto_id", autoIds)
+    ? await supabase.from("marcas").select("auto_id, estado, nota, contacto, motivo_descarte, visita_en, seguir").in("auto_id", autoIds)
     : { data: [] };
   const marcaDe = new Map(
-    (marcas ?? []).map((m) => [m.auto_id, { estado: m.estado, nota: m.nota, contacto: m.contacto, motivoDescarte: m.motivo_descarte, visitaEn: m.visita_en } satisfies MarcaAuto]),
+    (marcas ?? []).map((m) => [m.auto_id, { estado: m.estado, nota: m.nota, contacto: m.contacto, motivoDescarte: m.motivo_descarte, visitaEn: m.visita_en, seguir: m.seguir } satisfies MarcaAuto]),
   );
 
   const resultados = agruparPorAuto((filas ?? []) as FilaResultado[], marcaDe);
@@ -232,6 +268,27 @@ export async function leerResultados(): Promise<{ resultados: ResultadoAuto[]; c
     ? await supabase.from("precios").select("aviso_id, precio, visto_en").in("aviso_id", principales).order("visto_en")
     : { data: [] };
   for (const r of resultados) r.historial = (precios ?? []).filter((p) => p.aviso_id === r.avisoPrincipal).map((p) => ({ precio: p.precio, fecha: p.visto_en }));
+  // Mercado con todos los avisos guardados (también los que quedaron fuera o se vendieron):
+  // precio justo, cuánto tardan en venderse y cuántos autos publica cada teléfono.
+  const todos: { auto_id: string | null; modelo: string | null; anio: number | null; km: number | null; precio: number | null; tipo: string | null; estado: string; primera_vez: string; ultima_vez: string; contacto: unknown }[] = [];
+  for (let desde = 0; ; desde += 1000) {
+    const { data } = await supabase.from("avisos").select("auto_id, modelo, anio, km, precio, tipo, estado, primera_vez, ultima_vez, contacto").range(desde, desde + 999);
+    todos.push(...(data ?? []));
+    if (!data || data.length < 1000) break;
+  }
+  const mercado = entrenarMercado(todos);
+  const dias = diasParaVender(todos.map((x) => ({ modelo: x.modelo, primeraVez: x.primera_vez, ultimaVez: x.ultima_vez, estado: x.estado })));
+  const autosPorTelefono = new Map<string, Set<string>>();
+  for (const x of todos) {
+    const tel = (x.contacto as Contacto | null)?.telefono;
+    if (tel && x.auto_id) autosPorTelefono.set(tel, (autosPorTelefono.get(tel) ?? new Set()).add(x.auto_id));
+  }
+  for (const r of [...resultados, ...casi]) {
+    r.justo = precioJusto(mercado, r);
+    r.diasVenta = r.modelo ? (dias.get(familiaDe(r.modelo))?.dias ?? null) : null;
+    const tel = r.contacto?.telefono;
+    r.otrosDelVendedor = tel ? Math.max(0, (autosPorTelefono.get(tel)?.size ?? 1) - 1) : 0;
+  }
   resultados.sort((x, y) => (x.precio ?? Infinity) - (y.precio ?? Infinity));
   casi.sort((x, y) => (x.precio ?? Infinity) - (y.precio ?? Infinity));
   return { resultados, casi };
@@ -293,7 +350,7 @@ export interface Llamada {
 
 export type EstadoItem = "bien" | "ojo" | "mal";
 export interface Visita {
-  items?: Record<string, { estado?: EstadoItem; nota?: string; fotos?: string[] }>;
+  items?: Record<string, { estado?: EstadoItem; nota?: string; fotos?: string[]; audios?: string[] }>;
 }
 
 export interface DetalleAuto {
@@ -302,8 +359,22 @@ export interface DetalleAuto {
   precios: { aviso_id: string; precio: number; visto_en: string }[];
   /** Fotos de todos los avisos del auto, sin repetir. */
   fotos: string[];
-  /** Avisos del auto, para separar los que no son el mismo. */
-  avisos: { id: string; fuente: string; titulo: string; separado: boolean }[];
+  /** Avisos del auto, para separar los que no son el mismo y armar su historia. */
+  avisos: {
+    id: string;
+    fuente: string;
+    titulo: string;
+    separado: boolean;
+    vendedor: string | null;
+    tipoVendedor: string | null;
+    primeraVez: string;
+    ultimaVez: string;
+    estado: string;
+    precioInicial: number | null;
+    precio: number | null;
+    anio: number | null;
+    km: number | null;
+  }[];
   llamadas: Llamada[];
   visita: Visita;
   enlace: string | null;
@@ -318,7 +389,7 @@ export interface DetalleAuto {
  */
 export async function leerDetalle(id: string): Promise<DetalleAuto | null> {
   const supabase = await crearClienteServidor();
-  const columnas = "id, auto_id, descripcion, precio, fuente_id, titulo, separado, foto_url, fotos";
+  const columnas = "id, auto_id, descripcion, precio, fuente_id, titulo, separado, foto_url, fotos, vendedor, tipo_vendedor, primera_vez, ultima_vez, estado, precio_inicial, anio, km";
   const { data: avisos } = await supabase.from("avisos").select(columnas).or(`auto_id.eq.${id},id.eq.${id}`);
   if (!avisos?.length) return null;
   const autoId = avisos.find((a) => a.id === id)?.auto_id ?? avisos[0]?.auto_id ?? null;
@@ -347,7 +418,21 @@ export async function leerDetalle(id: string): Promise<DetalleAuto | null> {
     fichas: [...fichas.values()],
     precios: precios ?? [],
     fotos,
-    avisos: todos.map((a) => ({ id: a.id, fuente: a.fuente_id, titulo: a.titulo, separado: a.separado })),
+    avisos: todos.map((a) => ({
+      id: a.id,
+      fuente: a.fuente_id,
+      titulo: a.titulo,
+      separado: a.separado,
+      vendedor: a.vendedor,
+      tipoVendedor: a.tipo_vendedor,
+      primeraVez: a.primera_vez,
+      ultimaVez: a.ultima_vez,
+      estado: a.estado,
+      precioInicial: a.precio_inicial,
+      precio: a.precio,
+      anio: a.anio,
+      km: a.km,
+    })),
     llamadas: (marca?.llamadas ?? []) as unknown as Llamada[],
     visita: (marca?.visita ?? {}) as Visita,
     enlace,
@@ -360,17 +445,20 @@ export interface Ajustes {
   avisos: { modo: "inmediato" | "resumen"; hora: number };
   /** Comuna desde donde se calculan las distancias. */
   casa: { comuna: string } | null;
+  /** Datos del auto comprado (para "Mi auto"). */
+  miAuto: { kmActual?: number; fechaCompra?: string; patente?: string } | null;
 }
 
 export async function leerAjustes(): Promise<Ajustes> {
   const supabase = await crearClienteServidor();
-  const { data } = await supabase.from("ajustes").select("clave, valor").in("clave", ["avisos", "casa"]);
+  const { data } = await supabase.from("ajustes").select("clave, valor").in("clave", ["avisos", "casa", "mi_auto"]);
   const de = (clave: string) => data?.find((x) => x.clave === clave)?.valor as Record<string, unknown> | undefined;
   const avisos = de("avisos") ?? {};
   const casa = de("casa");
   return {
     avisos: { modo: avisos.modo === "resumen" ? "resumen" : "inmediato", hora: typeof avisos.hora === "number" ? avisos.hora : 20 },
     casa: typeof casa?.comuna === "string" && casa.comuna ? { comuna: casa.comuna } : null,
+    miAuto: (de("mi_auto") as Ajustes["miAuto"]) ?? null,
   };
 }
 

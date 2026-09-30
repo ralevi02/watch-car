@@ -1,9 +1,10 @@
 "use client";
 
 import { esCelular } from "@radar/core";
-import { CalendarPlus, ClipboardCheck, Copy, LoaderCircle, Mail, MessageCircle, Mic, Phone, Square } from "lucide-react";
+import { CalendarPlus, ClipboardCheck, Copy, FileText, LoaderCircle, Mail, MessageCircle, Mic, Phone, Square } from "lucide-react";
 import { useState } from "react";
 import { agendarVisita, type Contacto } from "@/app/(app)/acciones-auto";
+import { PapelesHoja } from "@/components/auto/papeles";
 import { VisitaHoja } from "@/components/auto/visita";
 import { Hoja } from "@/components/ui/hoja";
 import { useAlmacen } from "@/lib/almacen";
@@ -42,7 +43,7 @@ const fechaHora = (s: string) =>
 export function ContactoAuto({ r, detalle }: { r: ResultadoAuto; detalle?: DetalleAuto }) {
   const { contacto } = useMarcar();
   const actual = r.marca?.contacto ?? null;
-  const [hoja, setHoja] = useState<"mensaje" | "agenda" | "visita" | null>(null);
+  const [hoja, setHoja] = useState<"mensaje" | "agenda" | "visita" | "papeles" | null>(null);
   const visita = detalle?.visita ?? {};
   const revisados = Object.values(visita.items ?? {}).filter((x) => x.estado);
   const total = checklist(r).reduce((t, g) => t + g.items.length, 0);
@@ -81,6 +82,9 @@ export function ContactoAuto({ r, detalle }: { r: ResultadoAuto; detalle?: Detal
           {revisados.length ? `Visita ${revisados.length}/${total}` : "Revisar en la visita"}
         </Boton>
       </div>
+      <button type="button" onClick={() => setHoja("papeles")} className="presionable mt-2 flex h-12 w-full items-center gap-2 rounded-xl bg-card px-3.5 text-left text-[14px] font-medium">
+        <FileText className="size-[18px] shrink-0" strokeWidth={1.8} /> Papeles de la compra
+      </button>
 
       {(detalle?.llamadas.length ?? 0) > 0 && (
         <div className="mt-4 flex flex-col gap-3">
@@ -96,6 +100,7 @@ export function ContactoAuto({ r, detalle }: { r: ResultadoAuto; detalle?: Detal
       <MensajeHoja abierta={hoja === "mensaje"} onCerrar={() => setHoja(null)} r={r} detalle={detalle} />
       <AgendaHoja abierta={hoja === "agenda"} onCerrar={() => setHoja(null)} r={r} />
       <VisitaHoja abierta={hoja === "visita"} onCerrar={() => setHoja(null)} r={r} visita={visita} />
+      <PapelesHoja abierta={hoja === "papeles"} onCerrar={() => setHoja(null)} autoId={r.autoId} />
     </section>
   );
 }

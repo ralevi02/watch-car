@@ -364,6 +364,10 @@ body {
   border-radius: 6px;
   padding: 2px 6px;
 }
+.etiqueta-peligro {
+  color: var(--destructive);
+  border-color: color-mix(in srgb, var(--destructive) 40%, transparent);
+}
 .etiqueta-neutra {
   color: var(--suave);
   border-color: var(--border);

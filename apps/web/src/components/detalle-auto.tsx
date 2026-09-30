@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronLeft, ExternalLink, Share, Star } from "lucide-react";
+import { Bell, BellRing, ChevronLeft, Columns3, ExternalLink, Share, Star } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -9,11 +9,15 @@ import { corregirAuto, separarAviso } from "@/app/(app)/acciones-auto";
 import { ContactoAuto } from "@/components/auto/contacto";
 import { Corregir } from "@/components/auto/corregir";
 import { Galeria } from "@/components/auto/galeria";
+import { Historia } from "@/components/auto/historia";
+import { Patente } from "@/components/auto/patente";
+import { PrecioJusto } from "@/components/auto/precio-justo";
 import { GraficoPrecio } from "@/components/auto/grafico-precio";
 import { Opiniones } from "@/components/auto/opiniones";
 import { Preguntar } from "@/components/auto/preguntar";
 import { Hoja } from "@/components/ui/hoja";
 import { useAlmacen } from "@/lib/almacen";
+import { useComparar } from "@/lib/comparar";
 import { distanciaDeCasa } from "@/lib/lugares";
 import { useMarcar } from "@/lib/marcar";
 import { bajo, caja, ETIQUETA_ALERTA, etiquetas, haceDias, lugar, miles, NOMBRE_FUENTE, pesos, tituloAuto } from "@/lib/presentar";
@@ -36,6 +40,7 @@ export function DetalleAuto({ id: idHoja, alCerrar }: { id?: string; alCerrar?: 
   const router = useRouter();
   const { datos, cambiar, detalles, pedirDetalle, refrescar } = useAlmacen();
   const marcar = useMarcar();
+  const comparar = useComparar();
   const todos = [...(datos?.resultados ?? []), ...(datos?.casi ?? [])];
   const r = todos.find((x) => x.autoId === id || x.enlaces.some((e) => e.id === id));
   const detalle = r ? detalles[r.autoId] : undefined;
@@ -121,7 +126,7 @@ export function DetalleAuto({ id: idHoja, alCerrar }: { id?: string; alCerrar?: 
 
   return (
     <div className="animate-in fade-in duration-150">
-      <header className={cn("flex items-center justify-between px-2", enHoja ? "-mt-1" : "pt-[calc(env(safe-area-inset-top)+6px)]")}>
+      <header className={cn("flex items-center justify-between px-2", enHoja ? "sticky top-0 z-20 -mt-1 bg-hoja" : "pt-[calc(env(safe-area-inset-top)+6px)]")}>
         {enHoja ? (
           <button type="button" onClick={volver} className="presionable flex h-11 items-center px-3 text-[16px] font-medium text-suave">
             Cerrar
@@ -132,6 +137,27 @@ export function DetalleAuto({ id: idHoja, alCerrar }: { id?: string; alCerrar?: 
           </button>
         )}
         <div className="flex">
+          <button
+            type="button"
+            aria-label={r.marca?.seguir ? "Dejar de seguir" : "Seguir este auto"}
+            aria-pressed={Boolean(r.marca?.seguir)}
+            onClick={() => marcar.seguir(r.autoId, !r.marca?.seguir)}
+            className={cn("presionable flex size-11 items-center justify-center", r.marca?.seguir && "text-calza")}
+          >
+            {r.marca?.seguir ? <BellRing key="si" className="size-[19px] animate-[pop_320ms_ease-out]" strokeWidth={1.9} /> : <Bell className="size-[19px]" strokeWidth={1.8} />}
+          </button>
+          <button
+            type="button"
+            aria-label={comparar.tiene(r.autoId) ? "Quitar de la comparación" : "Comparar"}
+            aria-pressed={comparar.tiene(r.autoId)}
+            onClick={() => {
+              navigator.vibrate?.(5);
+              comparar.alternar(r.autoId);
+            }}
+            className={cn("presionable flex size-11 items-center justify-center", comparar.tiene(r.autoId) && "text-calza")}
+          >
+            <Columns3 className="size-[19px]" strokeWidth={comparar.tiene(r.autoId) ? 2.2 : 1.8} />
+          </button>
           <button type="button" aria-label="Compartir" onClick={compartir} className="presionable flex size-11 items-center justify-center">
             <Share className="size-[19px]" strokeWidth={1.8} />
           </button>
@@ -184,6 +210,18 @@ export function DetalleAuto({ id: idHoja, alCerrar }: { id?: string; alCerrar?: 
           </a>
         )}
 
+        {(r.senales?.length ?? 0) >= 2 && (
+          <div className="mt-4 rounded-[14px] border border-destructive/40 px-4 py-3">
+            <p className="text-[15px] font-semibold text-destructive">Ojo: tiene señales de posible estafa</p>
+            <p className="mt-0.5 text-[14px] leading-[20px] text-suave">{r.senales!.join(", ")}. No transfieras nada antes de ver el auto y los papeles.</p>
+          </div>
+        )}
+        {(r.marca?.seguir || comparar.tiene(r.autoId)) && (
+          <p className="mt-3 text-[13px] text-tenue">
+            {[r.marca?.seguir ? "Lo sigues: te aviso si cambia de precio o deja de aparecer" : null, comparar.tiene(r.autoId) ? "Está en la comparación" : null].filter(Boolean).join(". ")}.
+          </p>
+        )}
+
         <dl className="mt-5 flex flex-col divide-y divide-separador border-y border-separador text-[15px]">
           {datosTabla.map(([k, v]) => (
             <div key={k} className="flex items-baseline justify-between gap-4 py-2.5">
@@ -193,8 +231,14 @@ export function DetalleAuto({ id: idHoja, alCerrar }: { id?: string; alCerrar?: 
           ))}
         </dl>
 
+        {r.resumen && (
+          <p className="mt-5 text-[15px] leading-[22px]">
+            <span className="font-semibold">En corto: </span>
+            {r.resumen}
+          </p>
+        )}
         {detalle?.descripcion && (
-          <div className="mt-5">
+          <div className={r.resumen ? "mt-3" : "mt-5"}>
             <p className={cn("whitespace-pre-line text-[15px] leading-[23px] text-suave", !verMas && "line-clamp-5")}>{detalle.descripcion}</p>
             {detalle.descripcion.length > 260 && (
               <button type="button" onClick={() => setVerMas((v) => !v)} className="mt-1 text-[15px] font-medium text-foreground">
@@ -204,10 +248,35 @@ export function DetalleAuto({ id: idHoja, alCerrar }: { id?: string; alCerrar?: 
           </div>
         )}
         {pie.length > 0 && <p className="mt-3 text-[13px] leading-[19px] text-tenue">{pie.join(". ")}.</p>}
+        {(r.senales?.length ?? 0) === 1 && <p className="mt-2 text-[13px] leading-[19px] text-advertencia">{r.senales![0]}.</p>}
+
+        {r.vision && r.vision.fotosDeAuto !== undefined && (
+          <section className="mt-6">
+            <h2 className="titulo-grupo !ml-0">En las fotos</h2>
+            <ul className="flex flex-col gap-1.5 text-[15px] leading-[21px]">
+              {r.vision.crossCountry && r.vision.crossCountry !== "no_se" && (
+                <li>
+                  <span className="font-medium">{r.vision.crossCountry === "si" ? "Es Cross Country" : "No es Cross Country"}</span>
+                  {r.vision.porQue && <span className="text-suave">: {r.vision.porQue.charAt(0).toLowerCase() + r.vision.porQue.slice(1)}</span>}
+                </li>
+              )}
+              {r.vision.kmTablero ? <li className="text-suave">El tablero marca {miles(r.vision.kmTablero)} km{r.km && Math.abs(r.km - r.vision.kmTablero) > r.km * 0.1 ? <span className="text-advertencia">, distinto a lo que dice el aviso</span> : null}.</li> : null}
+              {(r.vision.danos?.length ?? 0) > 0 && <li className="text-advertencia">Se ve: {r.vision.danos!.join(", ")}.</li>}
+              {r.vision.fotosDeAuto === false && <li className="text-advertencia">Las fotos no parecen de un auto a la venta.</li>}
+            </ul>
+            <p className="mt-1 text-[12.5px] text-tenue">Lo revisó la IA mirando las fotos: confírmalo en persona.</p>
+          </section>
+        )}
+
+        <PrecioJusto r={r} />
 
         <Preguntar r={r} />
 
         <ContactoAuto r={r} detalle={detalle} />
+
+        {detalle && <Historia detalle={detalle} />}
+
+        <Patente patente={r.patente} />
 
         {detalle && detalle.fichas.filter((f) => f.veredicto !== "fuera").length > 1 && (
           <section className="mt-7">

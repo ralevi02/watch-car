@@ -128,6 +128,10 @@ export async function desactivarEnlace(token: string) {
 const Ajuste = z.discriminatedUnion("clave", [
   z.object({ clave: z.literal("avisos"), valor: z.object({ modo: z.enum(["inmediato", "resumen"]), hora: z.number().int().min(0).max(23) }) }),
   z.object({ clave: z.literal("casa"), valor: z.object({ comuna: z.string().max(60) }) }),
+  z.object({
+    clave: z.literal("mi_auto"),
+    valor: z.object({ kmActual: z.number().int().min(0).max(1_500_000).optional(), fechaCompra: z.string().max(10).optional(), patente: z.string().max(10).optional() }),
+  }),
 ]);
 
 export async function guardarAjuste(ajuste: z.infer<typeof Ajuste>) {
@@ -163,4 +167,10 @@ export async function actualizarFicha(busquedaId: string, ficha: unknown): Promi
   }
   revalidatePath("/");
   return { ok: true };
+}
+
+/** Seguir un auto: avisa al tiro si cambia de precio o deja de aparecer. */
+export async function cambiarSeguir(autoId: string, seguir: boolean) {
+  const supabase = await crearClienteServidor();
+  await supabase.from("marcas").upsert({ auto_id: Id.parse(autoId), seguir }, { onConflict: "auto_id" });
 }

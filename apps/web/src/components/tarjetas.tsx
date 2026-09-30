@@ -7,7 +7,9 @@ import { useAlmacen } from "@/lib/almacen";
 import type { ResultadoAuto } from "@/lib/datos";
 import { fotoGrande } from "@/lib/fotos";
 import { bajo, etiquetas, lugar, miles, millones, pesos, tituloAuto } from "@/lib/presentar";
+import { lecturaPrecio } from "@/components/auto/precio-justo";
 import { useLejos } from "@/lib/regiones";
+import { nuevoParaTi } from "@/lib/visto";
 import { cn } from "@/lib/utils";
 
 export type Vista = "riel" | "vitrina" | "mosaico" | "lista" | "mapa";
@@ -71,9 +73,19 @@ export const Etiquetas = ({ r, max = 3 }: { r: ResultadoAuto; max?: number }) =>
   const lejos = useLejos()(r);
   const revisar = etiquetas(r).slice(0, max);
   const contacto = r.marca?.contacto ? NOMBRE_CONTACTO[r.marca.contacto] : null;
-  if (!revisar.length && !bajo(r) && !contacto && !lejos) return null;
+  const precio = lecturaPrecio(r);
+  const estafa = (r.senales?.length ?? 0) >= 2;
+  const otroAnio = r.senales?.includes("Otro aviso del mismo auto dice otro año");
+  const revende = (r.otrosDelVendedor ?? 0) >= 2 && r.tipoVendedor !== "automotora";
+  const paraTi = nuevoParaTi(r.primeraVez);
+  if (!revisar.length && !bajo(r) && !contacto && !lejos && precio?.tono !== "calza" && !estafa && !otroAnio && !revende && !paraTi) return null;
   return (
     <span className="mt-2 flex flex-wrap gap-[5px]">
+      {paraTi && <span className="etiqueta etiqueta-calza">Nuevo para ti</span>}
+      {estafa && <span className="etiqueta etiqueta-peligro">Ojo: posible estafa</span>}
+      {precio?.tono === "calza" && <span className="etiqueta etiqueta-calza">{precio.texto}</span>}
+      {otroAnio && <span className="etiqueta">Otro año en otro aviso</span>}
+      {revende && <span className="etiqueta etiqueta-neutra">Vende {(r.otrosDelVendedor ?? 0) + 1} autos</span>}
       {contacto && <span className="etiqueta etiqueta-neutra">{contacto}</span>}
       {lejos && <span className={cn("etiqueta", lejos.includes("menos") ? "etiqueta-calza" : "etiqueta-neutra")}>{lejos}</span>}
       {bajo(r) && <span className="etiqueta etiqueta-calza">Bajó ${miles(r.precioInicial! - r.precio!)}</span>}

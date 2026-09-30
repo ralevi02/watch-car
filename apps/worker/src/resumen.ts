@@ -90,6 +90,27 @@ if ((ahoraChile.getDay() === 0 && horaChile === hora && (!semanal?.en || new Dat
   await guardarAjuste("semanal_enviado", { en: new Date().toISOString() });
 }
 
+// ── Recordatorios de "Mi auto": el día 1 del mes de la revisión técnica, y en marzo el permiso y el SOAP ──
+const MES_REVISION: Record<string, number> = { "9": 1, "0": 2, "1": 4, "2": 5, "3": 6, "4": 7, "5": 8, "6": 9, "7": 10, "8": 11 };
+if (ahoraChile.getDate() === 1 && horaChile === hora) {
+  const mio = await leerAjuste<{ patente?: string }>("mi_auto");
+  const { data: comprado } = await db.from("marcas").select("auto_id").eq("contacto", "comprado").limit(1).maybeSingle();
+  const yaEsteMes = (await leerAjuste<{ mes?: string }>("recordatorio_mes"))?.mes === `${ahoraChile.getFullYear()}-${ahoraChile.getMonth() + 1}`;
+  if (comprado && !yaEsteMes) {
+    const mes = ahoraChile.getMonth() + 1;
+    const digito = mio?.patente?.replace(/\D/g, "").at(-1);
+    const notas = [
+      ...(digito && MES_REVISION[digito] === mes ? ["Este mes te toca la revisión técnica de tu auto."] : []),
+      ...(mes === 3 ? ["Este mes se paga el permiso de circulación y el SOAP."] : []),
+    ];
+    if (notas.length) {
+      await enviarPush(db, [{ titulo: "Mi auto", cuerpo: notas.join(" "), url: APP_URL ? `${APP_URL}/` : undefined, etiqueta: "mi-auto" }]);
+      console.log(`Recordatorio de Mi auto: ${notas.join(" ")}`);
+    }
+    await guardarAjuste("recordatorio_mes", { mes: `${ahoraChile.getFullYear()}-${ahoraChile.getMonth() + 1}` });
+  }
+}
+
 // ── 3. Resumen del día (solo en modo resumen, a la hora elegida) ──
 if (!FORZAR && (modo !== "resumen" || horaChile !== hora)) {
   console.log(`Resumen del día: nada que hacer (modo ${modo}, hora elegida ${hora}, ahora son las ${horaChile}).`);

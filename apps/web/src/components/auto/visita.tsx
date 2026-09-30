@@ -1,6 +1,6 @@
 "use client";
 
-import { Camera, LoaderCircle } from "lucide-react";
+import { Camera, LoaderCircle, Mic, Square } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { guardarVisita } from "@/app/(app)/acciones-auto";
 import { Hoja } from "@/components/ui/hoja";
@@ -99,10 +99,41 @@ function Punto({
   const [subiendo, setSubiendo] = useState(false);
   const [urls, setUrls] = useState<Record<string, string>>({});
   const entrada = useRef<HTMLInputElement>(null);
+  // Grabar el sonido del motor al partir en frío (hasta 30 segundos).
+  const [grabando, setGrabando] = useState(false);
+  const grabador = useRef<MediaRecorder | null>(null);
+  const grabar = async () => {
+    if (grabando) return grabador.current?.stop();
+    try {
+      const flujo = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const tipo = ["audio/webm", "audio/mp4", "audio/ogg"].find((t) => MediaRecorder.isTypeSupported(t)) ?? "";
+      const g = new MediaRecorder(flujo, tipo ? { mimeType: tipo } : undefined);
+      const partes: Blob[] = [];
+      g.ondataavailable = (e) => e.data.size && partes.push(e.data);
+      g.onstop = async () => {
+        flujo.getTracks().forEach((t) => t.stop());
+        setGrabando(false);
+        const blob = new Blob(partes, { type: g.mimeType || "audio/webm" });
+        const ext = blob.type.includes("mp4") ? "m4a" : blob.type.includes("ogg") ? "ogg" : "webm";
+        const ruta = `${autoId}/${item.id}-audio-${Date.now()}.${ext}`;
+        setSubiendo(true);
+        const { error } = await crearClienteNavegador().storage.from("visitas").upload(ruta, blob, { contentType: blob.type });
+        setSubiendo(false);
+        if (!error) onCambio((x) => ({ ...x, audios: [...(x.audios ?? []), ruta] }));
+      };
+      grabador.current = g;
+      g.start();
+      setGrabando(true);
+      navigator.vibrate?.(10);
+      setTimeout(() => g.state === "recording" && g.stop(), 30_000);
+    } catch {
+      setGrabando(false);
+    }
+  };
 
   // Las fotos son privadas: se muestran con un link firmado de una hora.
   useEffect(() => {
-    const faltan = (valor.fotos ?? []).filter((f) => !urls[f]);
+    const faltan = [...(valor.fotos ?? []), ...(valor.audios ?? [])].filter((f) => !urls[f]);
     if (!faltan.length) return;
     const supabase = crearClienteNavegador();
     void supabase.storage
@@ -112,7 +143,7 @@ function Punto({
         const nuevas = (data ?? []).flatMap((x) => (x.path && x.signedUrl ? [[x.path, x.signedUrl] as const] : []));
         if (nuevas.length) setUrls((u) => ({ ...u, ...Object.fromEntries(nuevas) }));
       });
-  }, [valor.fotos, urls]);
+  }, [valor.fotos, valor.audios, urls]);
 
   const subir = async (archivo: File) => {
     setSubiendo(true);
@@ -148,6 +179,16 @@ function Punto({
         <button type="button" onClick={() => setNota((n) => !n)} className="presionable ml-auto h-9 rounded-full px-3 text-[14px] font-medium text-suave">
           Nota
         </button>
+        {item.id === "partida" && (
+          <button
+            type="button"
+            aria-label={grabando ? "Terminar de grabar" : "Grabar el motor"}
+            onClick={() => void grabar()}
+            className={cn("presionable flex size-9 items-center justify-center rounded-full", grabando ? "bg-destructive text-white" : "text-suave")}
+          >
+            {grabando ? <Square className="size-4" strokeWidth={2.2} /> : <Mic className="size-[18px]" strokeWidth={1.8} />}
+          </button>
+        )}
         <button type="button" aria-label="Agregar foto" onClick={() => entrada.current?.click()} className="presionable flex size-9 items-center justify-center rounded-full text-suave">
           {subiendo ? <LoaderCircle className="size-[18px] animate-spin" /> : <Camera className="size-[18px]" strokeWidth={1.8} />}
         </button>
@@ -161,6 +202,12 @@ function Punto({
           placeholder="Qué viste"
           className="mt-2 block w-full resize-none rounded-xl bg-card px-3.5 py-2.5 text-[15px] outline-none placeholder:text-tenue"
         />
+      )}
+      {item.id === "partida" && grabando && <p className="mt-1.5 text-[13px] text-destructive">Grabando el motor… toca el cuadrado para terminar (máximo 30 segundos).</p>}
+      {(valor.audios?.length ?? 0) > 0 && (
+        <div className="mt-2 flex flex-col gap-1.5">
+          {valor.audios!.map((a) => (urls[a] ? <audio key={a} src={urls[a]} controls preload="none" className="h-9 w-full" /> : null))}
+        </div>
       )}
       {(valor.fotos?.length ?? 0) > 0 && (
         <div className="mt-2 flex gap-2 overflow-x-auto [scrollbar-width:none]">
