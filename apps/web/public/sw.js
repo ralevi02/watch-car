@@ -1,7 +1,7 @@
 // Service worker de Radar seminuevos: notificaciones push y uso sin señal.
 // Las pantallas son estáticas y los datos viven en el teléfono (localStorage):
 // basta guardar las páginas y los archivos de la app.
-const VERSION = "radar-v3";
+const VERSION = "radar-v4";
 const PAGINAS = ["/", "/resultados", "/fuentes", "/auto"];
 
 self.addEventListener("install", (e) => {
