@@ -47,6 +47,10 @@ export const Normalizacion = z.object({
   alertaDetalle: z.string().nullable().describe("Una frase corta que explique las alertas"),
   precioDescripcion: z.number().int().nullable().describe("Precio que menciona la descripción si es distinto al publicado"),
   porConfirmar: z.array(z.enum(CAMPOS_DUDOSOS)),
+  resumen: z
+    .string()
+    .nullable()
+    .describe("2 o 3 frases muy cortas con lo importante de la descripción: dueños, mantenciones, estado, extras, detalles. null si no hay descripción"),
 });
 export type Normalizacion = z.infer<typeof Normalizacion>;
 

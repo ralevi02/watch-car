@@ -7,7 +7,8 @@ const PATRONES: [string, RegExp][] = [
   ["Vendedor lejos o envío", /\b(estoy (fuera|de viaje|en el (sur|norte|extranjero))|fuera de santiago|lo env[ií]o|te lo (mando|env[ií]o)|env[ií]o a (todo )?chile|despacho a regiones)\b/i],
   ["Solo por chat", /\b(solo (por )?(whats?app|wsp|mensaje|chat)|no (contesto|atiendo) llamadas)\b/i],
   ["Número extranjero", /\+(?!56)\d{1,3}[\s-]?\d{3}/],
-  ["Urgencia", /\b(urgente|hoy mismo|por viaje|remato)\b/i],
+  // "Hoy mismo" no: las automotoras lo usan para el crédito.
+  ["Venta urgente", /\b(vendo urgente|urgente por|por viaje|remato)\b/i],
 ];
 
 export function senalesEnTexto(...textos: (string | null | undefined)[]): string[] {

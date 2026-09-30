@@ -1,0 +1,44 @@
+name: Fotos con IA
+# Una vez al día: la IA mira las fotos de los avisos que están en Resultados
+# (¿es Cross Country?, km del tablero, patente, daños). Pocos por corrida por la cuota gratis de Gemini.
+
+on:
+  schedule:
+    - cron: "0 15 * * *"
+  workflow_dispatch:
+    inputs:
+      max:
+        description: "Cuántos avisos revisar"
+        default: "10"
+
+permissions:
+  contents: read
+
+jobs:
+  fotos:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      TIENE_SUPABASE: ${{ secrets.SUPABASE_SECRET_KEY != '' }}
+    steps:
+      - uses: actions/checkout@v5
+        if: env.TIENE_SUPABASE == 'true'
+      - uses: pnpm/action-setup@v4
+        if: env.TIENE_SUPABASE == 'true'
+      - uses: actions/setup-node@v5
+        if: env.TIENE_SUPABASE == 'true'
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Instalar dependencias
+        if: env.TIENE_SUPABASE == 'true'
+        run: pnpm install --frozen-lockfile --filter "@radar/worker..."
+      - name: Revisar fotos
+        if: env.TIENE_SUPABASE == 'true'
+        working-directory: apps/worker
+        env:
+          SUPABASE_URL: https://ssmtlqtpzzhkhibkcfhi.supabase.co
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+          GOOGLE_GENERATIVE_AI_API_KEY: ${{ secrets.GOOGLE_GENERATIVE_AI_API_KEY }}
+          FOTOS_IA_MAX: ${{ inputs.max || '10' }}
+        run: pnpm fotos-ia

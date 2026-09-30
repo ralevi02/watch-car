@@ -27,6 +27,11 @@ export async function leerModoAvisos(db: ClienteDb): Promise<{ modo: "inmediato"
  */
 export async function enviarPush(db: ClienteDb, notis: Notificacion[]): Promise<{ enviadas: number; error?: string }> {
   if (!notis.length) return { enviadas: 0 };
+  // PUSH_SECO=1: para probar sin mandar nada al teléfono.
+  if (process.env.PUSH_SECO === "1") {
+    for (const n of notis) console.log(`[push en seco] ${n.titulo}: ${n.cuerpo}`);
+    return { enviadas: 0 };
+  }
   const publica = process.env.VAPID_PUBLIC_KEY;
   const privada = process.env.VAPID_PRIVATE_KEY;
   if (!publica || !privada) return { enviadas: 0, error: "Faltan VAPID_PUBLIC_KEY y VAPID_PRIVATE_KEY: no se mandaron notificaciones" };

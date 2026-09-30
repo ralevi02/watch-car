@@ -28,7 +28,8 @@ test("días para vender por familia", () => {
 });
 
 test("señales de estafa en el texto", () => {
-  assert.deepEqual(senalesEnTexto("Vendo urgente por viaje, estoy fuera de Santiago, pido abono para reservar"), ["Pide abono o reserva", "Vendedor lejos o envío", "Urgencia"]);
+  assert.deepEqual(senalesEnTexto("Vendo urgente por viaje, estoy fuera de Santiago, pido abono para reservar"), ["Pide abono o reserva", "Vendedor lejos o envío", "Venta urgente"]);
+  assert.deepEqual(senalesEnTexto("Financiamiento aprobado hoy mismo"), []);
   assert.deepEqual(senalesEnTexto("Impecable, único dueño, mantenciones en la marca"), []);
   assert.ok(cuentaNueva(2026, new Date("2026-09-30")));
   assert.ok(!cuentaNueva(2015, new Date("2026-09-30")));

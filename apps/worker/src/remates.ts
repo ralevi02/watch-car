@@ -94,12 +94,18 @@ if (lotes.length) {
 const { data: todosLotes } = await db.from("remates").select("id, fuente, lote, patente, marca, modelo, anio, km, fecha, condicion, url");
 const { data: avisos } = await db
   .from("avisos")
-  .select("id, fuente_id, id_externo, titulo, descripcion, marca, modelo, anio, km, primera_vez, remate")
+  .select("id, fuente_id, id_externo, titulo, descripcion, marca, modelo, anio, km, primera_vez, remate, vision")
   .neq("estado", "vendido");
 const nuevos: { avisoId: string; titulo: string; lote: NonNullable<typeof todosLotes>[number]; tipo: "patente" | "posible" }[] = [];
 let marcados = 0;
 for (const a of avisos ?? []) {
-  const patentes = [...patentesEnTexto(a.titulo, a.descripcion), ...(a.fuente_id === "brunofritsch" ? [normalizarPatente(a.id_externo)].filter((x): x is string => Boolean(x)) : [])];
+  // Patentes: del texto, la de Bruno Fritsch (es el id) y la que la IA leyó en las fotos.
+  const deFoto = normalizarPatente((a.vision as { patente?: string } | null)?.patente);
+  const patentes = [
+    ...patentesEnTexto(a.titulo, a.descripcion),
+    ...(a.fuente_id === "brunofritsch" ? [normalizarPatente(a.id_externo)].filter((x): x is string => Boolean(x)) : []),
+    ...(deFoto ? [deFoto] : []),
+  ];
   let mejor: { lote: NonNullable<typeof todosLotes>[number]; tipo: "patente" | "posible" } | null = null;
   for (const l of todosLotes ?? []) {
     const tipo = coincideRemate({ marca: a.marca, modelo: a.modelo, anio: a.anio, km: a.km, primeraVez: a.primera_vez, patentes }, l);

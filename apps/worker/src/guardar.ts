@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { avisoDesdeFila, casiCalza, contactosEnTexto, normalizarTelefono, type Contacto, dudaDeModelo, esMismoAuto, evaluar, leerTitulo, mismaFoto, modeloCanonico, TIPOS_AVISO, type Seguimiento } from "@radar/core";
+import { avisoDesdeFila, casiCalza, contactosEnTexto, cuentaNueva, puedeSerCrossCountry, senalesEnTexto, normalizarTelefono, type Contacto, dudaDeModelo, esMismoAuto, evaluar, leerTitulo, mismaFoto, modeloCanonico, TIPOS_AVISO, type Seguimiento } from "@radar/core";
 import type { ClienteDb, Json, TablesInsert } from "@radar/db";
 import type { AvisoPortal, DetallePortal, ResultadoRecoleccion } from "./fuentes/tipos.js";
 import { normalizar, type EntradaNormalizacion } from "./normalizar.js";
@@ -38,8 +38,16 @@ export function contactoDe(d: Pick<DetallePortal, "descripcion" | "datos">): Con
     ...(deTexto.emails[0] ? { email: deTexto.emails[0] } : {}),
     ...(d.datos["Código de publicación"] ? { codigo: d.datos["Código de publicación"] } : {}),
     ...(!telefono && d.datos["Teléfono parcial"] ? { parcial: d.datos["Teléfono parcial"] } : {}),
+    ...(Number(d.datos["Vendedor en Facebook desde"]) ? { cuentaDesde: Number(d.datos["Vendedor en Facebook desde"]) } : {}),
   };
   return Object.keys(c).length ? c : null;
+}
+
+/** Señales de posible estafa: frases del texto y cuenta de Facebook recién creada. */
+export function senalesDe(d: Pick<DetallePortal, "descripcion" | "datos">): string[] {
+  const s = senalesEnTexto(d.descripcion);
+  if (cuentaNueva(Number(d.datos["Vendedor en Facebook desde"]) || null)) s.push("Cuenta de Facebook nueva");
+  return s;
 }
 
 export function datosDeDetalle(d: DetallePortal) {
@@ -49,6 +57,7 @@ export function datosDeDetalle(d: DetallePortal) {
     comuna: d.datos["Comuna"] ?? null,
     ...(d.fotos?.length ? { fotos: d.fotos } : {}),
     contacto: contactoDe(d) as Json,
+    senales: senalesDe(d),
     ...(traccion && /4x4|awd|4wd/i.test(traccion) ? { traccion: "AWD" } : {}),
     ...(traccion && /4x2|2wd|fwd/i.test(traccion) ? { traccion: "FWD" } : {}),
   };
@@ -76,7 +85,11 @@ export interface ResumenGuardado {
   nuevos: number;
   nuevosIds: string[];
   bajasDePrecio: { id: string; titulo: string; url: string; antes: number; ahora: number }[];
+  /** Todo cambio de precio (sube o baja), para los autos que se siguen. */
+  cambiosDePrecio: { id: string; titulo: string; url: string; antes: number; ahora: number }[];
   noVistos: number;
+  /** Los que en esta pasada pasaron a "posible vendido". */
+  dejaronDeAparecer: { id: string; titulo: string; url: string }[];
 }
 
 /** Guarda una pasada: crudos, avisos, precios, detalles y avisos que dejaron de aparecer. */
@@ -88,7 +101,7 @@ export async function guardarPasada(
   r: ResultadoRecoleccion,
   pasadaId: string,
 ): Promise<ResumenGuardado> {
-  const resumen: ResumenGuardado = { vistos: r.avisos.length, nuevos: 0, nuevosIds: [], bajasDePrecio: [], noVistos: 0 };
+  const resumen: ResumenGuardado = { vistos: r.avisos.length, nuevos: 0, nuevosIds: [], bajasDePrecio: [], cambiosDePrecio: [], noVistos: 0, dejaronDeAparecer: [] };
   const ids = r.avisos.map((a) => a.id);
 
   // 1. Crudos, para reprocesar sin volver al portal.
@@ -157,6 +170,7 @@ export async function guardarPasada(
     if (a.precio !== undefined && e.precio !== null && a.precio !== e.precio) {
       await escribir(db.from("precios").insert({ aviso_id: e.id, precio: a.precio }), "cambio de precio");
       if (a.precio < e.precio) resumen.bajasDePrecio.push({ id: e.id, titulo: a.titulo, url: a.url, antes: e.precio, ahora: a.precio });
+      resumen.cambiosDePrecio.push({ id: e.id, titulo: a.titulo, url: a.url, antes: e.precio, ahora: a.precio });
     }
   }
 
@@ -172,7 +186,7 @@ export async function guardarPasada(
     const previos = await leer(
       db
         .from("resultados")
-        .select("aviso_id, avisos!inner(id_externo, estado, veces_no_visto, fuente_id)")
+        .select("aviso_id, avisos!inner(id_externo, estado, veces_no_visto, fuente_id, titulo, url)")
         .eq("busqueda_id", busquedaId)
         .eq("avisos.fuente_id", FUENTE)
         .in("avisos.estado", ["activo", "posible_vendido"]),
@@ -190,13 +204,14 @@ export async function guardarPasada(
         "no visto",
       );
       resumen.noVistos++;
+      if (veces === 2 && p.avisos.estado === "activo") resumen.dejaronDeAparecer.push({ id: p.aviso_id, titulo: p.avisos.titulo, url: p.avisos.url });
     }
   }
 
   return resumen;
 }
 
-const COLUMNAS_ENTRADA = "id, titulo, precio, anio, km, caja, combustible, carroceria, region, comuna, tipo_vendedor, vendedor, traccion, descripcion, normalizado_hash";
+const COLUMNAS_ENTRADA = "id, titulo, precio, anio, km, caja, combustible, carroceria, region, comuna, tipo_vendedor, vendedor, traccion, descripcion, normalizado_hash, vision";
 
 /**
  * Normaliza con Gemini los avisos cuyo contenido cambió desde la última vez
@@ -225,7 +240,7 @@ export async function normalizarPendientes(db: ClienteDb, FUENTE: string, idsExt
         traccion: f.traccion,
         descripcion: f.descripcion,
       };
-      return { entrada, hash: huella(entrada), anterior: f.normalizado_hash };
+      return { entrada, hash: huella(entrada), anterior: f.normalizado_hash, vision: f.vision as { crossCountry?: string; fotosDeAuto?: boolean } | null };
     })
     .filter((p) => op.forzar || p.hash !== p.anterior);
   if (!pendientes.length) return { normalizados: 0 };
@@ -259,8 +274,15 @@ export async function normalizarPendientes(db: ClienteDb, FUENTE: string, idsExt
       if (c.campo === "tipo" && TIPOS_AVISO.includes(c.valor as never)) n.tipo = c.valor as typeof n.tipo;
     }
     // Si el aviso dice Cross Country no hay duda; en Facebook (texto libre) un "V40" a secas sí la hay.
-    // Si el dueño ya dijo qué modelo es, no queda duda.
-    const corregido = correcciones.some((c) => c.aviso_id === p.entrada.id && c.campo === "modelo");
+    // Lo que la IA vio en las fotos manda sobre la duda "¿es Cross Country?".
+    const vio = p.vision?.fotosDeAuto && (p.vision.crossCountry === "si" || p.vision.crossCountry === "no") ? p.vision.crossCountry : null;
+    const base = n.modelo.replace(/\s*cross\s*country\s*$/i, "").trim();
+    if (vio && puedeSerCrossCountry(base)) {
+      n.modelo = vio === "si" ? `${base} Cross Country` : base;
+      n.porConfirmar = n.porConfirmar.filter((x) => x !== "modelo");
+    }
+    // Si el dueño ya dijo qué modelo es (o se vio en las fotos), no queda duda.
+    const corregido = Boolean(vio && puedeSerCrossCountry(base)) || correcciones.some((c) => c.aviso_id === p.entrada.id && c.campo === "modelo");
     const porConfirmar = corregido ? n.porConfirmar : (dudaDeModelo(n.modelo, n.porConfirmar, p.entrada, FUENTE === "facebook") as typeof n.porConfirmar);
     await escribir(
       db
@@ -281,6 +303,7 @@ export async function normalizarPendientes(db: ClienteDb, FUENTE: string, idsExt
           alerta_detalle: n.alertaDetalle,
           precio_descripcion: n.precioDescripcion,
           por_confirmar: porConfirmar,
+          resumen: n.resumen?.replace(/\u2014/g, ",").slice(0, 300) ?? null,
           normalizado_en: ahora,
           normalizado_hash: p.hash,
         })
@@ -295,8 +318,13 @@ export async function normalizarPendientes(db: ClienteDb, FUENTE: string, idsExt
  * Junta avisos que son el mismo auto (reglas de esMismoAuto o foto casi igual)
  * bajo un solo registro de autos, para mostrar el precio más bajo y todos los links.
  */
-export async function deduplicar(db: ClienteDb, avisoIds: string[]): Promise<number> {
+/**
+ * Devuelve cuántos juntó y los que "reaparecieron": un aviso nuevo del mismo
+ * auto que ya no aparecía (se cayó la venta, o lo republica otro vendedor).
+ */
+export async function deduplicar(db: ClienteDb, avisoIds: string[]): Promise<{ juntados: number; reaparecidos: { avisoId: string; autoId: string }[] }> {
   let juntados = 0;
+  const reaparecidos: { avisoId: string; autoId: string }[] = [];
   for (const id of avisoIds) {
     const [a] = await leer(db.from("avisos").select("id, auto_id, modelo, anio, km, precio, region, foto_hash, separado").eq("id", id), "leer para deduplicar");
     // Separado a mano: el dueño dijo que no es el mismo auto que otro.
@@ -305,7 +333,7 @@ export async function deduplicar(db: ClienteDb, avisoIds: string[]): Promise<num
     const candidatos = await leer(
       db
         .from("avisos")
-        .select("id, auto_id, modelo, anio, km, precio, region, foto_hash, primera_vez")
+        .select("id, auto_id, modelo, anio, km, precio, region, foto_hash, primera_vez, estado")
         .eq("anio", a.anio)
         .eq("separado", false)
         .neq("id", a.id)
@@ -327,8 +355,11 @@ export async function deduplicar(db: ClienteDb, avisoIds: string[]): Promise<num
       if (!count && !marcas) await escribir(db.from("autos").delete().eq("id", autoViejo), "borrar auto huérfano");
     }
     juntados++;
+    // ¿El auto ya no aparecía en ningún otro aviso? Entonces volvió.
+    const delAuto = candidatos.filter((c) => c.auto_id === igual.auto_id);
+    if (delAuto.length && delAuto.every((c) => c.estado === "posible_vendido")) reaparecidos.push({ avisoId: a.id, autoId: igual.auto_id });
   }
-  return juntados;
+  return { juntados, reaparecidos };
 }
 
 export interface ResumenEvaluacion {

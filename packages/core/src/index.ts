@@ -6,3 +6,4 @@ export * from "./remates.ts";
 export * from "./contacto.ts";
 export * from "./mercado.ts";
 export * from "./senales.ts";
+export * from "./fotos.ts";

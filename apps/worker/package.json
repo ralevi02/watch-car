@@ -14,7 +14,8 @@
     "reevaluar": "tsx src/reevaluar.ts",
     "prueba-busqueda-fb": "tsx src/prueba-busqueda-fb.ts",
     "resumen": "tsx src/resumen.ts",
-    "remates": "tsx src/remates.ts"
+    "remates": "tsx src/remates.ts",
+    "fotos-ia": "tsx src/fotos-ia.ts"
   },
   "dependencies": {
     "@ai-sdk/google": "^4.0.82",

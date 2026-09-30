@@ -7,6 +7,8 @@ export interface Contacto {
   codigo?: string;
   /** El portal muestra solo parte del número (Chileautos a particulares, sin sesión). */
   parcial?: string;
+  /** Año en que el vendedor se unió a Facebook. */
+  cuentaDesde?: number;
 }
 
 /** "+56 9 1234 5678", "9 1234 5678", "(2) 2345 6789" → "+56912345678" / "+56223456789". */

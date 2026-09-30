@@ -24,6 +24,7 @@ import { hashearFotos } from "./fotos.js";
 import type { Recolector, ResultadoRecoleccion } from "./fuentes/tipos.js";
 import { aNormalizado, datosDeLista, deduplicar, evaluarAvisos, guardarPasada, normalizarPendientes, type ResumenEvaluacion, type ResumenGuardado } from "./guardar.js";
 import { abrirNavegador, pausa, type Sesion } from "./lib/navegador.js";
+import { avisosDeOportunidad, avisosDeReaparecidos, avisosDeSeguidos } from "./alertas-extra.js";
 import { diagnosticar } from "./diagnostico.js";
 import { enviarPush, leerModoAvisos, type Notificacion } from "./push.js";
 
@@ -151,6 +152,8 @@ async function main() {
 
   const informe: string[] = [`# ${NOMBRE[FUENTE] ?? FUENTE} · pasada ${TIPO}`, ""];
   const notificaciones: Notificacion[] = [];
+  // Autos que volvieron a publicarse (se avisan al final, una vez).
+  const reaparecidos: { avisoId: string; autoId: string }[] = [];
   const resultados: ResultadoRecoleccion[] = [];
   let fallidas = 0;
   // Sin fotos, videos ni fuentes: recorrer la grilla entera de Facebook con fotos gastaba ~300 MB de proxy por pasada.
@@ -205,7 +208,9 @@ async function main() {
           const n = await normalizarPendientes(db, FUENTE, ids);
           normalizados = n.normalizados;
           if (n.error) avisosPasada.push(n.error);
-          juntados = await deduplicar(db, g.nuevosIds);
+          const d = await deduplicar(db, g.nuevosIds);
+          juntados = d.juntados;
+          reaparecidos.push(...d.reaparecidos);
           ev = await evaluarAvisos(db, FUENTE, b.id, b.ficha, ids, g.nuevosIds);
         }
       } catch (e) {
@@ -215,6 +220,10 @@ async function main() {
       const errores = [...(r?.errores ?? []), ...avisosPasada];
       const estado = !r || (!r.avisos.length && !r.bloqueo && errores.length) ? "error" : r.bloqueo ? "bloqueo" : "ok";
       if (estado !== "ok") fallidas++;
+
+      // Autos seguidos (siempre al tiro) y oportunidades (bajo el precio justo).
+      if (g) notificaciones.push(...(await avisosDeSeguidos(db, g)));
+      if (b.alertas && ev) notificaciones.push(...(await avisosDeOportunidad(db, ev.nuevosInteresantes)));
 
       if (b.alertas && ev) {
         for (const x of ev.nuevosInteresantes.slice(0, 5)) {
@@ -314,9 +323,18 @@ async function main() {
   }
 
   notificaciones.push(...((await prep.alTerminar?.(resultados)) ?? []));
+  notificaciones.push(...(await avisosDeReaparecidos(db, reaparecidos)));
   // En modo resumen, lo nuevo y las bajas chicas van en el resumen del día (resumen.ts).
   const { modo } = await leerModoAvisos(db);
-  const aMandar = modo === "resumen" ? notificaciones.filter((n) => n.tipo !== "nuevo" && (n.tipo !== "baja" || n.urgente)) : notificaciones;
+  // Una sola por etiqueta (la de oportunidad reemplaza al "nuevo" del mismo aviso; los seguidos no se repiten por ficha).
+  const porEtiqueta = new Map<string, Notificacion>();
+  notificaciones.forEach((n, i) => {
+    const k = n.etiqueta ?? `sin-${i}`;
+    const previa = porEtiqueta.get(k);
+    if (!previa || (n.tipo === "sistema" && previa.tipo !== "sistema")) porEtiqueta.set(k, n);
+  });
+  const unicas = [...porEtiqueta.values()];
+  const aMandar = modo === "resumen" ? unicas.filter((n) => n.tipo !== "nuevo" && (n.tipo !== "baja" || n.urgente)) : unicas;
   const push = await enviarPush(db, aMandar);
   informe.push(`Notificaciones: ${push.enviadas} enviadas de ${notificaciones.length}${push.error ? ` (${push.error})` : ""}.`);
 

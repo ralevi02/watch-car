@@ -43,7 +43,8 @@ Reglas:
   - compania_seguros: "vehículo de compañía de seguros".
   - precio_distinto: la descripción menciona otro precio que el publicado (ponlo en precioDescripcion), o dice que el precio publicado no es el real.
   - datos_inconsistentes: título, datos y descripción se contradicen (año, km, motor, caja, tracción).
-- alertaDetalle: una frase corta en español de Chile que explique las alertas; null si no hay. Nunca uses la raya larga.`;
+- alertaDetalle: una frase corta en español de Chile que explique las alertas; null si no hay. Nunca uses la raya larga.
+- resumen: si hay descripción, 2 o 3 frases muy cortas (máximo 220 caracteres en total) con lo que importa para decidir: dueños, mantenciones y dónde, estado, papeles, extras, lo raro. Sin repetir marca, modelo, año, km ni precio. En español de Chile, directo, sin la raya larga. null si no hay descripción.`;
 
 const Lote = z.object({ avisos: z.array(Normalizacion) });
 

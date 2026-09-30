@@ -94,7 +94,7 @@ export async function procesarCompartidos(
       // Hash de la foto: sirve para juntarlo con el mismo auto publicado en otro portal.
       await hashearFotos(db, g.nuevosIds);
       await normalizarPendientes(db, fuente, [aviso.id]);
-      await deduplicar(db, g.nuevosIds);
+      await deduplicar(db, g.nuevosIds); // (las alertas de reaparecidos van en las pasadas)
       for (const b of busquedas) await evaluarAvisos(db, fuente, b.id, b.ficha, [aviso.id], []);
       const { data: fila } = await db.from("avisos").select("id").eq("fuente_id", fuente).eq("id_externo", aviso.id).single();
       await db.from("compartidos").update({ estado: "procesado", aviso_id: fila?.id ?? null, procesado_en: new Date().toISOString(), error: null }).eq("id", c.id);

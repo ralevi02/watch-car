@@ -11,7 +11,7 @@
  * Variables: SUPABASE_URL, SUPABASE_SECRET_KEY.
  */
 import { resolve } from "node:path";
-import { dudaDeModelo, Seguimiento } from "@radar/core";
+import { dudaDeModelo, Seguimiento, senalesEnTexto } from "@radar/core";
 import { clienteServicio, type Json } from "@radar/db";
 import { contactoDe, evaluarAvisos, normalizarPendientes } from "./guardar.js";
 
@@ -23,18 +23,31 @@ try {
 const db = clienteServicio();
 
 // La duda de modelo con la regla actual: no se duda si el aviso dice Cross Country; en Facebook un V40 a secas sí.
-const { data: todos } = await db.from("avisos").select("id, fuente_id, titulo, descripcion, modelo, por_confirmar").not("modelo", "is", null);
+const { data: todos } = await db.from("avisos").select("id, fuente_id, titulo, descripcion, modelo, por_confirmar, vision").not("modelo", "is", null);
 const { data: corregidos } = await db.from("correcciones").select("aviso_id").eq("campo", "modelo");
 const yaCorregido = new Set((corregidos ?? []).map((c) => c.aviso_id));
 let cambiados = 0;
 for (const a of todos ?? []) {
-  if (yaCorregido.has(a.id)) continue;
+  // Corregido por el dueño o resuelto con la foto: no se vuelve a dudar.
+  const vision = a.vision as { crossCountry?: string } | null;
+  if (yaCorregido.has(a.id) || vision?.crossCountry === "si" || vision?.crossCountry === "no") continue;
   const nuevo = dudaDeModelo(a.modelo!, a.por_confirmar, a, a.fuente_id === "facebook");
   if (nuevo.length === a.por_confirmar.length && nuevo.every((c) => a.por_confirmar.includes(c))) continue;
   await db.from("avisos").update({ por_confirmar: nuevo }).eq("id", a.id);
   cambiados++;
 }
 console.log(`Duda de modelo ajustada en ${cambiados} avisos`);
+
+// Señales de estafa en las descripciones guardadas antes de buscarlas.
+const { data: sinSenales } = await db.from("avisos").select("id, descripcion, senales").not("descripcion", "is", null);
+let conSenales = 0;
+for (const a of sinSenales ?? []) {
+  const nuevas = senalesEnTexto(a.descripcion).filter((x) => !a.senales.includes(x));
+  if (!nuevas.length) continue;
+  await db.from("avisos").update({ senales: [...a.senales, ...nuevas] }).eq("id", a.id);
+  conSenales++;
+}
+console.log(`Señales de estafa encontradas en ${conSenales} avisos`);
 
 // Contacto sacado de la descripción, para lo que se guardó antes de leerlo.
 const { data: sinContacto } = await db.from("avisos").select("id, descripcion").is("contacto", null).not("descripcion", "is", null);
@@ -46,6 +59,17 @@ for (const a of sinContacto ?? []) {
   conContacto++;
 }
 console.log(`Contacto encontrado en ${conContacto} descripciones`);
+
+// --resumen: vuelve a normalizar los visibles con descripción que todavía no tienen el resumen corto.
+if (process.argv.includes("--resumen")) {
+  const { data: visibles } = await db.from("resultados").select("avisos!inner(id_externo, fuente_id, resumen, descripcion)").neq("veredicto", "fuera").is("avisos.resumen", null).not("avisos.descripcion", "is", null);
+  const porFuente = new Map<string, Set<string>>();
+  for (const r of visibles ?? []) porFuente.set(r.avisos.fuente_id, (porFuente.get(r.avisos.fuente_id) ?? new Set()).add(r.avisos.id_externo));
+  for (const [fuente, ids] of porFuente) {
+    const n = await normalizarPendientes(db, fuente, [...ids], { forzar: true });
+    console.log(`${fuente}: resumen para ${n.normalizados} de ${ids.size} avisos${n.error ? ` (${n.error})` : ""}`);
+  }
+}
 
 if (process.argv.includes("--ia")) {
   const { data: visibles } = await db.from("resultados").select("avisos!inner(id_externo, fuente_id, tipo)").neq("veredicto", "fuera").is("avisos.tipo", null);

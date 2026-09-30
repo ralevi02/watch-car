@@ -3,11 +3,14 @@
  * una sola notificación con lo nuevo que calza y las bajas de precio desde el
  * resumen anterior. Corre cada hora en GitHub Actions y solo manda a la hora elegida.
  *
+ * También avisa si una fuente lleva muchas horas sin traer avisos y, los
+ * domingos, manda el resumen de la semana por ficha.
+ *
  * Variables: SUPABASE_URL, SUPABASE_SECRET_KEY, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY, APP_URL.
- * FORZAR=1 lo manda aunque no sea la hora.
+ * FORZAR=1 manda el resumen del día aunque no sea la hora; SEMANAL=1, el de la semana.
  */
 import { resolve } from "node:path";
-import { clienteServicio } from "@radar/db";
+import { clienteServicio, type Json } from "@radar/db";
 import { enviarPush, leerModoAvisos } from "./push.js";
 
 try {
@@ -20,9 +23,76 @@ const APP_URL = process.env.APP_URL;
 const FORZAR = process.env.FORZAR === "1";
 
 const { modo, hora } = await leerModoAvisos(db);
-const horaChile = Number(new Intl.DateTimeFormat("es-CL", { hour: "numeric", hourCycle: "h23", timeZone: "America/Santiago" }).format(new Date()));
+const ahoraChile = new Date(new Date().toLocaleString("en-US", { timeZone: "America/Santiago" }));
+const horaChile = ahoraChile.getHours();
+const leerAjuste = async <T,>(clave: string) => ((await db.from("ajustes").select("valor").eq("clave", clave).maybeSingle()).data?.valor ?? null) as T | null;
+// En seco (PUSH_SECO=1) no se guarda nada: así una prueba no bloquea el aviso de verdad.
+const guardarAjuste = async (clave: string, valor: Json) => {
+  if (process.env.PUSH_SECO !== "1") await db.from("ajustes").upsert({ clave, valor, actualizado_en: new Date().toISOString() });
+};
+
+// ── 1. Fuente caída: una fuente activa que lleva muchas horas sin traer avisos (se avisa una vez al día) ──
+const UMBRAL_HORAS: Record<string, number> = { chileautos: 12, facebook: 30, remates: 50 };
+const { data: fuentes } = await db.from("fuentes").select("id, nombre, activa").eq("activa", true);
+const alertadas = (await leerAjuste<Record<string, string>>("alerta_fuentes")) ?? {};
+const caidas: string[] = [];
+for (const f of fuentes ?? []) {
+  const { data: ultima } = await db.from("pasadas").select("inicio").eq("fuente_id", f.id).eq("estado", "ok").gt("avisos_vistos", 0).order("inicio", { ascending: false }).limit(1).maybeSingle();
+  // Una fuente que nunca trajo nada (MercadoLibre sin conectar, por ejemplo) no se reporta como caída.
+  if (!ultima) continue;
+  const horas = (Date.now() - new Date(ultima.inicio).getTime()) / 3_600_000;
+  const umbral = UMBRAL_HORAS[f.id] ?? 36;
+  const avisadaHace = alertadas[f.id] ? (Date.now() - new Date(alertadas[f.id]!).getTime()) / 3_600_000 : Infinity;
+  if (horas > umbral && avisadaHace > 24) {
+    caidas.push(`${f.nombre} (${Math.round(horas)} h)`);
+    alertadas[f.id] = new Date().toISOString();
+  }
+}
+if (caidas.length) {
+  const r = await enviarPush(db, [
+    { titulo: caidas.length === 1 ? "Una fuente no trae avisos" : "Fuentes sin avisos", cuerpo: `Sin avisos nuevos desde hace rato: ${caidas.join(", ")}. Revisa el registro en Fuentes.`, url: APP_URL ? `${APP_URL}/fuentes?seccion=registro` : undefined, etiqueta: "fuentes-caidas" },
+  ]);
+  await guardarAjuste("alerta_fuentes", alertadas);
+  console.log(`Fuentes caídas: ${caidas.join(", ")} (aviso a ${r.enviadas} teléfonos).`);
+}
+
+// ── 2. Resumen de la semana: el domingo a la hora de los avisos (en cualquier modo) ──
+const semanal = await leerAjuste<{ en?: string }>("semanal_enviado");
+const haceUnaSemana = Date.now() - 7 * 86_400_000;
+if ((ahoraChile.getDay() === 0 && horaChile === hora && (!semanal?.en || new Date(semanal.en).getTime() < Date.now() - 5 * 86_400_000)) || process.env.SEMANAL === "1") {
+  const { data: fichas } = await db.from("busquedas").select("id, nombre").eq("activa", true);
+  const lineas: string[] = [];
+  for (const b of fichas ?? []) {
+    const { data: filas } = await db.from("resultados").select("avisos!inner(id, primera_vez, ultima_vez, estado, precio)").eq("busqueda_id", b.id).neq("veredicto", "fuera");
+    const avisos = (filas ?? []).map((f) => f.avisos);
+    const nuevos = avisos.filter((a) => new Date(a.primera_vez).getTime() > haceUnaSemana).length;
+    const idos = avisos.filter((a) => a.estado !== "activo" && new Date(a.ultima_vez).getTime() > haceUnaSemana).length;
+    // Precio mediano de los que siguen, hoy y hace una semana (según el historial).
+    const activos = avisos.filter((a) => a.estado === "activo" && a.precio);
+    let tendencia = "";
+    if (activos.length >= 4) {
+      const { data: hist } = await db.from("precios").select("aviso_id, precio, visto_en").in("aviso_id", activos.map((a) => a.id)).lte("visto_en", new Date(haceUnaSemana).toISOString()).order("visto_en");
+      const antes = new Map<string, number>();
+      for (const h of hist ?? []) antes.set(h.aviso_id, h.precio);
+      const pares = activos.filter((a) => antes.has(a.id));
+      if (pares.length >= 4) {
+        const med = (xs: number[]) => [...xs].sort((x, y) => x - y)[Math.floor(xs.length / 2)]!;
+        const cambio = (med(pares.map((a) => a.precio!)) - med(pares.map((a) => antes.get(a.id)!))) / med(pares.map((a) => antes.get(a.id)!));
+        if (Math.abs(cambio) >= 0.01) tendencia = `, precio ${cambio < 0 ? "bajando" : "subiendo"} ${Math.abs(Math.round(cambio * 100))}%`;
+      }
+    }
+    if (nuevos || idos || tendencia) lineas.push(`${b.nombre}: ${nuevos} ${nuevos === 1 ? "nuevo" : "nuevos"}, ${idos} ${idos === 1 ? "se fue" : "se fueron"}${tendencia}`);
+  }
+  if (lineas.length) {
+    const r = await enviarPush(db, [{ titulo: "Tu semana", cuerpo: lineas.slice(0, 3).join(". ") + ".", url: APP_URL ? `${APP_URL}/resultados` : undefined, etiqueta: "semana" }]);
+    console.log(`Resumen semanal: ${lineas.join(" | ")} (a ${r.enviadas} teléfonos).`);
+  }
+  await guardarAjuste("semanal_enviado", { en: new Date().toISOString() });
+}
+
+// ── 3. Resumen del día (solo en modo resumen, a la hora elegida) ──
 if (!FORZAR && (modo !== "resumen" || horaChile !== hora)) {
-  console.log(`Nada que hacer: modo ${modo}, hora elegida ${hora}, ahora son las ${horaChile}.`);
+  console.log(`Resumen del día: nada que hacer (modo ${modo}, hora elegida ${hora}, ahora son las ${horaChile}).`);
   process.exit(0);
 }
 
@@ -77,4 +147,4 @@ if (!partes.length) {
   ]);
   console.log(`Resumen: ${partes.join(", ")}. Enviado a ${r.enviadas} teléfonos${r.error ? ` (${r.error})` : ""}.`);
 }
-await db.from("ajustes").upsert({ clave: "resumen_enviado", valor: { en: new Date().toISOString() } });
+await guardarAjuste("resumen_enviado", { en: new Date().toISOString() });
