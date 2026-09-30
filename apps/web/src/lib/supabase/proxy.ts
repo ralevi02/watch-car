@@ -2,7 +2,8 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
 // /v/<token>: la página de un auto compartido para opinar (sin cuenta).
-const PUBLICAS = ["/login", "/auth", "/v/", "/manifest.webmanifest", "/sw.js", "/icons", "/icon", "/apple-icon"];
+// Las notificaciones de MercadoLibre llegan sin sesión (la ruta solo responde 200).
+const PUBLICAS = ["/login", "/auth", "/v/", "/manifest.webmanifest", "/sw.js", "/icons", "/icon", "/apple-icon", "/api/mercadolibre/notificaciones"];
 
 /** Refresca la sesión en cada pedido y manda al login si no hay usuario. */
 export async function actualizarSesion(request: NextRequest) {
