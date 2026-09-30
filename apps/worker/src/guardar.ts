@@ -149,7 +149,8 @@ export async function guardarPasada(
     await escribir(
       db
         .from("avisos")
-        .update({ url: a.url, titulo: a.titulo, precio: a.precio ?? null, km: a.km ?? null, ultima_vez: ahora, estado: "activo", veces_no_visto: 0 })
+        // La foto se renueva: los links de Facebook vencen a los días.
+        .update({ url: a.url, titulo: a.titulo, precio: a.precio ?? null, km: a.km ?? null, ultima_vez: ahora, estado: "activo", veces_no_visto: 0, ...(a.foto ? { foto_url: a.foto } : {}) })
         .eq("id", e.id),
       "actualizar aviso",
     );

@@ -4,6 +4,7 @@ import { leerDetalle as leerDetalleChileautos } from "./fuentes/chileautos/lecto
 import { leerDetalle as leerDetalleFacebook } from "./fuentes/facebook/lector.js";
 import type { AvisoPortal, DetallePortal, ResultadoRecoleccion } from "./fuentes/tipos.js";
 import { deduplicar, evaluarAvisos, guardarPasada, normalizarPendientes } from "./guardar.js";
+import { hashearFotos } from "./fotos.js";
 import { pausa, type Sesion } from "./lib/navegador.js";
 
 const entero = (s?: string) => (s ? Number(s.replace(/\D/g, "")) || undefined : undefined);
@@ -33,15 +34,25 @@ async function leerAvisoCompartido(s: Sesion, fuente: string, id: string, url: s
           caja: d["Transmisión"] ?? d["Tipo de caja de cambios"],
           region: d["Región"],
           destacado: false,
+          // La primera foto de la galería es la principal (la que se ve en la lista).
+          foto: detalle.fotos?.[0],
         },
         detalle,
       };
     }
-    const texto = await page.evaluate(() => (document.querySelector('[role="main"]') as HTMLElement | null)?.innerText ?? document.body.innerText);
-    const detalle = leerDetalleFacebook(texto);
+    const { texto, fotos } = await page.evaluate(() => {
+      const main = (document.querySelector('[role="main"]') as HTMLElement | null) ?? document.body;
+      // Las fotos del aviso: la de og:image y las imágenes grandes del CDN (aunque no se bajen, el src está).
+      const og = document.querySelector<HTMLMetaElement>('meta[property="og:image"]')?.content;
+      const grandes = [...main.querySelectorAll<HTMLImageElement>('img[src*="scontent"], img[src*="fbcdn"]')]
+        .filter((img) => /foto de producto|product photo/i.test(img.alt) || img.getBoundingClientRect().width >= 120)
+        .map((img) => img.src);
+      return { texto: main.innerText, fotos: [...new Set([...grandes, ...(og ? [og] : [])])].slice(0, 20) };
+    });
+    const detalle = { ...leerDetalleFacebook(texto), ...(fotos.length ? { fotos } : {}) };
     const lineas = texto.split("\n").map((l) => l.trim()).filter(Boolean);
     const precio = lineas.find((l) => /^\$\s?[\d.]{5,}/.test(l) || /^CLP/.test(l));
-    return { aviso: { id, url, titulo: lineas[0] ?? `Aviso ${id}`, precio: entero(precio), destacado: false }, detalle };
+    return { aviso: { id, url, titulo: lineas[0] ?? `Aviso ${id}`, precio: entero(precio), destacado: false, foto: fotos[0] }, detalle };
   } finally {
     await page.close();
   }
@@ -80,6 +91,8 @@ export async function procesarCompartidos(
       const ficha = busquedas[0]?.ficha;
       if (!ficha) throw new Error("No hay fichas activas");
       const g = await guardarPasada(db, fuente, busquedas[0]!.id, ficha, r, pasadaId);
+      // Hash de la foto: sirve para juntarlo con el mismo auto publicado en otro portal.
+      await hashearFotos(db, g.nuevosIds);
       await normalizarPendientes(db, fuente, [aviso.id]);
       await deduplicar(db, g.nuevosIds);
       for (const b of busquedas) await evaluarAvisos(db, fuente, b.id, b.ficha, [aviso.id], []);
