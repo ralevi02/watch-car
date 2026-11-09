@@ -517,6 +517,36 @@ export type Database = {
           },
         ]
       }
+      corridas_pedidas: {
+        Row: {
+          error: string | null
+          estado: string
+          fuente: string
+          id: string
+          pedida_en: string
+          terminada_en: string | null
+          tomada_en: string | null
+        }
+        Insert: {
+          error?: string | null
+          estado?: string
+          fuente: string
+          id?: string
+          pedida_en?: string
+          terminada_en?: string | null
+          tomada_en?: string | null
+        }
+        Update: {
+          error?: string | null
+          estado?: string
+          fuente?: string
+          id?: string
+          pedida_en?: string
+          terminada_en?: string | null
+          tomada_en?: string | null
+        }
+        Relationships: []
+      }
       cuentas_facebook: {
         Row: {
           creada_en: string

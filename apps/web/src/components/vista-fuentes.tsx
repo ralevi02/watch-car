@@ -1,9 +1,9 @@
 "use client";
 
 import { ChevronRight, LogOut } from "lucide-react";
-import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useState, useTransition } from "react";
-import { pedirReconexion, salir } from "@/app/(app)/acciones";
+import { useSearchParams } from "next/navigation";
+import { useEffect, useState } from "react";
+import { salir } from "@/app/(app)/acciones";
 import { AjustesAvisos, TuComuna } from "@/components/ajustes-avisos";
 import { Apariencia } from "@/components/apariencia";
 import { Gastos } from "@/components/gastos";
@@ -29,9 +29,9 @@ const ESTADO: Record<string, { texto: string; clase: string }> = {
 
 const HORARIO: Record<string, string> = {
   chileautos: "cada 3 horas de 8:00 a 23:00",
-  kavak: "1 vez al día, necesita proxy",
-  yapo: "1 vez al día, necesita proxy",
-  mercadolibre: "solo los links que compartes: MercadoLibre cerró la búsqueda",
+  kavak: "desde la casa, 12:10 y 19:40",
+  yapo: "desde la casa, 12:15 y 19:45",
+  mercadolibre: "desde la casa, 12:20 y 19:50",
   brunofritsch: "2 veces al día, Volvo usados de la automotora",
   remates: "1 vez al día: Karcal y Zárate, cruzados con tus avisos",
 };
@@ -89,7 +89,7 @@ export function VistaFuentes() {
       </>
     );
   }
-  const { fuentes, pasadas, mlConectado, mlSesionWeb, githubConectado } = datos.fuentes;
+  const { fuentes, pasadas, mlConectado, githubConectado } = datos.fuentes;
   const facebook = datos.facebook;
   const ultima = (id: string) => pasadas.find((p) => p.fuente_id === id);
   const portales = fuentes.filter((f) => f.id !== "facebook");
@@ -127,7 +127,6 @@ export function VistaFuentes() {
                             HORARIO[f.id]
                           )}
                         </EstadoFuente>
-                        {f.id === "mercadolibre" && mlConectado && <SesionMercadoLibre guardada={Boolean(mlSesionWeb)} />}
                       </span>
                     </span>
                     {f.id === "mercadolibre" && !mlConectado ? (
@@ -222,32 +221,5 @@ export function VistaFuentes() {
         </main>
       </Pantalla>
     </ProveedorCorridas>
-  );
-}
-
-/** MercadoLibre ya no deja buscar por la API: se busca en el sitio con tu sesión, que se inicia en la vista remota. */
-function SesionMercadoLibre({ guardada }: { guardada: boolean }) {
-  const router = useRouter();
-  const [abriendo, iniciar] = useTransition();
-  const [error, setError] = useState<string | null>(null);
-  return (
-    <>
-      <button
-        type="button"
-        disabled={abriendo}
-        onClick={() =>
-          iniciar(async () => {
-            setError(null);
-            const r = await pedirReconexion(null, "mercadolibre");
-            if (r.ok && r.id) router.push(`/fuentes/reconectar/${r.id}`);
-            else if (!r.ok) setError(r.error);
-          })
-        }
-        className="presionable mt-0.5 block text-left text-primary"
-      >
-        {abriendo ? "Abriendo…" : guardada ? "Volver a iniciar sesión en el sitio" : "Iniciar sesión en el sitio para buscar"}
-      </button>
-      {error && <span className="block text-destructive">{error}</span>}
-    </>
   );
 }

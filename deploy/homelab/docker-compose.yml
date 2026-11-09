@@ -1,0 +1,17 @@
+services:
+  radar-worker:
+    build:
+      context: ../..
+      dockerfile: apps/worker/Dockerfile
+    container_name: radar-worker
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      TZ: America/Santiago
+      SUPABASE_URL: https://ssmtlqtpzzhkhibkcfhi.supabase.co
+      APP_URL: https://watch-car.vercel.app
+      VNC_URL_PUBLICA: https://homelab.tailb11fb8.ts.net:8444
+    shm_size: 1gb
+    mem_limit: 3g
+    ports:
+      - "127.0.0.1:6080:6080"

@@ -56,6 +56,23 @@ if (caidas.length) {
   console.log(`Fuentes caídas: ${caidas.join(", ")} (aviso a ${r.enviadas} teléfonos).`);
 }
 
+// ── 1b. Homelab caído: el worker de la casa deja un latido cada 5 minutos ──
+const latidoCasa = await leerAjuste<{ en?: string }>("latido_casa");
+const minutosSinLatido = latidoCasa?.en ? (Date.now() - new Date(latidoCasa.en).getTime()) / 60_000 : 0;
+const alertaCasa = await leerAjuste<{ en?: string }>("alerta_casa");
+if (minutosSinLatido > 30 && (!alertaCasa?.en || Date.now() - new Date(alertaCasa.en).getTime() > 6 * 3_600_000)) {
+  await enviarPush(db, [
+    {
+      titulo: "El homelab no responde",
+      cuerpo: `Hace ${Math.round(minutosSinLatido)} minutos que el worker de la casa no da señales. Facebook, Kavak, Yapo y MercadoLibre no corren hasta que vuelva.`,
+      etiqueta: "homelab-caido",
+      tipo: "sistema",
+    },
+  ]);
+  await guardarAjuste("alerta_casa", { en: new Date().toISOString() });
+  console.log(`Homelab sin latido hace ${Math.round(minutosSinLatido)} min.`);
+}
+
 // ── 2. Resumen de la semana: el domingo a la hora de los avisos (en cualquier modo) ──
 const semanal = await leerAjuste<{ en?: string }>("semanal_enviado");
 const haceUnaSemana = Date.now() - 7 * 86_400_000;

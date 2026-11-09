@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { esDueno } from "@/lib/datos";
-import { corridasActivas, FUENTES_CORRIBLES, github, lanzarWorkflow, pedidosPara, REPO, tokenGithub, type EstadoCorrida, type FuenteCorrible } from "@/lib/github";
+import { corridasActivas, EN_CASA, FUENTES_CORRIBLES, github, lanzarWorkflow, pedidosPara, REPO, tokenGithub, type EstadoCorrida, type FuenteCorrible } from "@/lib/github";
 import { crearClienteServidor } from "@/lib/supabase/server";
 
 type Resultado = { ok: true } | { ok: false; error: string };
@@ -116,16 +116,6 @@ export async function pedirReconexion(cuentaId: string | null, fuente: "facebook
   const fila: { fuente: string; cuenta_id: string | null } = { fuente, cuenta_id: fuente === "mercadolibre" ? null : z.uuid().parse(cuentaId) };
   const { data, error } = await supabase.from("reconexiones").insert(fila).select("id").single();
   if (error) return { ok: false, error: error.message };
-  const token = await tokenGithub(supabase);
-  if (!token) {
-    await supabase.from("reconexiones").update({ estado: "error", error: "Falta conectar GitHub" }).eq("id", data.id);
-    return { ok: false, error: "Para abrir el navegador seguro, primero conecta GitHub (en Fuentes, sección «Correr desde la app»)." };
-  }
-  const motivo = await lanzarWorkflow(token, "facebook-reconectar.yml", { reconexion_id: data.id });
-  if (motivo) {
-    await supabase.from("reconexiones").update({ estado: "error", error: motivo }).eq("id", data.id);
-    return { ok: false, error: motivo };
-  }
   return { ok: true, id: data.id };
 }
 
@@ -218,18 +208,36 @@ export async function desconectarGithub() {
 
 const Corrible = z.enum([...FUENTES_CORRIBLES, "todas"]);
 
-/** Lanza ahora la pasada de una fuente (o de todas) en GitHub Actions. */
+/** Lanza ahora la pasada de una fuente (o de todas): las de la casa las toma el homelab, el resto GitHub Actions. */
 export async function correrAhora(fuente: FuenteCorrible | "todas"): Promise<Resultado> {
   const f = Corrible.parse(fuente);
   if (!(await esDueno())) return { ok: false, error: "Esta cuenta no tiene acceso a Radar." };
-  const token = await tokenGithub(await crearClienteServidor());
-  if (!token) return { ok: false, error: "Para correr desde aquí, primero conecta GitHub (más abajo, en «Correr desde la app»)." };
+  const supabase = await crearClienteServidor();
+  const enCasa = f === "todas" ? EN_CASA : EN_CASA.filter((x) => x === f);
+  if (enCasa.length) {
+    const { error } = await supabase.from("corridas_pedidas").insert(enCasa.map((x) => ({ fuente: x })));
+    if (error) return { ok: false, error: error.message };
+    if (f !== "todas") return { ok: true };
+  }
+  const token = await tokenGithub(supabase);
+  if (!token) return f === "todas" ? { ok: true } : { ok: false, error: "Para correr desde aquí, primero conecta GitHub (más abajo, en «Correr desde la app»)." };
   const motivos = (await Promise.all(pedidosPara(f).map(([w, inputs]) => lanzarWorkflow(token, w, inputs)))).filter(Boolean);
   return motivos.length ? { ok: false, error: motivos[0]! } : { ok: true };
 }
 
-/** Qué fuentes tienen una corrida en cola o en curso. */
+/** Qué fuentes tienen una corrida en cola o en curso (en GitHub Actions o pedida al homelab). */
 export async function leerCorridas(): Promise<Partial<Record<FuenteCorrible, EstadoCorrida>>> {
-  const token = await tokenGithub(await crearClienteServidor());
-  return token ? corridasActivas(token) : {};
+  const supabase = await crearClienteServidor();
+  const token = await tokenGithub(supabase);
+  const activas = token ? await corridasActivas(token) : {};
+  const { data: pedidas } = await supabase
+    .from("corridas_pedidas")
+    .select("fuente, estado")
+    .in("estado", ["pedida", "corriendo"])
+    .gt("pedida_en", new Date(Date.now() - 2 * 3_600_000).toISOString());
+  for (const p of pedidas ?? []) {
+    const f = p.fuente as FuenteCorrible;
+    if (activas[f] !== "corriendo") activas[f] = p.estado === "corriendo" ? "corriendo" : "en_cola";
+  }
+  return activas;
 }

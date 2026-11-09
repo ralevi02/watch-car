@@ -57,13 +57,13 @@ export default function Reconectar({ params }: { params: Promise<{ id: string }>
           <p className="pie-grupo">
             {ml
               ? "Se abre un navegador seguro en la nube. Inicia sesión con tu cuenta de MercadoLibre (y el código que te mande, si lo pide) y después toca «Ya inicié sesión». Solo se guarda la sesión, cifrada; nunca la clave."
-              : "Se abre un navegador seguro en la nube con la misma IP del buscador. Inicia sesión ahí (usuario, clave y la verificación si la pide) y después toca «Ya inicié sesión»."}
+              : "Se abre un navegador en el homelab, con la misma IP de la casa que usa el buscador. Para verlo, el teléfono tiene que tener Tailscale encendido. Inicia sesión ahí (usuario, clave y la verificación si la pide) y después toca «Ya inicié sesión»."}
           </p>
         </div>
 
         {(estado === "pedida" || estado === "abriendo") && (
           <Aviso>
-            <LoaderCircle className="size-5 shrink-0 animate-spin text-muted-foreground" /> Abriendo el navegador seguro. Tarda uno o dos minutos.
+            <LoaderCircle className="size-5 shrink-0 animate-spin text-muted-foreground" /> Abriendo el navegador en el homelab. Si está corriendo una pasada, espera a que termine.
           </Aviso>
         )}
 

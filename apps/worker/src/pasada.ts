@@ -3,11 +3,12 @@
  * activa que la incluya, recolecta avisos, los guarda en Supabase, los
  * normaliza con Gemini, junta duplicados, los evalúa contra la ficha, procesa
  * links compartidos y avisa por push lo nuevo que calza.
- * Corre en GitHub Actions con cron (chileautos.yml, facebook.yml) o a mano.
+ * Corre en GitHub Actions o en el homelab (casa.ts), con cron o a mano.
  *
  * Variables: FUENTE, SUPABASE_URL, SUPABASE_SECRET_KEY, GOOGLE_GENERATIVE_AI_API_KEY,
  * VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY, APP_URL, TIPO (corta | completa | prueba),
- * MAX_PAGINAS (5), DETALLES (5 por búsqueda), PROXY_URL.
+ * MAX_PAGINAS (5), DETALLES (5 por búsqueda), PROXY_URL, IP_RESIDENCIAL ("1" en el
+ * homelab: sale con la IP de la casa y no necesita proxy), MANUAL ("1" si la pidió la app).
  */
 import { appendFile } from "node:fs/promises";
 import { evaluar, leerTitulo, modeloCanonico, Seguimiento } from "@radar/core";
@@ -33,6 +34,7 @@ import { enviarPush, leerModoAvisos, type Notificacion } from "./push.js";
 
 const FUENTE = process.env.FUENTE || "chileautos";
 const NOMBRE: Record<string, string> = { chileautos: "Chileautos", facebook: "Facebook", kavak: "Kavak", yapo: "Yapo", mercadolibre: "MercadoLibre", brunofritsch: "Bruno Fritsch" };
+const IP_RESIDENCIAL = process.env.IP_RESIDENCIAL === "1";
 const TIPO = process.env.TIPO === "corta" || process.env.TIPO === "completa" ? process.env.TIPO : "prueba";
 const MAX_PAGINAS = Number(process.env.MAX_PAGINAS || 5);
 const DETALLES = Number(process.env.DETALLES || (FUENTE === "facebook" ? 25 : 5));
@@ -50,7 +52,7 @@ const mensaje = (e: unknown) => (e instanceof Error ? e.message.split("\n")[0] ?
  * corridas programadas no, para no llenar el registro.
  */
 async function registrarSiEsManual(db: ClienteDb, estado: "ok" | "error", motivo: string) {
-  if (process.env.GITHUB_EVENT_NAME !== "workflow_dispatch") return;
+  if (process.env.GITHUB_EVENT_NAME !== "workflow_dispatch" && process.env.MANUAL !== "1") return;
   const ahora = new Date().toISOString();
   const detalle = estado === "error" ? { run: RUN ?? null, errores: [motivo] } : { run: RUN ?? null, nota: motivo };
   await db.from("pasadas").insert({ fuente_id: FUENTE, tipo: TIPO, estado, inicio: ahora, fin: ahora, avisos_vistos: 0, avisos_nuevos: 0, detalle });
@@ -87,26 +89,28 @@ async function preparar(db: ClienteDb): Promise<Preparada | { noCorre: string }>
   if (FUENTE === "kavak" || FUENTE === "yapo" || FUENTE === "mercadolibre") {
     const { data: f } = await db.from("fuentes").select("activa").eq("id", FUENTE).single();
     if (!f?.activa) return { noCorre: `${NOMBRE[FUENTE]} está desactivado en Fuentes.` };
-    // Probado en septiembre 2026: Kavak (CloudFront) y Yapo (Cloudflare) bloquean las IPs de GitHub.
-    if (FUENTE !== "mercadolibre" && !process.env.PROXY_URL) return { noCorre: `${NOMBRE[FUENTE]} bloquea las IPs de GitHub: se necesita PROXY_URL.` };
+    // Kavak (CloudFront) y Yapo (Cloudflare) bloquean las IPs de GitHub; con la IP de la casa responden.
+    if (FUENTE !== "mercadolibre" && !process.env.PROXY_URL && !IP_RESIDENCIAL)
+      return { noCorre: `${NOMBRE[FUENTE]} bloquea las IPs de GitHub: corre desde el homelab o con PROXY_URL.` };
     const malProxy = FUENTE !== "mercadolibre" ? await revisarProxy(process.env.PROXY_URL) : null;
     if (malProxy) return { noCorre: malProxy };
     if (FUENTE === "kavak") return { recolectar: recolectarKavak };
     if (FUENTE === "yapo") return { recolectar: recolectarYapo };
-    // Primero la API (liviana); desde 2025 no deja buscar, y entonces se usa el sitio con la sesión del dueño.
+    // La API ya no deja buscar (403 desde 2025). El sitio muestra la lista sin cuenta a IPs de hogar;
+    // a las de servidores (GitHub) les pide cuenta, y ahí sirve la sesión guardada si hay.
     const token = await tokenVigente(db).catch(() => null);
     if (token && !(await busquedaCerrada(token))) return { recolectar: crearRecolectorML(db) };
-    // El sitio va sin proxy: el proxy se paga por GB y las páginas de MercadoLibre pesan varios MB.
     delete process.env.PROXY_URL;
-    if (!(await haySesionML(db)))
-      return { recolectar: recolectarMLWeb, sinBusqueda: "MercadoLibre cerró la búsqueda de su API y el sitio pide cuenta: inicia sesión en MercadoLibre desde Fuentes. Mientras, solo se leen los links que compartes." };
+    const conSesion = await haySesionML(db);
+    if (!conSesion && !IP_RESIDENCIAL)
+      return { recolectar: recolectarMLWeb, sinBusqueda: "MercadoLibre pide cuenta a las IPs de servidores: corre desde el homelab. Mientras, solo se leen los links que compartes." };
     return {
       recolectar: recolectarMLWeb,
-      alAbrir: async (s) => ((await cargarSesionML(db, s.context)) ? null : "No se pudo cargar la sesión de MercadoLibre."),
+      alAbrir: async (s) => (!conSesion || (await cargarSesionML(db, s.context)) ? null : "No se pudo cargar la sesión de MercadoLibre."),
       alTerminar: async (resultados) => {
         const muro = resultados.find((r) => r.bloqueo)?.bloqueo;
         return muro
-          ? [{ titulo: "Vuelve a iniciar sesión en MercadoLibre", cuerpo: `${muro}. Ábrelo en Fuentes para iniciar sesión otra vez.`, url: APP_URL ? `${APP_URL}/fuentes` : undefined, etiqueta: "sesion-mercadolibre", tipo: "sistema" }]
+          ? [{ titulo: "MercadoLibre pidió cuenta", cuerpo: `${muro}. Puede que haya marcado la IP de la casa.`, url: APP_URL ? `${APP_URL}/fuentes` : undefined, etiqueta: "sesion-mercadolibre", tipo: "sistema" }]
           : [];
       },
     };
@@ -115,7 +119,7 @@ async function preparar(db: ClienteDb): Promise<Preparada | { noCorre: string }>
 
   const { activa, config } = await leerConfig(db);
   if (!activa) return { noCorre: "Facebook está desactivado en Fuentes." };
-  if (!process.env.PROXY_URL && process.env.FB_SIN_PROXY !== "1") return { noCorre: "Falta PROXY_URL: Facebook no se corre sin la IP fija." };
+  if (!process.env.PROXY_URL && !IP_RESIDENCIAL) return { noCorre: "Facebook no se corre desde GitHub: corre desde el homelab (IP de la casa)." };
   // Con el proxy caído no se sale por otra IP: la cuenta tiene que ver siempre la misma.
   const malProxy = await revisarProxy(process.env.PROXY_URL);
   if (malProxy) return { noCorre: `${malProxy} Facebook no se corre sin la IP fija.` };

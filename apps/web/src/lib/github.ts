@@ -8,6 +8,9 @@ export const FUENTES_CORRIBLES = ["chileautos", "facebook", "kavak", "yapo", "me
 export type FuenteCorrible = (typeof FUENTES_CORRIBLES)[number];
 export type EstadoCorrida = "pedida" | "en_cola" | "corriendo";
 
+/** Las corre el worker del homelab (necesitan la IP de la casa); la app las pide por corridas_pedidas. */
+export const EN_CASA: readonly FuenteCorrible[] = ["facebook", "kavak", "yapo", "mercadolibre"];
+
 const WORKFLOW: Record<FuenteCorrible, string> = {
   chileautos: "chileautos.yml",
   facebook: "facebook.yml",
@@ -23,8 +26,7 @@ export function pedidosPara(fuente: FuenteCorrible | "todas"): [string, Record<s
   if (fuente === "todas")
     return [
       ["chileautos.yml", {}],
-      ["facebook.yml", {}],
-      ["otros-portales.yml", { fuente: "todas" }],
+      ["otros-portales.yml", { fuente: "brunofritsch" }],
       ["remates.yml", {}],
     ];
   const w = WORKFLOW[fuente];

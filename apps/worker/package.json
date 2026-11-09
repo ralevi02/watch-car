@@ -8,6 +8,7 @@
     "test": "tsx --test \"src/**/*.test.ts\"",
     "typecheck": "tsc -p tsconfig.json",
     "pasada": "tsx src/pasada.ts",
+    "casa": "tsx src/casa.ts",
     "normalizar:prueba": "tsx src/normalizar-prueba.ts",
     "reconectar": "tsx src/reconectar.ts",
     "prueba": "tsx src/prueba-lector.ts",

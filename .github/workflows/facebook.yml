@@ -1,10 +1,9 @@
 name: Facebook · pasadas
 
+# Desde noviembre 2026 Facebook corre en el homelab (IP de la casa, apps/worker/src/casa.ts).
+# Este workflow queda solo para emergencias: sale con la IP de GitHub.
+
 on:
-  schedule:
-    # 1 pasada al día, a las 20:00 de Chile en horario de verano (cuando más se publica).
-    # El proxy se paga por GB: con 2 búsquedas y 3 detalles por ficha son unos 50 MB por pasada.
-    - cron: "0 23 * * *"
   workflow_dispatch:
     inputs:
       max_busquedas:
@@ -62,8 +61,6 @@ jobs:
           VAPID_PRIVATE_KEY: ${{ secrets.VAPID_PRIVATE_KEY }}
           APP_URL: ${{ vars.APP_URL }}
           PROXY_URL: ${{ secrets.PROXY_URL }}
-          # Sin proxy se corre igual (decisión de Raimundo: probar primero así, con más riesgo para la cuenta).
-          FB_SIN_PROXY: ${{ secrets.PROXY_URL == '' && '1' || '0' }}
           TIPO: ${{ github.event_name == 'schedule' && 'corta' || 'prueba' }}
           MAX_PAGINAS: ${{ inputs.max_busquedas || '2' }}
           DETALLES: ${{ inputs.detalles || '3' }}

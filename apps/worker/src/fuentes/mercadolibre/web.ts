@@ -5,9 +5,9 @@ import type { AvisoPortal, OpcionesRecoleccion, ResultadoRecoleccion } from "../
 import { pideCuenta } from "./sesion.js";
 
 /**
- * MercadoLibre por el sitio (autos.mercadolibre.cl), con la sesión del dueño:
- * desde 2025 la API ya no deja buscar y el sitio pide cuenta incluso para ver la
- * lista. 48 avisos por página; la página N es /_Desde_<48·(N-1)+1>.
+ * MercadoLibre por el sitio (autos.mercadolibre.cl): desde 2025 la API ya no deja
+ * buscar. Con IP de hogar la lista se ve sin cuenta; a IPs de servidores les pide
+ * iniciar sesión. 48 avisos por página; la página N es /_Desde_<48·(N-1)+1>.
  */
 const POR_PAGINA = 48;
 const slug = (s: string) =>
@@ -101,7 +101,7 @@ export async function recolectarMLWeb(s: Sesion, ficha: Seguimiento, op: Opcione
       return avisos;
     },
   });
-  if (visto.sinSesion) r.bloqueo = "La sesión de MercadoLibre venció o pide verificar la cuenta";
+  if (visto.sinSesion) r.bloqueo = "MercadoLibre mandó a iniciar sesión";
   else if (!r.avisos.length && visto.vacia) r.diagnostico = { ...visto.vacia, descartadas: [] };
   return r;
 }
