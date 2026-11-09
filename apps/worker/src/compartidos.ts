@@ -6,7 +6,7 @@ import { leerItem } from "./fuentes/mercadolibre/lector.js";
 import { tokenVigente } from "./fuentes/mercadolibre/recolector.js";
 import type { AvisoPortal, DetallePortal, ResultadoRecoleccion } from "./fuentes/tipos.js";
 import { deduplicar, evaluarAvisos, guardarPasada, normalizarPendientes } from "./guardar.js";
-import { hashearFotos } from "./fotos.js";
+import { copiarFotos, hashearFotos } from "./fotos.js";
 import { pausa, type Sesion } from "./lib/navegador.js";
 
 const entero = (s?: string) => (s ? Number(s.replace(/\D/g, "")) || undefined : undefined);
@@ -100,6 +100,7 @@ export async function procesarCompartidos(
       const g = await guardarPasada(db, fuente, busquedas[0]!.id, ficha, r, pasadaId);
       // Hash de la foto: sirve para juntarlo con el mismo auto publicado en otro portal.
       await hashearFotos(db, g.nuevosIds);
+      await copiarFotos(db, fuente, [aviso.id]);
       await normalizarPendientes(db, fuente, [aviso.id]);
       await deduplicar(db, g.nuevosIds); // (las alertas de reaparecidos van en las pasadas)
       for (const b of busquedas) await evaluarAvisos(db, fuente, b.id, b.ficha, [aviso.id], []);

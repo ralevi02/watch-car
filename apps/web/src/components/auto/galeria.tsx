@@ -4,6 +4,7 @@ import { Car, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { fotoGrande } from "@/lib/fotos";
+import { FotoAuto } from "@/components/ui/foto-auto";
 
 /**
  * Todas las fotos del aviso: se deslizan de lado y, al tocar una, se abre a
@@ -35,7 +36,7 @@ export function Galeria({ principal, fotos, alt }: { principal: string | null; f
           <button key={f} type="button" onClick={() => setCompleta(n)} className="relative size-full shrink-0 snap-center" aria-label={`Ver foto ${n + 1} en grande`}>
             {/* La chica de la lista queda debajo mientras llega la grande. */}
             {n === 0 && principal && <img src={principal} alt="" className="absolute inset-0 size-full object-cover" />}
-            <img src={fotoGrande(f) ?? f} alt={n === 0 ? alt : ""} loading={n < 2 ? "eager" : "lazy"} decoding="async" className="relative size-full object-cover" />
+            <FotoAuto src={fotoGrande(f) ?? f} alt={n === 0 ? alt : ""} icono="size-12" loading={n < 2 ? "eager" : "lazy"} decoding="async" className="relative size-full object-cover" />
           </button>
         ))}
       </div>
@@ -76,7 +77,7 @@ function Visor({ fotos, inicio, onCerrar }: { fotos: string[]; inicio: number; o
       >
         {fotos.map((f) => (
           <div key={f} className="flex size-full shrink-0 snap-center items-center justify-center">
-            <img src={fotoGrande(f, 1600) ?? f} alt="" className="max-h-full max-w-full object-contain" />
+            <FotoAuto src={fotoGrande(f, 1600) ?? f} icono="size-14" className="max-h-full max-w-full object-contain" />
           </div>
         ))}
       </div>

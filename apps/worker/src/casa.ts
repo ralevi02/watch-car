@@ -1,8 +1,7 @@
 /**
- * Worker del homelab: corre las fuentes que necesitan la IP de la casa (Facebook,
- * Kavak, Yapo, MercadoLibre) con sus horarios en hora de Chile, toma lo que la app
- * pide a mano para cualquier fuente (corridas_pedidas) y las reconexiones, y deja
- * un latido en Supabase para que
+ * Worker del homelab: corre todas las fuentes, los remates y las fotos con IA con
+ * sus horarios en hora de Chile y la IP de la casa, toma lo que la app pide a mano
+ * (corridas_pedidas) y las reconexiones, y deja un latido en Supabase para que
  * resumen.yml avise si el homelab se cae. Una tarea a la vez: comparten el Chrome
  * de la pantalla virtual :99.
  *
@@ -15,9 +14,14 @@ import { clienteServicio } from "@radar/db";
 
 const db = clienteServicio();
 const PEDIBLES = ["chileautos", "facebook", "kavak", "yapo", "mercadolibre", "brunofritsch", "remates"] as const;
-type Fuente = (typeof PEDIBLES)[number];
+type Fuente = (typeof PEDIBLES)[number] | "fotos-ia";
+const SCRIPT: Partial<Record<Fuente, string>> = { remates: "remates", "fotos-ia": "fotos-ia" };
 
 const PROGRAMA: { fuente: Fuente; horas: string[]; env?: Record<string, string> }[] = [
+  { fuente: "chileautos", horas: ["08:23", "11:23", "14:23", "17:23", "20:23", "23:23"], env: { MAX_PAGINAS: "5", DETALLES: "5" } },
+  { fuente: "remates", horas: ["10:30"] },
+  { fuente: "fotos-ia", horas: ["12:00"], env: { FOTOS_IA_MAX: "10" } },
+  { fuente: "brunofritsch", horas: ["12:05", "19:35"] },
   { fuente: "kavak", horas: ["12:10", "19:40"] },
   { fuente: "yapo", horas: ["12:15", "19:45"] },
   { fuente: "mercadolibre", horas: ["12:20", "19:50"] },
@@ -106,7 +110,7 @@ async function avisarKuma(fuente: string, ok: boolean, msg: string) {
 async function ejecutar(t: Tarea) {
   if (t.tipo === "pasada") {
     console.log(`Corriendo ${t.fuente}${t.pedidoId ? " (pedida desde la app)" : ""}`);
-    const codigo = await correr("pnpm", [t.fuente === "remates" ? "remates" : "pasada"], { FUENTE: t.fuente, ...t.env }, 50 * 60_000);
+    const codigo = await correr("pnpm", [SCRIPT[t.fuente] ?? "pasada"], { FUENTE: t.fuente, ...t.env }, 50 * 60_000);
     const ok = codigo === 0;
     if (t.pedidoId)
       await db

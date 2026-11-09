@@ -1,6 +1,6 @@
 "use client";
 
-import { Car, X } from "lucide-react";
+import { X } from "lucide-react";
 import { useEffect } from "react";
 import { lecturaPrecio } from "@/components/auto/precio-justo";
 import { Hoja } from "@/components/ui/hoja";
@@ -11,6 +11,7 @@ import { distanciaDeCasa } from "@/lib/lugares";
 import { caja, lugar, miles, millones, tituloAuto } from "@/lib/presentar";
 import { cn } from "@/lib/utils";
 import { checklist } from "@/lib/visita";
+import { FotoAuto } from "@/components/ui/foto-auto";
 
 type Fila = { etiqueta: string; valor: (r: ResultadoAuto) => string; numero?: (r: ResultadoAuto) => number | null; mejor?: "menor" | "mayor" };
 
@@ -80,7 +81,7 @@ export function CompararHoja({ abierta, onCerrar, abrir }: { abierta: boolean; o
                   <th key={r.autoId} className="px-1.5 pb-3 text-left align-top font-normal">
                     <div className="relative">
                       <button type="button" onClick={() => abrir(r.autoId)} className="block w-full overflow-hidden rounded-xl bg-card" aria-label={`Abrir ${tituloAuto(r)}`}>
-                        {r.foto ? <img src={r.foto} alt="" className="aspect-[4/3] w-full object-cover" /> : <div className="flex aspect-[4/3] items-center justify-center text-tenue"><Car className="size-7" /></div>}
+                        <span className="block aspect-[4/3]"><FotoAuto src={r.foto} icono="size-7" className="size-full object-cover" /></span>
                       </button>
                       <button type="button" onClick={() => alternar(r.autoId)} aria-label="Quitar de la comparación" className="absolute right-1 top-1 flex size-7 items-center justify-center rounded-full bg-black/45 text-white">
                         <X className="size-4" strokeWidth={2.2} />

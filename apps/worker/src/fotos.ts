@@ -1,5 +1,11 @@
+import { createHash } from "node:crypto";
 import sharp from "sharp";
 import type { ClienteDb } from "@radar/db";
+
+const BUCKET = "fotos";
+const CADUCA = /fbcdn\.net/;
+
+export const esCopiaPropia = (url: string | null | undefined) => Boolean(url?.includes(`/storage/v1/object/public/${BUCKET}/`));
 
 /**
  * dHash de 64 bits: la foto se achica a 9×8 en grises y cada bit dice si un
@@ -32,4 +38,54 @@ export async function hashearFotos(db: ClienteDb, avisoIds: string[]): Promise<n
     }
   }
   return hechos;
+}
+
+async function bajar(url: string): Promise<Buffer | null> {
+  try {
+    const r = await fetch(url, { headers: { Accept: "image/jpeg,image/webp,image/*" }, signal: AbortSignal.timeout(15_000) });
+    return r.ok ? Buffer.from(await r.arrayBuffer()) : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Los links de las fotos de Facebook vencen a las pocas semanas: se guarda una
+ * copia en el bucket público "fotos" (webp de 960 px) y el aviso apunta a ella.
+ */
+export async function copiarFotos(db: ClienteDb, fuente: string, externos: string[]): Promise<number> {
+  if (!externos.length) return 0;
+  const { data } = await db.from("avisos").select("id, foto_url, fotos, foto_hash").eq("fuente_id", fuente).in("id_externo", externos);
+  let copiadas = 0;
+  for (const a of data ?? []) {
+    const originales = [...new Set([a.foto_url, ...(a.fotos ?? [])].filter((u): u is string => Boolean(u && CADUCA.test(u))))].slice(0, 10);
+    if (!originales.length) continue;
+    const nuevas = new Map<string, string>();
+    let hash = a.foto_hash;
+    for (const url of originales) {
+      const imagen = await bajar(url);
+      if (!imagen) continue;
+      try {
+        const webp = await sharp(imagen).rotate().resize({ width: 960, withoutEnlargement: true }).webp({ quality: 72 }).toBuffer();
+        const ruta = `${a.id}/${createHash("sha1").update(url.split("?")[0]!).digest("hex").slice(0, 16)}.webp`;
+        const { error } = await db.storage.from(BUCKET).upload(ruta, webp, { contentType: "image/webp", upsert: true });
+        if (error) continue;
+        nuevas.set(url, db.storage.from(BUCKET).getPublicUrl(ruta).data.publicUrl);
+        if (url === a.foto_url && !hash) hash = await dHash(imagen);
+        copiadas++;
+      } catch {
+        /* formato raro: queda el link original */
+      }
+    }
+    if (!nuevas.size) continue;
+    await db
+      .from("avisos")
+      .update({
+        foto_url: (a.foto_url && nuevas.get(a.foto_url)) ?? a.foto_url,
+        ...(a.fotos?.length ? { fotos: a.fotos.map((u) => nuevas.get(u) ?? u) } : {}),
+        ...(hash ? { foto_hash: hash } : {}),
+      })
+      .eq("id", a.id);
+  }
+  return copiadas;
 }

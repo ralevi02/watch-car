@@ -2,9 +2,8 @@ name: Fotos con IA
 # Una vez al día: la IA mira las fotos de los avisos que están en Resultados
 # (¿es Cross Country?, km del tablero, patente, daños). Pocos por corrida por la cuota gratis de Gemini.
 
+# Desde noviembre 2026 corre en el homelab (apps/worker/src/casa.ts); aquí queda solo para correr a mano.
 on:
-  schedule:
-    - cron: "0 15 * * *"
   workflow_dispatch:
     inputs:
       max:

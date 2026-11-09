@@ -1,6 +1,6 @@
 "use client";
 
-import { Car, ChevronRight, Copy } from "lucide-react";
+import { ChevronRight, Copy } from "lucide-react";
 import { useState } from "react";
 import { guardarAjuste } from "@/app/(app)/acciones-auto";
 import { Hoja } from "@/components/ui/hoja";
@@ -8,6 +8,7 @@ import { useAlmacen } from "@/lib/almacen";
 import { mantenciones, mesRevision, NOMBRE_MES, textoParaVender } from "@/lib/mi-auto";
 import { miles, millones, tituloAuto } from "@/lib/presentar";
 import { cn } from "@/lib/utils";
+import { FotoAuto } from "@/components/ui/foto-auto";
 
 /**
  * Mi auto: aparece cuando marcas un auto como "Comprado". Qué mantención toca,
@@ -43,7 +44,7 @@ export function MiAuto() {
   return (
     <>
       <button type="button" onClick={() => setAbierta(true)} className="presionable flex w-full items-center gap-3 rounded-[16px] bg-card p-3 text-left">
-        <span className="size-14 shrink-0 overflow-hidden rounded-xl bg-secondary">{r.foto ? <img src={r.foto} alt="" className="size-full object-cover" /> : <Car className="m-auto mt-4 size-6 text-tenue" />}</span>
+        <span className="size-14 shrink-0 overflow-hidden rounded-xl bg-secondary"><FotoAuto src={r.foto} icono="size-6" className="size-full object-cover" /></span>
         <span className="min-w-0 flex-grow">
           <span className="block text-[13px] text-tenue">Mi auto</span>
           <span className="block truncate text-[16px] font-semibold">{[r.marcaAuto, tituloAuto(r), r.anio].filter(Boolean).join(" ")}</span>

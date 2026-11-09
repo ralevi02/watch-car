@@ -1,9 +1,10 @@
-import { Car, Star } from "lucide-react";
+import { Star } from "lucide-react";
 import Link from "next/link";
 import { type Abrir, alTocar, Etiquetas } from "@/components/tarjetas";
 import type { ResultadoAuto } from "@/lib/datos";
 import { lineaAuto, pesos, tituloAuto } from "@/lib/presentar";
 import { cn } from "@/lib/utils";
+import { FotoAuto } from "@/components/ui/foto-auto";
 
 /** Un auto en la lista: foto chica, precio, lo básico y qué revisar. */
 export function FilaResultado({ r, destacado, abrir }: { r: ResultadoAuto; destacado?: boolean; abrir?: Abrir }) {
@@ -17,13 +18,7 @@ export function FilaResultado({ r, destacado, abrir }: { r: ResultadoAuto; desta
       className={cn("presionable flex gap-3.5 py-3", descartado && "opacity-55", destacado && "rounded-xl bg-card px-2")}
     >
       <div className="h-[88px] w-[116px] shrink-0 overflow-hidden rounded-xl bg-card">
-        {r.foto ? (
-          <img src={r.foto} alt="" loading="lazy" decoding="async" className="size-full object-cover" />
-        ) : (
-          <div className="flex size-full items-center justify-center text-tenue">
-            <Car className="size-8" strokeWidth={1.4} />
-          </div>
-        )}
+        <FotoAuto src={r.foto} icono="size-8" loading="lazy" decoding="async" className="size-full object-cover" />
       </div>
       <div className="flex min-w-0 flex-grow flex-col">
         <div className="flex items-baseline justify-between gap-2">

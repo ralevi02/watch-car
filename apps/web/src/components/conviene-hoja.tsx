@@ -1,10 +1,11 @@
 "use client";
 
-import { Car, LoaderCircle } from "lucide-react";
+import { LoaderCircle } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Hoja } from "@/components/ui/hoja";
 import type { ResultadoAuto } from "@/lib/datos";
 import { millones, tituloAuto } from "@/lib/presentar";
+import { FotoAuto } from "@/components/ui/foto-auto";
 
 /** ¿Cuál me conviene? Los guardados en el orden que sugiere la IA, con el porqué. */
 export function ConvieneHoja({ abierta, onCerrar, autos, abrir }: { abierta: boolean; onCerrar: () => void; autos: ResultadoAuto[]; abrir: (id: string) => void }) {
@@ -45,7 +46,7 @@ export function ConvieneHoja({ abierta, onCerrar, autos, abrir }: { abierta: boo
                   <button type="button" onClick={() => abrir(r.autoId)} className="presionable flex w-full gap-3 text-left">
                     <span className="mt-1 w-5 shrink-0 text-[15px] font-bold tabular-nums text-tenue">{i + 1}</span>
                     <span className="size-16 shrink-0 overflow-hidden rounded-xl bg-card">
-                      {r.foto ? <img src={r.foto} alt="" className="size-full object-cover" /> : <Car className="m-auto mt-5 size-6 text-tenue" />}
+                      <FotoAuto src={r.foto} icono="size-6" className="size-full object-cover" />
                     </span>
                     <span className="min-w-0">
                       <span className="block truncate text-[15px] font-semibold">

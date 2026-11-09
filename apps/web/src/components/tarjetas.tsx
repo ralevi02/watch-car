@@ -1,6 +1,6 @@
 "use client";
 
-import { Car, Star } from "lucide-react";
+import { Star } from "lucide-react";
 import Link from "next/link";
 import { marcarAuto } from "@/app/(app)/acciones";
 import { useAlmacen } from "@/lib/almacen";
@@ -11,6 +11,7 @@ import { lecturaPrecio } from "@/components/auto/precio-justo";
 import { useLejos } from "@/lib/regiones";
 import { nuevoParaTi } from "@/lib/visto";
 import { cn } from "@/lib/utils";
+import { FotoAuto } from "@/components/ui/foto-auto";
 
 export type Vista = "riel" | "vitrina" | "mosaico" | "lista" | "mapa";
 export const VISTAS: Vista[] = ["riel", "vitrina", "mosaico", "lista", "mapa"];
@@ -31,13 +32,7 @@ function Foto({ r, ancho, className }: { r: ResultadoAuto; ancho?: number; class
   const src = ancho ? fotoGrande(r.foto, ancho) : r.foto;
   return (
     <div className={cn("relative overflow-hidden bg-card", className)}>
-      {src ? (
-        <img src={src} alt="" loading="lazy" decoding="async" draggable={false} className="size-full object-cover" />
-      ) : (
-        <div className="flex size-full items-center justify-center text-tenue">
-          <Car className="size-9" strokeWidth={1.3} />
-        </div>
-      )}
+      <FotoAuto src={src} loading="lazy" decoding="async" draggable={false} className="size-full object-cover" />
     </div>
   );
 }

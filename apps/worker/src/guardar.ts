@@ -1,3 +1,4 @@
+import { esCopiaPropia } from "./fotos.js";
 import { createHash } from "node:crypto";
 import { avisoDesdeFila, casiCalza, contactosEnTexto, cuentaNueva, puedeSerCrossCountry, senalesEnTexto, normalizarTelefono, type Contacto, dudaDeModelo, esMismoAuto, evaluar, leerTitulo, mismaFoto, modeloCanonico, TIPOS_AVISO, type Seguimiento } from "@radar/core";
 import type { ClienteDb, Json, TablesInsert } from "@radar/db";
@@ -115,7 +116,7 @@ export async function guardarPasada(
 
   // 2. Avisos nuevos (cada uno con su auto; la deduplicación los junta después) y existentes.
   const existentes = ids.length
-    ? await leer(db.from("avisos").select("id, id_externo, precio").eq("fuente_id", FUENTE).in("id_externo", ids), "leer avisos")
+    ? await leer(db.from("avisos").select("id, id_externo, precio, foto_url").eq("fuente_id", FUENTE).in("id_externo", ids), "leer avisos")
     : [];
   const porExterno = new Map(existentes.map((e) => [e.id_externo, e]));
   const ahora = new Date().toISOString();
@@ -145,7 +146,7 @@ export async function guardarPasada(
             precio_inicial: a.precio ?? null,
           })),
         )
-        .select("id, id_externo, precio"),
+        .select("id, id_externo, precio, foto_url"),
       "crear avisos",
     );
     const conPrecio = insertados.filter((x) => x.precio !== null);
@@ -162,8 +163,8 @@ export async function guardarPasada(
     await escribir(
       db
         .from("avisos")
-        // La foto se renueva: los links de Facebook vencen a los días.
-        .update({ url: a.url, titulo: a.titulo, precio: a.precio ?? null, km: a.km ?? null, ultima_vez: ahora, estado: "activo", veces_no_visto: 0, ...(a.foto ? { foto_url: a.foto } : {}) })
+        // La foto se renueva (los links de Facebook vencen), salvo que ya haya una copia propia.
+        .update({ url: a.url, titulo: a.titulo, precio: a.precio ?? null, km: a.km ?? null, ultima_vez: ahora, estado: "activo", veces_no_visto: 0, ...(a.foto && !esCopiaPropia(e.foto_url) ? { foto_url: a.foto } : {}) })
         .eq("id", e.id),
       "actualizar aviso",
     );

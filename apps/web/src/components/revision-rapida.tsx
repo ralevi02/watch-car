@@ -1,6 +1,6 @@
 "use client";
 
-import { Car, Star, X } from "lucide-react";
+import { Star, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { ResultadoAuto } from "@/lib/datos";
@@ -8,6 +8,7 @@ import { fotoGrande } from "@/lib/fotos";
 import { useMarcar } from "@/lib/marcar";
 import { bajo, etiquetas, lineaAuto, lugar, miles, pesos, tituloAuto } from "@/lib/presentar";
 import { cn } from "@/lib/utils";
+import { FotoAuto } from "@/components/ui/foto-auto";
 
 const SALIDA = "cubic-bezier(0.23, 1, 0.32, 1)";
 
@@ -166,13 +167,7 @@ function Tarjeta({ r }: { r: ResultadoAuto }) {
   return (
     <div className="overflow-hidden rounded-[22px] bg-card shadow-[0_12px_40px_rgba(0,0,0,0.12)]">
       <div className="aspect-[4/3] bg-secondary">
-        {foto ? (
-          <img src={foto} alt="" draggable={false} className="size-full object-cover" />
-        ) : (
-          <div className="flex size-full items-center justify-center text-tenue">
-            <Car className="size-12" strokeWidth={1.2} />
-          </div>
-        )}
+        <FotoAuto src={foto} icono="size-12" draggable={false} className="size-full object-cover" />
       </div>
       <div className="px-4 pb-4 pt-3">
         <div className="flex items-baseline justify-between gap-2">

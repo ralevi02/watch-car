@@ -28,12 +28,12 @@ const ESTADO: Record<string, { texto: string; clase: string }> = {
 };
 
 const HORARIO: Record<string, string> = {
-  chileautos: "cada 3 horas de 8:00 a 23:00",
+  chileautos: "desde la casa, cada 3 horas de 8:23 a 23:23",
   kavak: "desde la casa, 12:10 y 19:40",
   yapo: "desde la casa, 12:15 y 19:45",
   mercadolibre: "desde la casa, 12:20 y 19:50",
-  brunofritsch: "2 veces al día, Volvo usados de la automotora",
-  remates: "1 vez al día: Karcal y Zárate, cruzados con tus avisos",
+  brunofritsch: "desde la casa, 12:05 y 19:35",
+  remates: "desde la casa, 10:30: Karcal y Zárate, cruzados con tus avisos",
 };
 
 /** Por qué falló la última pasada, en corto. */

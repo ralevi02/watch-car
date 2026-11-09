@@ -23,7 +23,7 @@ import { busquedaCerrada, crearRecolectorML, tokenVigente } from "./fuentes/merc
 import { cargarSesionML, haySesionML } from "./fuentes/mercadolibre/sesion.js";
 import { recolectarMLWeb } from "./fuentes/mercadolibre/web.js";
 import { recolectarYapo } from "./fuentes/yapo/recolector.js";
-import { hashearFotos } from "./fotos.js";
+import { copiarFotos, hashearFotos } from "./fotos.js";
 import type { Recolector, ResultadoRecoleccion } from "./fuentes/tipos.js";
 import { aNormalizado, datosDeLista, deduplicar, evaluarAvisos, guardarPasada, normalizarPendientes, type ResumenEvaluacion, type ResumenGuardado } from "./guardar.js";
 import { abrirNavegador, pausa, type Sesion } from "./lib/navegador.js";
@@ -241,6 +241,7 @@ async function main() {
           const ids = r.avisos.map((a) => a.id);
           g = await guardarPasada(db, FUENTE, b.id, b.ficha, r, pasada.id);
           await hashearFotos(db, g.nuevosIds);
+          await copiarFotos(db, FUENTE, ids);
           const n = await normalizarPendientes(db, FUENTE, ids);
           normalizados = n.normalizados;
           if (n.error) avisosPasada.push(n.error);

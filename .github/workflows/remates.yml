@@ -1,9 +1,8 @@
 name: Remates · cruce
 # Una vez al día: lotes de Karcal y Zárate de las marcas de las fichas, cruzados con los avisos.
 
+# Desde noviembre 2026 corre en el homelab (apps/worker/src/casa.ts); aquí queda solo para correr a mano.
 on:
-  schedule:
-    - cron: "30 13 * * *"
   workflow_dispatch:
 
 permissions:
