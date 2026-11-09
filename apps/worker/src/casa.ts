@@ -112,7 +112,8 @@ async function avisarKuma(fuente: string, ok: boolean, msg: string) {
 async function ejecutar(t: Tarea) {
   if (t.tipo === "pasada") {
     console.log(`Corriendo ${t.fuente}${t.pedidoId ? " (pedida desde la app)" : ""}`);
-    const codigo = await correr("pnpm", [SCRIPT[t.fuente] ?? "pasada"], { FUENTE: t.fuente, ...t.env }, 50 * 60_000);
+    const limite = t.env?.FB_BARRIDO === "completo" ? 180 * 60_000 : 50 * 60_000;
+    const codigo = await correr("pnpm", [SCRIPT[t.fuente] ?? "pasada"], { FUENTE: t.fuente, ...t.env }, limite);
     const ok = codigo === 0;
     if (t.pedidoId)
       await db

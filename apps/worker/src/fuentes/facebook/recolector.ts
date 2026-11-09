@@ -73,18 +73,23 @@ export async function recolectarFacebook(s: Sesion, ficha: Seguimiento, op: Opci
   const t0 = Date.now();
   const r: ResultadoRecoleccion = { url: "", paginasLeidas: 0, paginasTotales: 0, avisos: [], detalles: {}, descartadas: [], bloqueo: null, errores: [], capturas: [], kb: 0, ms: 0 };
   const vistos = new Map<string, AvisoPortal>();
-  const page = await s.context.newPage();
   const maxBusquedas = op.maxPaginas ?? 5;
   // Respuestas internas de Facebook (GraphQL), para el diagnóstico si no aparece nada.
   const red: string[] = [];
   let muestraBusqueda: string | undefined;
-  page.on("response", async (res) => {
-    if (!res.url().includes("/api/graphql") || red.length >= 25) return;
-    const nombre = res.request().headers()["x-fb-friendly-name"] ?? "?";
-    const cuerpo = await res.text().catch(() => "");
-    if (/search/i.test(nombre) && !muestraBusqueda) muestraBusqueda = `${nombre}: ${cuerpo.slice(0, 3000)}`;
-    red.push(`${nombre} ${res.status()} ${Math.round(cuerpo.length / 1024)}KB${/"errors"\s*:/.test(cuerpo) ? " con errores" : ""}${/marketplace_search|listing/i.test(cuerpo) ? " con avisos" : ""}`);
-  });
+  // Una pestaña nueva por búsqueda: la misma pestaña de Marketplace se pone cada vez más lenta.
+  const abrirPestana = async () => {
+    const p = await s.context.newPage();
+    p.on("response", async (res) => {
+      if (!res.url().includes("/api/graphql") || red.length >= 25) return;
+      const nombre = res.request().headers()["x-fb-friendly-name"] ?? "?";
+      const cuerpo = await res.text().catch(() => "");
+      if (/search/i.test(nombre) && !muestraBusqueda) muestraBusqueda = `${nombre}: ${cuerpo.slice(0, 3000)}`;
+      red.push(`${nombre} ${res.status()} ${Math.round(cuerpo.length / 1024)}KB${/"errors"\s*:/.test(cuerpo) ? " con errores" : ""}${/marketplace_search|listing/i.test(cuerpo) ? " con avisos" : ""}`);
+    });
+    return p;
+  };
+  let page = await abrirPestana();
 
   try {
     const plan = planBusquedas(ficha, process.env.FB_BARRIDO === "completo").slice(0, maxBusquedas);
@@ -96,7 +101,11 @@ export async function recolectarFacebook(s: Sesion, ficha: Seguimiento, op: Opci
       let grilla = yaBuscadas.get(url);
       let vehiculos: { url: string; enlaces: number } | undefined;
       if (!grilla) {
-        if (cargadas > 0) await pausa(5000, 11000);
+        if (cargadas > 0) {
+          await pausa(5000, 11000);
+          await page.close();
+          page = await abrirPestana();
+        }
         cargadas++;
         const t = Date.now();
         await page.goto(url, { waitUntil: "domcontentloaded", timeout: 45_000 });
