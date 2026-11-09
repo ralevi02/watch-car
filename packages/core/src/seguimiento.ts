@@ -62,6 +62,7 @@ export type Veredicto =
 export interface AvisoNormalizado {
   /** Qué vende el aviso; lo que no es un auto queda fuera. */
   tipo?: "auto" | "repuesto" | "accesorio" | "otro";
+  marca?: string;
   /** Modelo según la normalización, ej. "V40" o "V40 Cross Country". */
   modelo?: string;
   /** Campos que la normalización marcó como dudosos. */
@@ -76,12 +77,16 @@ export interface AvisoNormalizado {
   region?: string;
 }
 
+const compactar = (x: string) => x.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f\s-]+/g, "");
+const mismaMarca = (a: string, b: string) => compactar(a).includes(compactar(b)) || compactar(b).includes(compactar(a));
+
 const fmt = (n: number) => n.toLocaleString("es-CL");
 
 /** Una fila de la tabla avisos, lista para evaluar. Lo que dijo la IA manda; si no hay tipo, el filtro por palabras del título. */
 export function avisoDesdeFila(x: {
   titulo?: string | null;
   tipo?: string | null;
+  marca?: string | null;
   modelo?: string | null;
   por_confirmar?: string[] | null;
   anio: number | null;
@@ -94,6 +99,7 @@ export function avisoDesdeFila(x: {
 }): AvisoNormalizado {
   return {
     tipo: TIPOS_AVISO.find((t) => t === x.tipo) ?? (x.titulo ? pareceNoAuto(x.titulo) : undefined),
+    marca: x.marca || undefined,
     modelo: x.modelo ?? undefined,
     porConfirmar: x.por_confirmar ?? undefined,
     anio: x.anio ?? undefined,
@@ -132,6 +138,7 @@ export function evaluar(aviso: AvisoNormalizado, s: Seguimiento): Veredicto {
   if (aviso.tipo && aviso.tipo !== "auto") return { tipo: "fuera", motivos: [`No es un auto (${aviso.tipo})`] };
   // Bajo un millón no hay auto usado: es un repuesto o un precio de mentira ($1, $100.000).
   if (aviso.precio !== undefined && aviso.precio < 1_000_000) return { tipo: "fuera", motivos: [`Precio $${fmt(aviso.precio)}: no es el precio de un auto`] };
+  if (aviso.marca && !mismaMarca(aviso.marca, s.marca)) return { tipo: "fuera", motivos: [`Es ${aviso.marca}, no ${s.marca}`] };
   if (aviso.modelo) {
     // La duda de modelo es casi siempre "¿base o Cross Country?". Solo importa
     // si la ficha pide el Cross Country; si acepta el modelo base, calza igual.

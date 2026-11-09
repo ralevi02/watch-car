@@ -52,7 +52,7 @@ export async function corregirAuto(autoId: string, correccion: Correccion): Prom
   const id = Id.parse(autoId);
   const { data: avisos, error } = await supabase
     .from("avisos")
-    .select("id, titulo, descripcion, modelo, por_confirmar, anio, km, precio, motor, traccion, caja, tipo")
+    .select("id, titulo, descripcion, marca, modelo, por_confirmar, anio, km, precio, motor, traccion, caja, tipo")
     .or(`auto_id.eq.${id},id.eq.${id}`);
   if (error || !avisos?.length) return { ok: false, error: error?.message ?? "No encontré el auto" };
 

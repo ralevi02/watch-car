@@ -195,6 +195,8 @@ export async function guardarPasada(
         .select("aviso_id, avisos!inner(id_externo, estado, veces_no_visto, fuente_id, titulo, url)")
         .eq("busqueda_id", busquedaId)
         .eq("avisos.fuente_id", FUENTE)
+        // Los "fuera" no son de esta búsqueda (la ficha se compara con todo lo guardado): que no salgan no dice nada.
+        .neq("veredicto", "fuera")
         .in("avisos.estado", ["activo", "posible_vendido"]),
       "leer previos",
     );
@@ -389,7 +391,7 @@ export async function evaluarAvisos(
   const filas = await leerPorIds(idsExternos, "leer para evaluar", (trozo) =>
     db
       .from("avisos")
-      .select("id, titulo, url, tipo, modelo, por_confirmar, anio, km, precio, motor, traccion, caja, region")
+      .select("id, titulo, url, tipo, marca, modelo, por_confirmar, anio, km, precio, motor, traccion, caja, region")
       .eq("fuente_id", FUENTE)
       .in("id_externo", trozo),
   );

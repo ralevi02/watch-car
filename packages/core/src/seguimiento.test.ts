@@ -118,3 +118,8 @@ test("casi calza: fuera por poco en precio, km o año, nunca otro modelo", () =>
   assert.equal(casiCalza({ ...base, modelo: "V60" }, EJEMPLO_V40CC), false);
   assert.equal(casiCalza({ ...base, tipo: "repuesto" }, EJEMPLO_V40CC), false);
 });
+
+test("otra marca queda fuera aunque no traiga modelo", () => {
+  assert.deepEqual(evaluar({ marca: "Volkswagen", anio: 2018, km: 90000, precio: 13000000 }, EJEMPLO_V40CC), { tipo: "fuera", motivos: ["Es Volkswagen, no Volvo"] });
+  assert.equal(evaluar({ marca: "VOLVO", anio: 2018, km: 90000, precio: 13000000 }, EJEMPLO_V40CC).tipo, "calza");
+});

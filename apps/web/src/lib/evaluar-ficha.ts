@@ -11,7 +11,7 @@ export async function evaluarFichaContraTodo(supabase: Cliente, busquedaId: stri
     for (let desde = 0; ; desde += PAGINA) {
       const { data: avisos } = await supabase
         .from("avisos")
-        .select("id, titulo, tipo, modelo, por_confirmar, anio, km, precio, motor, traccion, caja, region")
+        .select("id, titulo, tipo, marca, modelo, por_confirmar, anio, km, precio, motor, traccion, caja, region")
         .eq("fuente_id", fuente)
         .neq("estado", "vendido")
         .order("id")
