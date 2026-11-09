@@ -98,6 +98,7 @@ export async function recolectarFacebook(s: Sesion, ficha: Seguimiento, op: Opci
       if (!grilla) {
         if (cargadas > 0) await pausa(5000, 11000);
         cargadas++;
+        const t = Date.now();
         await page.goto(url, { waitUntil: "domcontentloaded", timeout: 45_000 });
         await pausa(3000, 6000);
         await revisarMuro(page);
@@ -105,8 +106,9 @@ export async function recolectarFacebook(s: Sesion, ficha: Seguimiento, op: Opci
         // Los avisos llegan después de la página: se esperan hasta 15 s.
         await page.waitForSelector('a[href*="/marketplace/item/"]', { timeout: 15_000 }).catch(() => {});
         // La grilla carga más avisos al bajar: se baja hasta el final (dos vueltas sin avisos nuevos,
-        // o hasta el título "Resultados fuera de tu búsqueda"), con tope de 60 vueltas.
-        for (let k = 0, antes = -1, quietas = 0; k < 60 && quietas < 2; k++) {
+        // o hasta el título "Resultados fuera de tu búsqueda"), con tope de 30 vueltas y 2 minutos.
+        let bajadas = 0;
+        for (let antes = -1, quietas = 0; bajadas < 30 && quietas < 2 && Date.now() - t < 120_000; bajadas++) {
           const ahora = await page.locator('a[href*="/marketplace/item/"]').count().catch(() => 0);
           const fin = await page.getByText(/fuera de tu búsqueda|outside your search/i).count().catch(() => 0);
           if (fin > 0) break;
@@ -128,6 +130,8 @@ export async function recolectarFacebook(s: Sesion, ficha: Seguimiento, op: Opci
           vehiculos = { url: urlV, enlaces: grilla.length };
         }
         yaBuscadas.set(url, grilla);
+        const tramo = b.precio ? ` ${Math.round((b.precio.min ?? 0) / 1e5) / 10}-${Math.round((b.precio.max ?? 0) / 1e5) / 10} M` : "";
+        console.log(`Facebook ${i + 1}/${plan.length} «${b.consulta}»${tramo} ${b.orden}: ${grilla.length} avisos, ${bajadas} bajadas, ${Math.round((Date.now() - t) / 1000)} s`);
       }
       r.paginasLeidas++;
       for (const { c, aviso } of grilla) {
