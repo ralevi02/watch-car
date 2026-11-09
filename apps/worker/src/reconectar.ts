@@ -39,7 +39,7 @@ async function main() {
   const ml = rec.fuente === "mercadolibre";
   // MercadoLibre va sin proxy (como sus pasadas): el proxy se paga por GB y su sitio es pesado.
   if (ml) delete process.env.PROXY_URL;
-  if (!process.env.PROXY_URL && !ml) console.warn("Sin PROXY_URL: el login saldrá desde la IP de GitHub, distinta a la del worker.");
+  if (!process.env.PROXY_URL && !ml && process.env.IP_RESIDENCIAL !== "1") console.warn("Sin PROXY_URL: el login saldrá desde la IP de GitHub, distinta a la del worker.");
   const malProxy = await revisarProxy(process.env.PROXY_URL);
   if (malProxy) {
     await actualizar({ estado: "error", error: malProxy });

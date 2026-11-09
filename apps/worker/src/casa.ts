@@ -70,7 +70,13 @@ async function revisarPedidos() {
     if (encolar(t)) await db.from("corridas_pedidas").update({ estado: "corriendo", tomada_en: new Date().toISOString() }).eq("id", p.id);
     else await db.from("corridas_pedidas").update({ estado: "ok", terminada_en: new Date().toISOString(), error: "Ya estaba en cola" }).eq("id", p.id);
   }
-  const { data: recs } = await db.from("reconexiones").select("id").eq("estado", "pedida").order("creada_en").limit(3);
+  const { data: recs } = await db
+    .from("reconexiones")
+    .select("id")
+    .eq("estado", "pedida")
+    .gt("creada_en", new Date(Date.now() - 15 * 60_000).toISOString())
+    .order("creada_en")
+    .limit(3);
   for (const r of recs ?? []) encolar({ tipo: "reconexion", id: r.id });
 }
 
@@ -142,6 +148,11 @@ await db
   .from("corridas_pedidas")
   .update({ estado: "error", terminada_en: new Date().toISOString(), error: "El homelab se reinició mientras corría" })
   .eq("estado", "corriendo");
+await db
+  .from("reconexiones")
+  .update({ estado: "vencida", error: "El homelab no alcanzó a abrirla" })
+  .eq("estado", "pedida")
+  .lt("creada_en", new Date(Date.now() - 15 * 60_000).toISOString());
 console.log(`Worker de la casa listo. Hora de Chile: ${horaChile().hora}.`);
 await latido();
 
