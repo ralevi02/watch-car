@@ -133,7 +133,7 @@ async function ejecutar(t: Tarea) {
     return;
   }
   const claveVnc = randomBytes(4).toString("hex");
-  const vnc = spawn("x11vnc", ["-display", ":99", "-passwd", claveVnc, "-forever", "-shared", "-rfbport", "5900", "-quiet"], { stdio: "ignore" });
+  const vnc = spawn("x11vnc", ["-display", ":99", "-passwd", claveVnc, "-forever", "-shared", "-rfbport", "5900", "-clip", "540x960+0+0", "-quiet"], { stdio: "ignore" });
   await new Promise((r) => setTimeout(r, 1500));
   try {
     await correr("pnpm", ["reconectar"], { RECONEXION_ID: t.id, VNC_URL: process.env.VNC_URL_PUBLICA ?? "", VNC_CLAVE: claveVnc }, 35 * 60_000);

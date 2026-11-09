@@ -65,7 +65,8 @@ export async function abrirNavegador(op: OpcionesNavegador = {}): Promise<Sesion
     locale: "es-CL",
     timezoneId: "America/Santiago",
     proxy,
-    args: op.args,
+    // Ventana de computador: con una angosta Chileautos usa la versión móvil y su botón "Siguiente" no carga la página 2.
+    args: op.args ?? ["--window-position=0,0", "--window-size=1366,900"],
   });
 
   // Ahorra tráfico del proxy: sin imágenes, videos ni fuentes.

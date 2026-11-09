@@ -80,8 +80,6 @@ export async function recolectarFacebook(s: Sesion, ficha: Seguimiento, op: Opci
   // Una pestaña nueva por búsqueda: la misma pestaña de Marketplace se pone cada vez más lenta.
   const abrirPestana = async () => {
     const p = await s.context.newPage();
-    // Como un computador: con la pantalla angosta del homelab Facebook muestra pocos avisos por bajada.
-    await p.setViewportSize({ width: 1366, height: 900 });
     p.on("response", async (res) => {
       if (!res.url().includes("/api/graphql") || red.length >= 25) return;
       const nombre = res.request().headers()["x-fb-friendly-name"] ?? "?";
