@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { esDueno } from "@/lib/datos";
-import { corridasActivas, EN_CASA, FUENTES_CORRIBLES, github, lanzarWorkflow, pedidosPara, REPO, tokenGithub, type EstadoCorrida, type FuenteCorrible } from "@/lib/github";
+import { corridasActivas, FUENTES_CORRIBLES, github, REPO, tokenGithub, type EstadoCorrida, type FuenteCorrible } from "@/lib/github";
 import { crearClienteServidor } from "@/lib/supabase/server";
 
 type Resultado = { ok: true } | { ok: false; error: string };
@@ -208,21 +208,13 @@ export async function desconectarGithub() {
 
 const Corrible = z.enum([...FUENTES_CORRIBLES, "todas"]);
 
-/** Lanza ahora la pasada de una fuente (o de todas): las de la casa las toma el homelab, el resto GitHub Actions. */
+/** Pide la pasada de una fuente (o de todas) al worker del homelab, que la toma de corridas_pedidas. */
 export async function correrAhora(fuente: FuenteCorrible | "todas"): Promise<Resultado> {
   const f = Corrible.parse(fuente);
   if (!(await esDueno())) return { ok: false, error: "Esta cuenta no tiene acceso a Radar." };
-  const supabase = await crearClienteServidor();
-  const enCasa = f === "todas" ? EN_CASA : EN_CASA.filter((x) => x === f);
-  if (enCasa.length) {
-    const { error } = await supabase.from("corridas_pedidas").insert(enCasa.map((x) => ({ fuente: x })));
-    if (error) return { ok: false, error: error.message };
-    if (f !== "todas") return { ok: true };
-  }
-  const token = await tokenGithub(supabase);
-  if (!token) return f === "todas" ? { ok: true } : { ok: false, error: "Para correr desde aquí, primero conecta GitHub (más abajo, en «Correr desde la app»)." };
-  const motivos = (await Promise.all(pedidosPara(f).map(([w, inputs]) => lanzarWorkflow(token, w, inputs)))).filter(Boolean);
-  return motivos.length ? { ok: false, error: motivos[0]! } : { ok: true };
+  const fuentes = f === "todas" ? FUENTES_CORRIBLES : [f];
+  const { error } = await (await crearClienteServidor()).from("corridas_pedidas").insert(fuentes.map((x) => ({ fuente: x })));
+  return error ? { ok: false, error: error.message } : { ok: true };
 }
 
 /** Qué fuentes tienen una corrida en cola o en curso (en GitHub Actions o pedida al homelab). */

@@ -8,8 +8,6 @@ export const FUENTES_CORRIBLES = ["chileautos", "facebook", "kavak", "yapo", "me
 export type FuenteCorrible = (typeof FUENTES_CORRIBLES)[number];
 export type EstadoCorrida = "pedida" | "en_cola" | "corriendo";
 
-/** Las corre el worker del homelab (necesitan la IP de la casa); la app las pide por corridas_pedidas. */
-export const EN_CASA: readonly FuenteCorrible[] = ["facebook", "kavak", "yapo", "mercadolibre"];
 
 const WORKFLOW: Record<FuenteCorrible, string> = {
   chileautos: "chileautos.yml",
@@ -20,18 +18,6 @@ const WORKFLOW: Record<FuenteCorrible, string> = {
   brunofritsch: "otros-portales.yml",
   remates: "remates.yml",
 };
-
-/** Qué workflows lanzar (y con qué inputs) para correr una fuente o todas. */
-export function pedidosPara(fuente: FuenteCorrible | "todas"): [string, Record<string, string>][] {
-  if (fuente === "todas")
-    return [
-      ["chileautos.yml", {}],
-      ["otros-portales.yml", { fuente: "brunofritsch" }],
-      ["remates.yml", {}],
-    ];
-  const w = WORKFLOW[fuente];
-  return [[w, w === "otros-portales.yml" ? { fuente } : {}]];
-}
 
 /** El token lo pega el dueño en Fuentes y queda en Vault; GITHUB_DISPATCH_TOKEN sirve de respaldo. */
 export async function tokenGithub(supabase: Cliente) {
@@ -45,16 +31,6 @@ export function github(token: string, ruta: string, init?: RequestInit) {
     cache: "no-store",
     headers: { Authorization: `Bearer ${token}`, Accept: "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28" },
   });
-}
-
-/** Lanza un workflow. Devuelve null si partió, o el motivo si no. */
-export async function lanzarWorkflow(token: string, workflow: string, inputs: Record<string, string> = {}): Promise<string | null> {
-  const r = await github(token, `/actions/workflows/${workflow}/dispatches`, { method: "POST", body: JSON.stringify({ ref: "main", inputs }) });
-  if (r.ok) return null;
-  if (r.status === 401) return "GitHub rechazó el token (venció o se revocó). Conéctalo de nuevo en Fuentes.";
-  if (r.status === 403 || r.status === 404) return `El token no tiene permiso para correr Actions en ${REPO}.`;
-  const { message } = (await r.json().catch(() => ({}))) as { message?: string };
-  return `GitHub respondió ${r.status}${message ? `: ${message}` : ""}`;
 }
 
 interface Run {

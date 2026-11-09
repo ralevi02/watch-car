@@ -1,7 +1,8 @@
 /**
  * Worker del homelab: corre las fuentes que necesitan la IP de la casa (Facebook,
  * Kavak, Yapo, MercadoLibre) con sus horarios en hora de Chile, toma lo que la app
- * pide (corridas_pedidas y reconexiones) y deja un latido en Supabase para que
+ * pide a mano para cualquier fuente (corridas_pedidas) y las reconexiones, y deja
+ * un latido en Supabase para que
  * resumen.yml avise si el homelab se cae. Una tarea a la vez: comparten el Chrome
  * de la pantalla virtual :99.
  *
@@ -13,17 +14,17 @@ import { randomBytes } from "node:crypto";
 import { clienteServicio } from "@radar/db";
 
 const db = clienteServicio();
-const EN_CASA = ["facebook", "kavak", "yapo", "mercadolibre"] as const;
-type FuenteCasa = (typeof EN_CASA)[number];
+const PEDIBLES = ["chileautos", "facebook", "kavak", "yapo", "mercadolibre", "brunofritsch", "remates"] as const;
+type Fuente = (typeof PEDIBLES)[number];
 
-const PROGRAMA: { fuente: FuenteCasa; horas: string[]; env?: Record<string, string> }[] = [
+const PROGRAMA: { fuente: Fuente; horas: string[]; env?: Record<string, string> }[] = [
   { fuente: "kavak", horas: ["12:10", "19:40"] },
   { fuente: "yapo", horas: ["12:15", "19:45"] },
   { fuente: "mercadolibre", horas: ["12:20", "19:50"] },
   { fuente: "facebook", horas: ["13:00", "20:30"], env: { MAX_PAGINAS: "3", DETALLES: "8" } },
 ];
 
-type Tarea = { tipo: "pasada"; fuente: FuenteCasa; pedidoId?: string; env?: Record<string, string> } | { tipo: "reconexion"; id: string };
+type Tarea = { tipo: "pasada"; fuente: Fuente; pedidoId?: string; env?: Record<string, string> } | { tipo: "reconexion"; id: string };
 
 const cola: Tarea[] = [];
 const enCola = new Set<string>();
@@ -65,8 +66,8 @@ function revisarPrograma() {
 async function revisarPedidos() {
   const { data: pedidos } = await db.from("corridas_pedidas").select("id, fuente").eq("estado", "pedida").order("pedida_en").limit(10);
   for (const p of pedidos ?? []) {
-    if (!(EN_CASA as readonly string[]).includes(p.fuente)) continue;
-    const t: Tarea = { tipo: "pasada", fuente: p.fuente as FuenteCasa, pedidoId: p.id, env: { TIPO: "prueba", MANUAL: "1" } };
+    if (!(PEDIBLES as readonly string[]).includes(p.fuente)) continue;
+    const t: Tarea = { tipo: "pasada", fuente: p.fuente as Fuente, pedidoId: p.id, env: { TIPO: "prueba", MANUAL: "1" } };
     if (encolar(t)) await db.from("corridas_pedidas").update({ estado: "corriendo", tomada_en: new Date().toISOString() }).eq("id", p.id);
     else await db.from("corridas_pedidas").update({ estado: "ok", terminada_en: new Date().toISOString(), error: "Ya estaba en cola" }).eq("id", p.id);
   }
@@ -105,7 +106,7 @@ async function avisarKuma(fuente: string, ok: boolean, msg: string) {
 async function ejecutar(t: Tarea) {
   if (t.tipo === "pasada") {
     console.log(`Corriendo ${t.fuente}${t.pedidoId ? " (pedida desde la app)" : ""}`);
-    const codigo = await correr("pnpm", ["pasada"], { FUENTE: t.fuente, ...t.env }, 50 * 60_000);
+    const codigo = await correr("pnpm", [t.fuente === "remates" ? "remates" : "pasada"], { FUENTE: t.fuente, ...t.env }, 50 * 60_000);
     const ok = codigo === 0;
     if (t.pedidoId)
       await db
