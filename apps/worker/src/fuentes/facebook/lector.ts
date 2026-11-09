@@ -40,8 +40,9 @@ export interface BusquedaFb {
 /**
  * Facebook entrega como máximo unos 24 resultados por búsqueda, así que una sola
  * búsqueda nunca trae todo (los avisos de hace semanas quedan fuera). El barrido
- * completo reparte el modelo base en tramos de precio de un millón, cada uno en
- * los dos órdenes, y junta todo. El corto solo mira lo más nuevo.
+ * completo reparte el modelo base en tramos de precio de un millón (cada uno en
+ * los dos órdenes) y en búsquedas con el año en el texto, y junta todo. El corto
+ * solo mira lo más nuevo.
  */
 export function planBusquedas(f: Seguimiento, completo: boolean): BusquedaFb[] {
   const [conVersion, base] = consultas(f).length > 1 ? consultas(f) : [undefined, consultas(f)[0]!];
@@ -50,7 +51,16 @@ export function planBusquedas(f: Seguimiento, completo: boolean): BusquedaFb[] {
   );
   if (!completo) return directas;
   const tramos = tramosDePrecio(f.precio.min, f.precio.maxConAdvertencia ?? f.precio.max);
-  return [...directas, ...tramos.flatMap((precio) => (["relevancia", "nuevos"] as const).map((orden) => ({ consulta: base, precio, orden })))];
+  const porPrecio = tramos.flatMap((precio) => (["relevancia", "nuevos"] as const).map((orden) => ({ consulta: base, precio, orden })));
+  const porAnio = aniosDe(f).map((anio) => ({ consulta: `${base} ${anio}`, orden: "relevancia" as const }));
+  return [...directas, ...porAnio, ...porPrecio];
+}
+
+/** Años a buscar con el año en el texto: los de la ficha y uno antes (los que casi calzan), como mucho ocho. */
+function aniosDe(f: Seguimiento): number[] {
+  const hasta = f.anio.maxConAdvertencia ?? f.anio.max ?? new Date().getFullYear();
+  const desde = f.anio.min !== undefined ? f.anio.min - 1 : hasta - 7;
+  return Array.from({ length: Math.max(0, Math.min(8, hasta - desde + 1)) }, (_, i) => desde + i);
 }
 
 export function urlBusqueda(f: Seguimiento, consulta: string, ciudad = "santiago", precio?: { min?: number; max?: number }, orden: Orden = "nuevos"): string {

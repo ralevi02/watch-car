@@ -29,8 +29,10 @@ test("el barrido completo reparte el modelo base por precio y en los dos órdene
     { consulta: "Volvo V40", orden: "nuevos" },
   ]);
   const plan = planBusquedas({ ...EJEMPLO_V40CC, precio: { min: 8_000_000, max: 14_000_000, maxConAdvertencia: 16_000_000 } }, true);
-  assert.equal(plan.length, 4 + 8 * 2);
-  assert.deepEqual(plan[4], { consulta: "Volvo V40", precio: { min: 8_000_000, max: 8_999_999 }, orden: "relevancia" });
+  const anios = new Date().getFullYear() - 2016 + 1;
+  assert.equal(plan.length, 4 + Math.min(8, anios) + 8 * 2);
+  assert.deepEqual(plan[4], { consulta: "Volvo V40 2016", orden: "relevancia" });
+  assert.deepEqual(plan.at(-16), { consulta: "Volvo V40", precio: { min: 8_000_000, max: 8_999_999 }, orden: "relevancia" });
   assert.equal(new URL(urlBusqueda(EJEMPLO_V40CC, "Volvo V40", "santiago", undefined, "relevancia")).searchParams.get("sortBy"), null);
   assert.equal(new URL(urlBusqueda(EJEMPLO_V40CC, "Volvo V40")).searchParams.get("radius"), "500");
 });
