@@ -87,11 +87,20 @@ async function revisarPedidos() {
   for (const r of recs ?? []) encolar({ tipo: "reconexion", id: r.id });
 }
 
+function matar(hijo: ChildProcess, senal: NodeJS.Signals) {
+  try {
+    if (hijo.pid) process.kill(-hijo.pid, senal);
+  } catch {
+    hijo.kill(senal);
+  }
+}
+
 function correr(comando: string, args: string[], env: Record<string, string>, limiteMs: number): Promise<number> {
   return new Promise((listo) => {
-    const hijo = spawn(comando, args, { env: { ...process.env, DISPLAY: ":99", HEADLESS: "0", IP_RESIDENCIAL: "1", ...env }, stdio: "inherit" });
+    // En su propio grupo de procesos: al cortarla se corta todo (pnpm, tsx y el Chrome), no solo pnpm.
+    const hijo = spawn(comando, args, { env: { ...process.env, DISPLAY: ":99", HEADLESS: "0", IP_RESIDENCIAL: "1", ...env }, stdio: "inherit", detached: true });
     actual = hijo;
-    const reloj = setTimeout(() => hijo.kill("SIGKILL"), limiteMs);
+    const reloj = setTimeout(() => matar(hijo, "SIGKILL"), limiteMs);
     hijo.on("exit", (codigo) => {
       clearTimeout(reloj);
       actual = null;
@@ -172,6 +181,6 @@ await revisarPedidos();
 
 for (const senal of ["SIGTERM", "SIGINT"] as const)
   process.on(senal, () => {
-    actual?.kill("SIGTERM");
+    if (actual) matar(actual, "SIGTERM");
     process.exit(0);
   });
