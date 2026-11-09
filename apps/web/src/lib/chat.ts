@@ -26,7 +26,7 @@ Cómo armar la ficha:
 - alias: cómo se publica el mismo modelo en los portales. Si busca una versión Cross Country, incluye también el modelo base (ej. V40 Cross Country: "V40 CC", "V40 Cross", "V40"), porque muchos vendedores lo publican así.
 - modeloPortal: el modelo como aparece en los filtros de Chileautos y otros portales, sin versión (ej. "V40" para V40 Cross Country, "V60" para V60 Cross Country, "CX-5" para CX-5). Así se busca en los portales.
 - motoresExcluidos y motoresIncluidos: códigos de motor (T3, T4, T5, D2, D3, D4, etc.).
-- Sin regiones mencionadas, deja regiones vacío (todo Chile). Sin fuentes mencionadas, no incluyas el campo fuentes.
+- regiones: la zona preferida. Sin regiones mencionadas, usa ["Metropolitana"]. Si pide regiones cercanas, agrégalas (ej. ["Metropolitana", "Valparaíso", "O'Higgins"]). Si dice todo Chile, deja vacío. Los avisos fuera de la zona no se descartan: aparecen con aviso. Sin fuentes mencionadas, no incluyas el campo fuentes.
 - notas: criterios que no caben en los campos (color, dueños, mantenciones en la marca, etc.).
 - Si falta algo importante (presupuesto o año), crea la ficha igual y pregunta después. Máximo una pregunta a la vez.
 - Después de crearla, resume en 2 o 3 líneas qué quedó y qué se podría afinar. No repitas la ficha completa: la app ya la muestra.

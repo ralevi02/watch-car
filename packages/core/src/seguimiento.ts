@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { modeloCalza, modeloCanonico, pareceNoAuto, TIPOS_AVISO } from "./normalizacion.ts";
+import { enZona, nombreRegion, regionDe } from "./regiones.ts";
 
 /**
  * La "ficha" de un seguimiento: lo que el chat arma a partir de lo que pides
@@ -71,6 +72,8 @@ export interface AvisoNormalizado {
   motor?: string;
   traccion?: "AWD" | "FWD";
   caja?: "automatica" | "manual";
+  /** Dónde está, como lo escribe el portal ("Viña del Mar, VS", "Metropolitana de Santiago"). */
+  region?: string;
 }
 
 const fmt = (n: number) => n.toLocaleString("es-CL");
@@ -87,6 +90,7 @@ export function avisoDesdeFila(x: {
   motor: string | null;
   traccion: string | null;
   caja: string | null;
+  region?: string | null;
 }): AvisoNormalizado {
   return {
     tipo: TIPOS_AVISO.find((t) => t === x.tipo) ?? (x.titulo ? pareceNoAuto(x.titulo) : undefined),
@@ -98,6 +102,7 @@ export function avisoDesdeFila(x: {
     motor: x.motor ?? undefined,
     traccion: x.traccion === "AWD" || x.traccion === "FWD" ? x.traccion : undefined,
     caja: x.caja === "automatica" || x.caja === "manual" ? x.caja : undefined,
+    region: x.region ?? undefined,
   };
 }
 
@@ -153,6 +158,7 @@ export function evaluar(aviso: AvisoNormalizado, s: Seguimiento): Veredicto {
   }
   if (s.traccion !== "cualquiera" && aviso.traccion && aviso.traccion !== s.traccion) fuera.push(`Tracción ${aviso.traccion}`);
   if (s.caja !== "cualquiera" && aviso.caja && aviso.caja !== s.caja) fuera.push(`Caja ${aviso.caja}`);
+  if (!enZona(aviso.region, s.regiones)) adv.push(`En ${nombreRegion(regionDe(aviso.region)!)}, fuera de tu zona`);
   if (fuera.length > 0) return { tipo: "fuera", motivos: fuera };
   if (adv.length > 0) return { tipo: "advertencia", motivos: adv };
   return { tipo: "calza" };

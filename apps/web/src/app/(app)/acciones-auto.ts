@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { leerBusquedas, type Visita } from "@/lib/datos";
 import type { TablesUpdate } from "@radar/db";
+import { evaluarFichaContraTodo } from "@/lib/evaluar-ficha";
 import { crearClienteServidor } from "@/lib/supabase/server";
 
 type Resultado = { ok: true } | { ok: false; error: string };
@@ -151,20 +152,7 @@ export async function actualizarFicha(busquedaId: string, ficha: unknown): Promi
   const id = Id.parse(busquedaId);
   const { error } = await supabase.from("busquedas").update({ ficha: f.data }).eq("id", id);
   if (error) return { ok: false, error: error.message };
-  const ahora = new Date().toISOString();
-  for (const fuente of f.data.fuentes) {
-    const { data: avisos } = await supabase
-      .from("avisos")
-      .select("id, titulo, tipo, modelo, por_confirmar, anio, km, precio, motor, traccion, caja")
-      .eq("fuente_id", fuente)
-      .neq("estado", "vendido");
-    const filas = (avisos ?? []).map((a) => {
-      const n = avisoDesdeFila(a);
-      const v = evaluar(n, f.data);
-      return { busqueda_id: id, aviso_id: a.id, veredicto: v.tipo, motivos: v.tipo === "calza" ? [] : v.motivos, casi: casiCalza(n, f.data), evaluado_en: ahora };
-    });
-    for (let i = 0; i < filas.length; i += 200) await supabase.from("resultados").upsert(filas.slice(i, i + 200), { onConflict: "busqueda_id,aviso_id" });
-  }
+  await evaluarFichaContraTodo(supabase, id, f.data);
   revalidatePath("/");
   return { ok: true };
 }

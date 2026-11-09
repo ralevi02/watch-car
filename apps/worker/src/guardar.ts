@@ -290,6 +290,7 @@ export async function normalizarPendientes(db: ClienteDb, FUENTE: string, idsExt
         .from("avisos")
         .update({
           tipo: n.tipo,
+          ...(n.marca ? { marca: n.marca } : {}),
           modelo: n.modelo,
           version: n.version,
           motor: n.motor,
@@ -383,7 +384,7 @@ export async function evaluarAvisos(
   const filas = await leer(
     db
       .from("avisos")
-      .select("id, titulo, url, tipo, modelo, por_confirmar, anio, km, precio, motor, traccion, caja")
+      .select("id, titulo, url, tipo, modelo, por_confirmar, anio, km, precio, motor, traccion, caja, region")
       .eq("fuente_id", FUENTE)
       .in("id_externo", idsExternos),
     "leer para evaluar",

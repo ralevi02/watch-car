@@ -53,7 +53,7 @@ export function FichaCard({ ficha, pie }: { ficha: Seguimiento; pie?: React.Reac
       {motor.length > 0 && <Fila etiqueta="Motor">{motor.join(", ")}</Fila>}
       {ficha.traccion !== "cualquiera" && <Fila etiqueta="Tracción">{ficha.traccion}</Fila>}
       {ficha.caja !== "cualquiera" && <Fila etiqueta="Caja">{ficha.caja === "automatica" ? "Automática" : "Manual"}</Fila>}
-      <Fila etiqueta="Zona">{ficha.regiones.length ? ficha.regiones.join(", ") : "Todo Chile"}</Fila>
+      <Fila etiqueta="Zona">{ficha.regiones.length ? `${ficha.regiones.join(", ")} (el resto, con aviso)` : "Todo Chile"}</Fila>
       <Fila etiqueta="Portales">{ficha.fuentes.length === 5 ? "Todos" : ficha.fuentes.map((f) => NOMBRE_FUENTE[f]).join(", ")}</Fila>
       {ficha.notas && <Fila etiqueta="Notas">{ficha.notas}</Fila>}
       {pie && <div className="px-4 py-3">{pie}</div>}

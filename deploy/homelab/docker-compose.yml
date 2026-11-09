@@ -1,3 +1,5 @@
+name: radar
+
 services:
   radar-worker:
     build:

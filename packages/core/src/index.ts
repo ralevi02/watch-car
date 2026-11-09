@@ -8,3 +8,4 @@ export * from "./mercado.ts";
 export * from "./senales.ts";
 export * from "./fotos.ts";
 export * from "./interpretar.ts";
+export * from "./regiones.ts";

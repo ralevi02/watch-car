@@ -7,6 +7,7 @@ import { z } from "zod";
 import { esDueno } from "@/lib/datos";
 import { corridasActivas, FUENTES_CORRIBLES, github, REPO, tokenGithub, type EstadoCorrida, type FuenteCorrible } from "@/lib/github";
 import { crearClienteServidor } from "@/lib/supabase/server";
+import { evaluarFichaContraTodo } from "@/lib/evaluar-ficha";
 
 type Resultado = { ok: true } | { ok: false; error: string };
 
@@ -14,15 +15,18 @@ export async function guardarSeguimiento(ficha: unknown): Promise<Resultado> {
   const f = Seguimiento.safeParse(ficha);
   if (!f.success) return { ok: false, error: "La ficha no es válida" };
   const supabase = await crearClienteServidor();
-  const { error } = await supabase.from("busquedas").insert({ nombre: f.data.nombre, ficha: f.data });
+  const { data, error } = await supabase.from("busquedas").insert({ nombre: f.data.nombre, ficha: f.data }).select("id").single();
   if (error) return { ok: false, error: error.message };
+  await evaluarFichaContraTodo(supabase, data.id, f.data);
   revalidatePath("/");
   return { ok: true };
 }
 
 export async function cambiarBusqueda(id: string, cambios: { activa?: boolean; alertas?: boolean }) {
   const supabase = await crearClienteServidor();
-  await supabase.from("busquedas").update(cambios).eq("id", z.uuid().parse(id));
+  const { data } = await supabase.from("busquedas").update(cambios).eq("id", z.uuid().parse(id)).select("ficha").single();
+  const ficha = Seguimiento.safeParse(data?.ficha);
+  if (cambios.activa && ficha.success) await evaluarFichaContraTodo(supabase, id, ficha.data);
   revalidatePath("/");
 }
 
