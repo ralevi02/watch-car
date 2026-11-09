@@ -1,7 +1,7 @@
 import { strict as assert } from "node:assert";
 import { test } from "node:test";
 import { EJEMPLO_V40CC } from "@radar/core";
-import { consultas, detectarMuro, kmDeTexto, leerDetalle, leerTarjeta, tramosDePrecio, urlBusqueda } from "./lector.js";
+import { consultas, detectarMuro, kmDeTexto, leerDetalle, leerTarjeta, planBusquedas, tramosDePrecio, urlBusqueda } from "./lector.js";
 
 test("arma las consultas y la URL de búsqueda", () => {
   assert.deepEqual(consultas(EJEMPLO_V40CC), ["Volvo V40 Cross Country", "Volvo V40"]);
@@ -15,12 +15,24 @@ test("arma las consultas y la URL de búsqueda", () => {
 });
 
 test("divide el precio en tramos", () => {
-  assert.deepEqual(tramosDePrecio(6_000_000, 15_000_000, 3), [
+  assert.deepEqual(tramosDePrecio(6_000_000, 15_000_000, 3_000_000), [
     { min: 6_000_000, max: 8_999_999 },
     { min: 9_000_000, max: 11_999_999 },
     { min: 12_000_000, max: 15_000_000 },
   ]);
   assert.deepEqual(tramosDePrecio(undefined, undefined), [{ min: undefined, max: undefined }]);
+});
+
+test("el barrido completo reparte el modelo base por precio y en los dos órdenes", () => {
+  assert.deepEqual(planBusquedas(EJEMPLO_V40CC, false), [
+    { consulta: "Volvo V40 Cross Country", orden: "nuevos" },
+    { consulta: "Volvo V40", orden: "nuevos" },
+  ]);
+  const plan = planBusquedas({ ...EJEMPLO_V40CC, precio: { min: 8_000_000, max: 14_000_000, maxConAdvertencia: 16_000_000 } }, true);
+  assert.equal(plan.length, 4 + 8 * 2);
+  assert.deepEqual(plan[4], { consulta: "Volvo V40", precio: { min: 8_000_000, max: 8_999_999 }, orden: "relevancia" });
+  assert.equal(new URL(urlBusqueda(EJEMPLO_V40CC, "Volvo V40", "santiago", undefined, "relevancia")).searchParams.get("sortBy"), null);
+  assert.equal(new URL(urlBusqueda(EJEMPLO_V40CC, "Volvo V40")).searchParams.get("radius"), "500");
 });
 
 test("lee el km en sus formatos", () => {

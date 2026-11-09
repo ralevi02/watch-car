@@ -2,10 +2,11 @@ import type { Page } from "patchright";
 import type { Seguimiento } from "@radar/core";
 import { capturar, pausa, scrollHumano, type Sesion } from "../../lib/navegador.js";
 import type { AvisoPortal, OpcionesRecoleccion, ResultadoRecoleccion } from "../tipos.js";
-import { consultas, detectarMuro, leerDetalle, leerTarjeta, tramosDePrecio, urlBusqueda, urlVehiculos } from "./lector.js";
+import { detectarMuro, leerDetalle, leerTarjeta, planBusquedas, urlBusqueda, urlVehiculos } from "./lector.js";
 
-/** Facebook muestra ~24 resultados por búsqueda; si llega cerca del tope, se barre por tramos de precio. */
-const TOPE_RESULTADOS = 20;
+type Grilla = Awaited<ReturnType<typeof leerGrilla>>;
+/** Las fichas de una misma pasada comparten búsquedas: no se repite la misma URL. */
+const yaBuscadas = new Map<string, Grilla>();
 
 export class MuroFacebook extends Error {
   constructor(public tipo: "login" | "checkpoint" | "bloqueo") {
@@ -64,7 +65,8 @@ async function diagnosticar(page: Page, descartadas: string[]): Promise<NonNulla
 
 /**
  * Una pasada de Facebook para una ficha, con la sesión ya cargada en el
- * navegador. Ritmo humano: pausas, scroll y pocas páginas.
+ * navegador. Ritmo humano: pausas y scroll. Con FB_BARRIDO=completo recorre el
+ * plan entero (tramos de precio y los dos órdenes); si no, solo lo más nuevo.
  */
 export async function recolectarFacebook(s: Sesion, ficha: Seguimiento, op: OpcionesRecoleccion & { ciudad?: string } = {}): Promise<ResultadoRecoleccion> {
   const m = s.medir();
@@ -85,65 +87,68 @@ export async function recolectarFacebook(s: Sesion, ficha: Seguimiento, op: Opci
   });
 
   try {
-    const cola = consultas(ficha).map((q) => ({ q, tramo: undefined as { min?: number; max?: number } | undefined }));
-    r.url = urlBusqueda(ficha, cola[0]?.q ?? ficha.modelo, op.ciudad);
-    while (cola.length && r.paginasLeidas < maxBusquedas) {
-      const { q, tramo } = cola.shift()!;
-      if (r.paginasLeidas > 0) await pausa(5000, 11000);
-      await page.goto(urlBusqueda(ficha, q, op.ciudad, tramo), { waitUntil: "domcontentloaded", timeout: 45_000 });
-      await pausa(3000, 6000);
-      await revisarMuro(page);
-      await cerrarDialogos(page);
-      // Los avisos llegan después de la página: se esperan hasta 15 s.
-      await page.waitForSelector('a[href*="/marketplace/item/"]', { timeout: 15_000 }).catch(() => {});
-      // La grilla carga más avisos al bajar: se baja hasta el final (dos vueltas sin avisos nuevos,
-      // o hasta el título "Resultados fuera de tu búsqueda"), con tope de 60 vueltas.
-      for (let i = 0, antes = -1, quietas = 0; i < 60 && quietas < 2; i++) {
-        const ahora = await page.locator('a[href*="/marketplace/item/"]').count().catch(() => 0);
-        const fin = await page.getByText(/fuera de tu búsqueda|outside your search/i).count().catch(() => 0);
-        if (fin > 0) break;
-        quietas = ahora === antes ? quietas + 1 : 0;
-        antes = ahora;
-        await scrollHumano(page, 2);
-      }
-      let grilla = await leerGrilla(page);
-      // La búsqueda general a veces sale vacía: se prueba dentro de Vehículos.
+    const plan = planBusquedas(ficha, process.env.FB_BARRIDO === "completo").slice(0, maxBusquedas);
+    const urlDe = (b: (typeof plan)[number]) => urlBusqueda(ficha, b.consulta, op.ciudad, b.precio, b.orden);
+    r.url = urlDe(plan[0]!);
+    let cargadas = 0;
+    for (const [i, b] of plan.entries()) {
+      const url = urlDe(b);
+      let grilla = yaBuscadas.get(url);
       let vehiculos: { url: string; enlaces: number } | undefined;
-      if (grilla.length === 0) {
-        const url = urlVehiculos(ficha, q, op.ciudad, tramo);
-        await pausa(4000, 8000);
+      if (!grilla) {
+        if (cargadas > 0) await pausa(5000, 11000);
+        cargadas++;
         await page.goto(url, { waitUntil: "domcontentloaded", timeout: 45_000 });
         await pausa(3000, 6000);
         await revisarMuro(page);
+        await cerrarDialogos(page);
+        // Los avisos llegan después de la página: se esperan hasta 15 s.
         await page.waitForSelector('a[href*="/marketplace/item/"]', { timeout: 15_000 }).catch(() => {});
-        await scrollHumano(page, 3);
+        // La grilla carga más avisos al bajar: se baja hasta el final (dos vueltas sin avisos nuevos,
+        // o hasta el título "Resultados fuera de tu búsqueda"), con tope de 60 vueltas.
+        for (let k = 0, antes = -1, quietas = 0; k < 60 && quietas < 2; k++) {
+          const ahora = await page.locator('a[href*="/marketplace/item/"]').count().catch(() => 0);
+          const fin = await page.getByText(/fuera de tu búsqueda|outside your search/i).count().catch(() => 0);
+          if (fin > 0) break;
+          quietas = ahora === antes ? quietas + 1 : 0;
+          antes = ahora;
+          await scrollHumano(page, 2);
+        }
         grilla = await leerGrilla(page);
-        vehiculos = { url, enlaces: grilla.length };
+        // La búsqueda general a veces sale vacía: se prueba dentro de Vehículos.
+        if (grilla.length === 0 && i === 0) {
+          const urlV = urlVehiculos(ficha, b.consulta, op.ciudad, b.precio);
+          await pausa(4000, 8000);
+          await page.goto(urlV, { waitUntil: "domcontentloaded", timeout: 45_000 });
+          await pausa(3000, 6000);
+          await revisarMuro(page);
+          await page.waitForSelector('a[href*="/marketplace/item/"]', { timeout: 15_000 }).catch(() => {});
+          await scrollHumano(page, 3);
+          grilla = await leerGrilla(page);
+          vehiculos = { url: urlV, enlaces: grilla.length };
+        }
+        yaBuscadas.set(url, grilla);
       }
       r.paginasLeidas++;
       for (const { c, aviso } of grilla) {
         if (!aviso) r.descartadas.push(`${c.id}: ${c.texto.replace(/\s+/g, " ").slice(0, 80)}`);
         else if (!vistos.has(aviso.id)) vistos.set(aviso.id, aviso);
       }
-      // Tope alcanzado sin tramo: se reparte la misma consulta en tramos de precio.
-      if (!tramo && grilla.length >= TOPE_RESULTADOS) {
-        for (const t of tramosDePrecio(ficha.precio.min, ficha.precio.maxConAdvertencia ?? ficha.precio.max)) cola.push({ q, tramo: t });
-      }
-      if (r.paginasLeidas === 1 && vistos.size === 0) {
+      if (i === 0 && vistos.size === 0) {
         const c = await capturar(page, "facebook-sin-resultados");
         if (c) r.capturas.push(c);
         r.diagnostico = { ...(await diagnosticar(page, r.descartadas)), red: [...red], vehiculos, muestraBusqueda };
         // Página cargada, sesión viva, pero Facebook no pidió ni mostró avisos: se lo guarda para él.
         if (!red.some((x) => /marketplace/i.test(x)) && (vehiculos?.enlaces ?? 0) === 0) {
           r.errores.push(
-            process.env.PROXY_URL
+            process.env.PROXY_URL || process.env.IP_RESIDENCIAL === "1"
               ? "Facebook no mostró avisos a esta cuenta (puede estar restringida para Marketplace)"
-              : "Facebook no muestra avisos desde la IP de GitHub: necesita el proxy residencial",
+              : "Facebook no muestra avisos desde la IP de GitHub: corre desde el homelab",
           );
         }
       }
     }
-    r.paginasTotales = r.paginasLeidas + cola.length;
+    r.paginasTotales = plan.length;
   } catch (e) {
     if (e instanceof MuroFacebook) r.bloqueo = e.message;
     else r.errores.push(`Búsqueda: ${e instanceof Error ? e.message.split("\n")[0] : String(e)}`);

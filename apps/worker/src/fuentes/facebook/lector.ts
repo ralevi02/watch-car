@@ -30,7 +30,30 @@ export function urlVehiculos(f: Seguimiento, consulta: string, ciudad = "santiag
   return u.toString();
 }
 
-export function urlBusqueda(f: Seguimiento, consulta: string, ciudad = "santiago", precio?: { min?: number; max?: number }): string {
+export type Orden = "nuevos" | "relevancia";
+export interface BusquedaFb {
+  consulta: string;
+  precio?: { min?: number; max?: number };
+  orden: Orden;
+}
+
+/**
+ * Facebook entrega como máximo unos 24 resultados por búsqueda, así que una sola
+ * búsqueda nunca trae todo (los avisos de hace semanas quedan fuera). El barrido
+ * completo reparte el modelo base en tramos de precio de un millón, cada uno en
+ * los dos órdenes, y junta todo. El corto solo mira lo más nuevo.
+ */
+export function planBusquedas(f: Seguimiento, completo: boolean): BusquedaFb[] {
+  const [conVersion, base] = consultas(f).length > 1 ? consultas(f) : [undefined, consultas(f)[0]!];
+  const directas = [conVersion, base].filter((q): q is string => Boolean(q)).flatMap((consulta) =>
+    completo ? (["nuevos", "relevancia"] as const).map((orden) => ({ consulta, orden })) : [{ consulta, orden: "nuevos" as const }],
+  );
+  if (!completo) return directas;
+  const tramos = tramosDePrecio(f.precio.min, f.precio.maxConAdvertencia ?? f.precio.max);
+  return [...directas, ...tramos.flatMap((precio) => (["relevancia", "nuevos"] as const).map((orden) => ({ consulta: base, precio, orden })))];
+}
+
+export function urlBusqueda(f: Seguimiento, consulta: string, ciudad = "santiago", precio?: { min?: number; max?: number }, orden: Orden = "nuevos"): string {
   const p = new URLSearchParams();
   p.set("query", consulta);
   const minAnio = f.anio.min;
@@ -44,18 +67,18 @@ export function urlBusqueda(f: Seguimiento, consulta: string, ciudad = "santiago
   if (minPrecio) p.set("minPrice", String(minPrecio));
   if (maxPrecio) p.set("maxPrice", String(maxPrecio));
   p.set("exact", "false");
-  p.set("sortBy", "creation_time_descend");
-  // Radio en millas (Facebook usa 40 por defecto: ~65 km). 65 millas ≈ 105 km: llega a Rancagua y a la costa.
-  p.set("radius", process.env.FB_RADIO_MILLAS || "65");
+  if (orden === "nuevos") p.set("sortBy", "creation_time_descend");
+  // En km. Amplio a propósito: lo que queda fuera de la zona de la ficha no se descarta, aparece con aviso.
+  p.set("radius", process.env.FB_RADIO_KM || "500");
   return `${BASE}/marketplace/${ciudad}/search/?${p.toString()}`;
 }
 
-/** Tramos de precio para barrer cuando una búsqueda llega al tope (~24 resultados). */
-export function tramosDePrecio(min: number | undefined, max: number | undefined, partes = 3): { min?: number; max?: number }[] {
+/** Tramos de precio para repartir una búsqueda que llega al tope (~24 resultados). */
+export function tramosDePrecio(min: number | undefined, max: number | undefined, paso = 1_000_000): { min?: number; max?: number }[] {
   if (!max) return [{ min, max }];
-  const desde = min ?? Math.round(max * 0.4);
-  const paso = Math.ceil((max - desde) / partes);
-  return Array.from({ length: partes }, (_, i) => ({ min: desde + i * paso, max: i === partes - 1 ? max : desde + (i + 1) * paso - 1 }));
+  const tramos: { min: number; max: number }[] = [];
+  for (let desde = min ?? Math.round((max * 0.4) / paso) * paso; desde < max; desde += paso) tramos.push({ min: desde, max: desde + paso >= max ? max : desde + paso - 1 });
+  return tramos;
 }
 
 const RE_PRECIO = /^(?:CLP\s*)?\$\s?\d[\d.]*(?:\s*CLP)?$|^CLP\s?\d[\d.]*$/i;

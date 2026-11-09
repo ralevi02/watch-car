@@ -16,6 +16,7 @@ const db = clienteServicio();
 const PEDIBLES = ["chileautos", "facebook", "kavak", "yapo", "mercadolibre", "brunofritsch", "remates"] as const;
 type Fuente = (typeof PEDIBLES)[number] | "fotos-ia";
 const SCRIPT: Partial<Record<Fuente, string>> = { remates: "remates", "fotos-ia": "fotos-ia" };
+const BARRIDO_FACEBOOK = { FB_BARRIDO: "completo", MAX_PAGINAS: "80", DETALLES: "15" };
 
 const PROGRAMA: { fuente: Fuente; horas: string[]; env?: Record<string, string> }[] = [
   { fuente: "chileautos", horas: ["08:23", "11:23", "14:23", "17:23", "20:23", "23:23"], env: { MAX_PAGINAS: "5", DETALLES: "5" } },
@@ -25,7 +26,8 @@ const PROGRAMA: { fuente: Fuente; horas: string[]; env?: Record<string, string> 
   { fuente: "kavak", horas: ["12:10", "19:40"] },
   { fuente: "yapo", horas: ["12:15", "19:45"] },
   { fuente: "mercadolibre", horas: ["12:20", "19:50"] },
-  { fuente: "facebook", horas: ["13:00", "20:30"], env: { MAX_PAGINAS: "3", DETALLES: "8" } },
+  { fuente: "facebook", horas: ["07:30"], env: BARRIDO_FACEBOOK },
+  { fuente: "facebook", horas: ["13:00", "20:30"], env: { MAX_PAGINAS: "4", DETALLES: "8" } },
 ];
 
 type Tarea = { tipo: "pasada"; fuente: Fuente; pedidoId?: string; env?: Record<string, string> } | { tipo: "reconexion"; id: string };
@@ -61,7 +63,7 @@ function revisarPrograma() {
     const marca = `${p.fuente}@${dia} ${hora}`;
     if (p.horas.includes(hora) && !disparados.has(marca)) {
       disparados.add(marca);
-      if (encolar({ tipo: "pasada", fuente: p.fuente, env: { TIPO: "corta", ...p.env } })) console.log(`Programada: ${p.fuente} (${hora})`);
+      if (encolar({ tipo: "pasada", fuente: p.fuente, env: { TIPO: p.env === BARRIDO_FACEBOOK ? "completa" : "corta", ...p.env } })) console.log(`Programada: ${p.fuente} (${hora})`);
     }
   }
   if (disparados.size > 500) disparados.clear();
@@ -71,7 +73,7 @@ async function revisarPedidos() {
   const { data: pedidos } = await db.from("corridas_pedidas").select("id, fuente").eq("estado", "pedida").order("pedida_en").limit(10);
   for (const p of pedidos ?? []) {
     if (!(PEDIBLES as readonly string[]).includes(p.fuente)) continue;
-    const t: Tarea = { tipo: "pasada", fuente: p.fuente as Fuente, pedidoId: p.id, env: { TIPO: "prueba", MANUAL: "1" } };
+    const t: Tarea = { tipo: "pasada", fuente: p.fuente as Fuente, pedidoId: p.id, env: { TIPO: "prueba", MANUAL: "1", ...(p.fuente === "facebook" ? BARRIDO_FACEBOOK : {}) } };
     if (encolar(t)) await db.from("corridas_pedidas").update({ estado: "corriendo", tomada_en: new Date().toISOString() }).eq("id", p.id);
     else await db.from("corridas_pedidas").update({ estado: "ok", terminada_en: new Date().toISOString(), error: "Ya estaba en cola" }).eq("id", p.id);
   }

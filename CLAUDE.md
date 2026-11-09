@@ -85,7 +85,7 @@ Las tres fases están en código. Supabase `watch-car` (id `ssmtlqtpzzhkhibkcfhi
   - **Bruno Fritsch** (`brunofritsch`, API JSON pública del catálogo "Volvo Usados", funciona desde Actions sin proxy).
   - **Remates** (`remates.yml` diario): lotes de Karcal (Algolia; la clave pública se lee del JS del sitio en cada corrida, no va al repo) y Zárate (HTML), cruzados con los avisos por patente o por modelo, año y km (`avisos.remate`).
   - Investigados y no hechos todavía: Reyco (PDF semanal), Vedisa (trae datos personales: usar lista blanca), Manquehue, Macal y Ditec (ya publica en Chileautos).
-- **Facebook:** la búsqueda por texto corta en ~24 avisos, también dentro de la categoría Vehículos. Los filtros de marca y modelo de la categoría están por probar (`prueba-busqueda-fb.ts` anota los controles de filtro que ve).
+- **Facebook (9 nov 2026):** cada búsqueda entrega como máximo ~24 avisos (24 a 42 con "volvo" a secas), así que una sola nunca trae los avisos de hace semanas. En Chile el filtro "Modelo" de la categoría Autos (`/marketplace/santiago/cars`) solo ofrece dos modelos raros: no sirve. El parámetro `radius` va en km (no millas). Juntando búsquedas por tramos de precio de 1 M y en los dos órdenes (`sortBy=creation_time_descend` y sin `sortBy`, relevancia) aparecieron 48 V40/V60 distintos contra 18 de una sola. `planBusquedas` en `lector.ts`: barrido completo diario (07:30, y al correr a mano) y dos cortos de lo más nuevo (13:00 y 20:30), radio 500 km; las fichas comparten búsquedas en la misma pasada.
 - El repo es público: pasarlo a privado sería más seguro con Facebook activo (los minutos de Actions alcanzan).
 
 ## Lo que ya se sabe de cada fuente
