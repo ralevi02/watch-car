@@ -30,6 +30,17 @@ export function urlVehiculos(f: Seguimiento, consulta: string, ciudad = "santiag
   return u.toString();
 }
 
+/**
+ * Las búsquedas por tramo de precio traen también otras marcas (Facebook rellena con
+ * lo que hay en ese precio). Queda solo lo que nombra la marca o el modelo.
+ */
+export function esDeLaFicha(titulo: string, f: Seguimiento): boolean {
+  const compacto = (x: string) => x.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f\s-]+/g, "");
+  const t = compacto(titulo);
+  const codigos = consultas(f).flatMap((q) => q.split(" ")).filter((p) => /\d/.test(p));
+  return [f.marca, ...codigos].map(compacto).some((c) => c.length >= 2 && t.includes(c));
+}
+
 export type Orden = "nuevos" | "relevancia";
 export interface BusquedaFb {
   consulta: string;

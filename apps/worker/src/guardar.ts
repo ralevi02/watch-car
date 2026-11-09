@@ -76,6 +76,13 @@ async function leer<T>(p: Respuesta<T>, que: string): Promise<T> {
   return data;
 }
 
+/** En trozos: con cientos de IDs la consulta no cabe en la URL y Supabase corta la conexión. */
+async function leerPorIds<T>(ids: string[], que: string, consulta: (trozo: string[]) => Respuesta<T[]>): Promise<T[]> {
+  const filas: T[] = [];
+  for (let i = 0; i < ids.length; i += 200) filas.push(...(await leer(consulta(ids.slice(i, i + 200)), que)));
+  return filas;
+}
+
 async function escribir(p: Respuesta<unknown>, que: string): Promise<void> {
   const { error } = await p;
   if (error) throw new Error(`Supabase (${que}): ${error.message}`);
@@ -115,9 +122,7 @@ export async function guardarPasada(
   }
 
   // 2. Avisos nuevos (cada uno con su auto; la deduplicación los junta después) y existentes.
-  const existentes = ids.length
-    ? await leer(db.from("avisos").select("id, id_externo, precio, foto_url").eq("fuente_id", FUENTE).in("id_externo", ids), "leer avisos")
-    : [];
+  const existentes = await leerPorIds(ids, "leer avisos", (trozo) => db.from("avisos").select("id, id_externo, precio, foto_url").eq("fuente_id", FUENTE).in("id_externo", trozo));
   const porExterno = new Map(existentes.map((e) => [e.id_externo, e]));
   const ahora = new Date().toISOString();
   const marca = ficha.marca;
@@ -222,7 +227,7 @@ const COLUMNAS_ENTRADA = "id, titulo, precio, anio, km, caja, combustible, carro
 export async function normalizarPendientes(db: ClienteDb, FUENTE: string, idsExternos: string[], op: { forzar?: boolean } = {}): Promise<{ normalizados: number; error?: string }> {
   if (!idsExternos.length) return { normalizados: 0 };
   if (!process.env.GOOGLE_GENERATIVE_AI_API_KEY) return { normalizados: 0, error: "Falta GOOGLE_GENERATIVE_AI_API_KEY: no se normalizó" };
-  const filas = await leer(db.from("avisos").select(COLUMNAS_ENTRADA).eq("fuente_id", FUENTE).in("id_externo", idsExternos), "leer para normalizar");
+  const filas = await leerPorIds(idsExternos, "leer para normalizar", (trozo) => db.from("avisos").select(COLUMNAS_ENTRADA).eq("fuente_id", FUENTE).in("id_externo", trozo));
   const pendientes = filas
     .map((f) => {
       const entrada: EntradaNormalizacion = {
@@ -381,13 +386,12 @@ export async function evaluarAvisos(
 ): Promise<ResumenEvaluacion> {
   const resumen: ResumenEvaluacion = { veredictos: { calza: 0, advertencia: 0, fuera: 0 }, nuevosInteresantes: [] };
   if (!idsExternos.length) return resumen;
-  const filas = await leer(
+  const filas = await leerPorIds(idsExternos, "leer para evaluar", (trozo) =>
     db
       .from("avisos")
       .select("id, titulo, url, tipo, modelo, por_confirmar, anio, km, precio, motor, traccion, caja, region")
       .eq("fuente_id", FUENTE)
-      .in("id_externo", idsExternos),
-    "leer para evaluar",
+      .in("id_externo", trozo),
   );
   const nuevos = new Set(nuevosIds);
   const ahora = new Date().toISOString();

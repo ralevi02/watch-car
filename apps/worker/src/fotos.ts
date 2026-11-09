@@ -21,12 +21,18 @@ export async function dHash(imagen: Buffer): Promise<string> {
   return hex;
 }
 
+async function enTrozos<T>(ids: string[], consulta: (trozo: string[]) => PromiseLike<{ data: T[] | null }>): Promise<T[]> {
+  const filas: T[] = [];
+  for (let i = 0; i < ids.length; i += 200) filas.push(...((await consulta(ids.slice(i, i + 200))).data ?? []));
+  return filas;
+}
+
 /** Calcula el hash de la foto principal de los avisos que aún no lo tienen. */
 export async function hashearFotos(db: ClienteDb, avisoIds: string[]): Promise<number> {
   if (!avisoIds.length) return 0;
-  const { data } = await db.from("avisos").select("id, foto_url").in("id", avisoIds).is("foto_hash", null).not("foto_url", "is", null);
+  const data = await enTrozos(avisoIds, (trozo) => db.from("avisos").select("id, foto_url").in("id", trozo).is("foto_hash", null).not("foto_url", "is", null));
   let hechos = 0;
-  for (const a of data ?? []) {
+  for (const a of data) {
     try {
       const r = await fetch(a.foto_url!, { headers: { Accept: "image/jpeg,image/webp,image/*" }, signal: AbortSignal.timeout(15_000) });
       if (!r.ok) continue;
@@ -55,9 +61,9 @@ async function bajar(url: string): Promise<Buffer | null> {
  */
 export async function copiarFotos(db: ClienteDb, fuente: string, externos: string[]): Promise<number> {
   if (!externos.length) return 0;
-  const { data } = await db.from("avisos").select("id, foto_url, fotos, foto_hash").eq("fuente_id", fuente).in("id_externo", externos);
+  const data = await enTrozos(externos, (trozo) => db.from("avisos").select("id, foto_url, fotos, foto_hash").eq("fuente_id", fuente).in("id_externo", trozo));
   let copiadas = 0;
-  for (const a of data ?? []) {
+  for (const a of data) {
     const originales = [...new Set([a.foto_url, ...(a.fotos ?? [])].filter((u): u is string => Boolean(u && CADUCA.test(u))))].slice(0, 10);
     if (!originales.length) continue;
     const nuevas = new Map<string, string>();

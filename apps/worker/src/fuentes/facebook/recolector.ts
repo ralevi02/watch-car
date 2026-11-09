@@ -2,7 +2,7 @@ import type { Page } from "patchright";
 import type { Seguimiento } from "@radar/core";
 import { capturar, pausa, scrollHumano, type Sesion } from "../../lib/navegador.js";
 import type { AvisoPortal, OpcionesRecoleccion, ResultadoRecoleccion } from "../tipos.js";
-import { detectarMuro, leerDetalle, leerTarjeta, planBusquedas, urlBusqueda, urlVehiculos } from "./lector.js";
+import { detectarMuro, esDeLaFicha, leerDetalle, leerTarjeta, planBusquedas, urlBusqueda, urlVehiculos } from "./lector.js";
 
 type Grilla = Awaited<ReturnType<typeof leerGrilla>>;
 /** Las fichas de una misma pasada comparten búsquedas: no se repite la misma URL. */
@@ -147,7 +147,7 @@ export async function recolectarFacebook(s: Sesion, ficha: Seguimiento, op: Opci
       r.paginasLeidas++;
       for (const { c, aviso } of grilla) {
         if (!aviso) r.descartadas.push(`${c.id}: ${c.texto.replace(/\s+/g, " ").slice(0, 80)}`);
-        else if (!vistos.has(aviso.id)) vistos.set(aviso.id, aviso);
+        else if (!vistos.has(aviso.id) && esDeLaFicha(aviso.titulo, ficha)) vistos.set(aviso.id, aviso);
       }
       if (i === 0 && vistos.size === 0) {
         const c = await capturar(page, "facebook-sin-resultados");
@@ -163,7 +163,8 @@ export async function recolectarFacebook(s: Sesion, ficha: Seguimiento, op: Opci
         }
       }
     }
-    r.paginasTotales = plan.length;
+    // Solo el barrido completo cuenta como pasada entera: con el corto, lo que no salió no dejó de existir.
+    r.paginasTotales = planBusquedas(ficha, true).length;
   } catch (e) {
     if (e instanceof MuroFacebook) r.bloqueo = e.message;
     else r.errores.push(`Búsqueda: ${e instanceof Error ? e.message.split("\n")[0] : String(e)}`);
