@@ -168,7 +168,9 @@ export function detectarMuro(url: string, texto: string, hayFormularioLogin: boo
 export function leerDetalle(textoPrincipal: string): DetallePortal {
   const texto = textoPrincipal.replace(/\n{3,}/g, "\n\n").trim();
   const datos: Record<string, string> = {};
-  const km = texto.match(/(?:conducido|kilometraje)[:\s]+([\d.,]+\s*(?:mil\s*)?km)/i)?.[1];
+  const km =
+    texto.match(/(?:conducido|kilometraje)[:\s]+([\d.,]+\s*(?:mil\s*)?km)/i)?.[1] ??
+    texto.match(/(?:informaci[oó]n sobre este veh[ií]culo|about this vehicle)\s+([\d.,]+\s*(?:mil\s*)?km)\b/i)?.[1];
   if (km) datos["Kilometraje"] = km;
   const caja = texto.match(/transmisi[oó]n\s+(autom[aá]tica|manual)/i)?.[1];
   if (caja) datos["Transmisión"] = caja;

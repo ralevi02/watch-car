@@ -1,4 +1,5 @@
 import { esCopiaPropia } from "./fotos.js";
+import { kmDeTexto } from "./fuentes/facebook/lector.js";
 import { createHash } from "node:crypto";
 import { avisoDesdeFila, casiCalza, contactosEnTexto, cuentaNueva, puedeSerCrossCountry, senalesEnTexto, normalizarTelefono, type Contacto, dudaDeModelo, esMismoAuto, evaluar, leerTitulo, mismaFoto, modeloCanonico, TIPOS_AVISO, type Seguimiento } from "@radar/core";
 import type { ClienteDb, Json, TablesInsert } from "@radar/db";
@@ -53,7 +54,9 @@ export function senalesDe(d: Pick<DetallePortal, "descripcion" | "datos">): stri
 
 export function datosDeDetalle(d: DetallePortal) {
   const traccion = d.datos["Tracción"];
+  const km = d.datos["Kilometraje"] ? kmDeTexto(d.datos["Kilometraje"]) : undefined;
   return {
+    ...(km ? { km } : {}),
     descripcion: d.descripcion ?? null,
     comuna: d.datos["Comuna"] ?? null,
     ...(d.fotos?.length ? { fotos: d.fotos } : {}),
@@ -169,7 +172,7 @@ export async function guardarPasada(
       db
         .from("avisos")
         // La foto se renueva (los links de Facebook vencen), salvo que ya haya una copia propia.
-        .update({ url: a.url, titulo: a.titulo, precio: a.precio ?? null, km: a.km ?? null, ultima_vez: ahora, estado: "activo", veces_no_visto: 0, ...(a.foto && !esCopiaPropia(e.foto_url) ? { foto_url: a.foto } : {}) })
+        .update({ url: a.url, titulo: a.titulo, precio: a.precio ?? null, ...(a.km !== undefined ? { km: a.km } : {}), ultima_vez: ahora, estado: "activo", veces_no_visto: 0, ...(a.foto && !esCopiaPropia(e.foto_url) ? { foto_url: a.foto } : {}) })
         .eq("id", e.id),
       "actualizar aviso",
     );
