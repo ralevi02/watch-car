@@ -65,6 +65,9 @@ export const modeloNormalizacion = (alUsar?: AlUsar) => geminiConRespaldo(proces
 /** Dictado por voz cuando el navegador no trae el suyo: audio corto, conviene el más rápido. */
 export const modeloTranscripcion = (alUsar?: AlUsar) => geminiConRespaldo(process.env.GEMINI_MODELO_TRANSCRIBIR || LIVIANO(), MODELO(), alUsar);
 
+/** Fotos de los avisos: decenas al día, así que el liviano primero (el bueno queda para el chat). */
+export const modeloFotos = (alUsar?: AlUsar) => geminiConRespaldo(process.env.GEMINI_MODELO_FOTOS || LIVIANO(), MODELO(), alUsar);
+
 /** Tareas cortas (preguntas sobre un auto, sacar datos de una llamada, diagnósticos): el modelo bueno y, si no hay cuota, el liviano. */
 export const modeloTareas = (alUsar?: AlUsar) => geminiConRespaldo(MODELO(), LIVIANO(), alUsar);
 

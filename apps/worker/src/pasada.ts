@@ -11,7 +11,7 @@
  * homelab: sale con la IP de la casa y no necesita proxy), MANUAL ("1" si la pidió la app).
  */
 import { appendFile } from "node:fs/promises";
-import { evaluar, leerTitulo, modeloCanonico, Seguimiento } from "@radar/core";
+import { evaluar, leerTitulo, modeloCanonico, nombraLaFicha, Seguimiento } from "@radar/core";
 import { clienteServicio, type ClienteDb, type Json } from "@radar/db";
 import { procesarCompartidos } from "./compartidos.js";
 import { recolectarBrunoFritsch } from "./fuentes/brunofritsch/recolector.js";
@@ -228,7 +228,7 @@ async function main() {
             const familia = modeloCanonico(b.ficha.modeloPortal || b.ficha.modelo).replace(/cc$/, "");
             const delModelo = (t: string) => FUENTE !== "facebook" || modeloCanonico(t).includes(familia);
             const elegidos = avisos
-              .filter((a) => !conDetalle.has(a.id) && delModelo(a.titulo) && evaluar(aNormalizado(datosDeLista(a)), b.ficha).tipo !== "fuera")
+              .filter((a) => !conDetalle.has(a.id) && delModelo(a.titulo) && nombraLaFicha(a.titulo, b.ficha) && evaluar(aNormalizado(datosDeLista(a)), b.ficha).tipo !== "fuera")
               .sort((x, y) => Number(leerTitulo(y.titulo).crossCountry) - Number(leerTitulo(x.titulo).crossCountry))
               .slice(0, DETALLES);
             // Las fichas se solapan (V40 y V40 CC): lo abierto para una no se vuelve a abrir para otra.
@@ -236,6 +236,7 @@ async function main() {
             return elegidos;
           },
         });
+        r.avisos = r.avisos.filter((a) => nombraLaFicha(a.titulo, b.ficha));
         resultados.push(r);
         if (r.avisos.length) {
           const ids = r.avisos.map((a) => a.id);

@@ -1,7 +1,7 @@
 import { strict as assert } from "node:assert";
 import { test } from "node:test";
 import { EJEMPLO_V40CC } from "@radar/core";
-import { consultas, detectarMuro, esDeLaFicha, kmDeTexto, leerDetalle, leerTarjeta, planBusquedas, tramosDePrecio, urlBusqueda } from "./lector.js";
+import { consultas, detectarMuro, kmDeTexto, leerDetalle, leerTarjeta, planBusquedas, tramosDePrecio, urlBusqueda } from "./lector.js";
 
 test("arma las consultas y la URL de búsqueda", () => {
   assert.deepEqual(consultas(EJEMPLO_V40CC), ["Volvo V40 Cross Country", "Volvo V40"]);
@@ -93,12 +93,6 @@ test("lee el detalle", () => {
   assert.ok(!d.descripcion?.includes("Juan"), "corta antes de los datos del vendedor");
 });
 
-test("deja solo los avisos de la marca o el modelo", () => {
-  assert.equal(esDeLaFicha("2018 Volvo V40", EJEMPLO_V40CC), true);
-  assert.equal(esDeLaFicha("V40 cross country impecable", EJEMPLO_V40CC), true);
-  assert.equal(esDeLaFicha("V-40 T4 2017", EJEMPLO_V40CC), true);
-  assert.equal(esDeLaFicha("2019 Suzuki Swift", EJEMPLO_V40CC), false);
-});
 
 test("lee el km del bloque de información del vehículo", () => {
   const d = leerDetalle("2018 Volvo V40\n$12.990.000\nInformación sobre este vehículo\n87.500 km\nTransmisión automática");

@@ -80,6 +80,16 @@ export interface AvisoNormalizado {
 const compactar = (x: string) => x.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f\s-]+/g, "");
 const mismaMarca = (a: string, b: string) => compactar(a).includes(compactar(b)) || compactar(b).includes(compactar(a));
 
+/**
+ * Los portales rellenan con otras marcas (Facebook en las búsquedas por precio, Kavak
+ * con sus "recomendados"): un aviso es de la ficha si nombra la marca o el código del modelo.
+ */
+export function nombraLaFicha(titulo: string, s: Pick<Seguimiento, "marca" | "modelo" | "modeloPortal" | "alias">): boolean {
+  const t = compactar(titulo);
+  const codigos = [s.modelo, s.modeloPortal ?? "", ...s.alias].flatMap((x) => x.split(/\s+/)).filter((p) => /\d/.test(p));
+  return [s.marca, ...codigos].map(compactar).some((c) => c.length >= 2 && t.includes(c));
+}
+
 const fmt = (n: number) => n.toLocaleString("es-CL");
 
 /** Una fila de la tabla avisos, lista para evaluar. Lo que dijo la IA manda; si no hay tipo, el filtro por palabras del título. */

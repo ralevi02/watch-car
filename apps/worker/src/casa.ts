@@ -16,12 +16,12 @@ const db = clienteServicio();
 const PEDIBLES = ["chileautos", "facebook", "kavak", "yapo", "mercadolibre", "brunofritsch", "remates"] as const;
 type Fuente = (typeof PEDIBLES)[number] | "fotos-ia";
 const SCRIPT: Partial<Record<Fuente, string>> = { remates: "remates", "fotos-ia": "fotos-ia" };
-const BARRIDO_FACEBOOK = { FB_BARRIDO: "completo", MAX_PAGINAS: "80", DETALLES: "15" };
+const BARRIDO_FACEBOOK = { FB_BARRIDO: "completo", MAX_PAGINAS: "80", DETALLES: "40" };
 
 const PROGRAMA: { fuente: Fuente; horas: string[]; env?: Record<string, string> }[] = [
   { fuente: "chileautos", horas: ["08:23", "11:23", "14:23", "17:23", "20:23", "23:23"], env: { MAX_PAGINAS: "5", DETALLES: "5" } },
   { fuente: "remates", horas: ["10:30"] },
-  { fuente: "fotos-ia", horas: ["12:00"], env: { FOTOS_IA_MAX: "10" } },
+  { fuente: "fotos-ia", horas: ["09:00", "16:00"], env: { FOTOS_IA_MAX: "30" } },
   { fuente: "brunofritsch", horas: ["12:05", "19:35"] },
   { fuente: "kavak", horas: ["12:10", "19:40"] },
   { fuente: "yapo", horas: ["12:15", "19:45"] },

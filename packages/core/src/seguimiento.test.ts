@@ -1,6 +1,6 @@
 import { strict as assert } from "node:assert";
 import { test } from "node:test";
-import { casiCalza, EJEMPLO_V40CC, evaluar, modeloCalza, modeloCanonico, pareceNoAuto } from "./index.ts";
+import { casiCalza, EJEMPLO_V40CC, evaluar, nombraLaFicha, modeloCalza, modeloCanonico, pareceNoAuto } from "./index.ts";
 
 test("evalúa km, precio y motor contra la ficha", () => {
   assert.deepEqual(evaluar({ anio: 2018, km: 90000, precio: 13000000, motor: "T4" }, EJEMPLO_V40CC), { tipo: "calza" });
@@ -122,4 +122,11 @@ test("casi calza: fuera por poco en precio, km o año, nunca otro modelo", () =>
 test("otra marca queda fuera aunque no traiga modelo", () => {
   assert.deepEqual(evaluar({ marca: "Volkswagen", anio: 2018, km: 90000, precio: 13000000 }, EJEMPLO_V40CC), { tipo: "fuera", motivos: ["Es Volkswagen, no Volvo"] });
   assert.equal(evaluar({ marca: "VOLVO", anio: 2018, km: 90000, precio: 13000000 }, EJEMPLO_V40CC).tipo, "calza");
+});
+
+test("un aviso es de la ficha si nombra la marca o el código del modelo", () => {
+  assert.equal(nombraLaFicha("2018 Volvo V40", EJEMPLO_V40CC), true);
+  assert.equal(nombraLaFicha("V40 cross country impecable", EJEMPLO_V40CC), true);
+  assert.equal(nombraLaFicha("V-40 T4 2017", EJEMPLO_V40CC), true);
+  assert.equal(nombraLaFicha("2019 Suzuki Swift", EJEMPLO_V40CC), false);
 });

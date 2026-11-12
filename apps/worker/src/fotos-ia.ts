@@ -2,7 +2,7 @@
  * La IA mira las fotos de los avisos que están en Resultados: si es Cross
  * Country (la duda más común), el km del tablero, la patente, daños visibles y
  * si las fotos son de verdad de un auto. Primero los que tienen la duda del
- * modelo. Pocos por corrida: la capa gratis de Gemini da 20 consultas diarias.
+ * modelo. Va con el modelo liviano, que aguanta bastante más que las 20 diarias del bueno.
  *
  * También marca las fotos repetidas en avisos de otro vendedor (sin IA, con el hash).
  *
@@ -12,7 +12,7 @@ import type { GoogleLanguageModelOptions } from "@ai-sdk/google";
 import { resolve } from "node:path";
 import { distanciaHash, fotoGrande, normalizarPatente, puedeSerCrossCountry, Seguimiento } from "@radar/core";
 import { clienteServicio, type Json, type TablesUpdate } from "@radar/db";
-import { modeloTareas } from "@radar/ia";
+import { modeloFotos } from "@radar/ia";
 import { generateText, Output } from "ai";
 import { z } from "zod";
 import { evaluarAvisos } from "./guardar.js";
@@ -85,7 +85,7 @@ for (const a of candidatos.slice(0, MAX)) {
   }
   try {
     const { output } = await generateText({
-      model: modeloTareas((m) => usos.push(m)),
+      model: modeloFotos((m) => usos.push(m)),
       instructions: INSTRUCCIONES,
       messages: [
         {
