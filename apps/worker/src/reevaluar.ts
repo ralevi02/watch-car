@@ -22,12 +22,22 @@ try {
 }
 const db = clienteServicio();
 
+/** Todas las filas: Supabase entrega como máximo 1000 por consulta. */
+async function todas<T>(consulta: (desde: number, hasta: number) => PromiseLike<{ data: T[] | null }>): Promise<T[]> {
+  const filas: T[] = [];
+  for (let desde = 0; ; desde += 1000) {
+    const { data } = await consulta(desde, desde + 999);
+    filas.push(...(data ?? []));
+    if ((data?.length ?? 0) < 1000) return filas;
+  }
+}
+
 // La duda de modelo con la regla actual: no se duda si el aviso dice Cross Country; en Facebook un V40 a secas sí.
-const { data: todos } = await db.from("avisos").select("id, fuente_id, titulo, descripcion, modelo, por_confirmar, vision").not("modelo", "is", null);
+const todos = await todas((d, h) => db.from("avisos").select("id, fuente_id, titulo, descripcion, modelo, por_confirmar, vision").not("modelo", "is", null).order("id").range(d, h));
 const { data: corregidos } = await db.from("correcciones").select("aviso_id").eq("campo", "modelo");
 const yaCorregido = new Set((corregidos ?? []).map((c) => c.aviso_id));
 let cambiados = 0;
-for (const a of todos ?? []) {
+for (const a of todos) {
   // Corregido por el dueño o resuelto con la foto: no se vuelve a dudar.
   const vision = a.vision as { crossCountry?: string } | null;
   if (yaCorregido.has(a.id) || vision?.crossCountry === "si" || vision?.crossCountry === "no") continue;
@@ -39,9 +49,9 @@ for (const a of todos ?? []) {
 console.log(`Duda de modelo ajustada en ${cambiados} avisos`);
 
 // Señales de estafa en las descripciones guardadas antes de buscarlas.
-const { data: sinSenales } = await db.from("avisos").select("id, descripcion, senales").not("descripcion", "is", null);
+const sinSenales = await todas((d, h) => db.from("avisos").select("id, descripcion, senales").not("descripcion", "is", null).order("id").range(d, h));
 let conSenales = 0;
-for (const a of sinSenales ?? []) {
+for (const a of sinSenales) {
   const nuevas = senalesEnTexto(a.descripcion).filter((x) => !a.senales.includes(x));
   if (!nuevas.length) continue;
   await db.from("avisos").update({ senales: [...a.senales, ...nuevas] }).eq("id", a.id);
@@ -50,9 +60,9 @@ for (const a of sinSenales ?? []) {
 console.log(`Señales de estafa encontradas en ${conSenales} avisos`);
 
 // Contacto sacado de la descripción, para lo que se guardó antes de leerlo.
-const { data: sinContacto } = await db.from("avisos").select("id, descripcion").is("contacto", null).not("descripcion", "is", null);
+const sinContacto = await todas((d, h) => db.from("avisos").select("id, descripcion").is("contacto", null).not("descripcion", "is", null).order("id").range(d, h));
 let conContacto = 0;
-for (const a of sinContacto ?? []) {
+for (const a of sinContacto) {
   const c = contactoDe({ descripcion: a.descripcion ?? undefined, datos: {} });
   if (!c) continue;
   await db.from("avisos").update({ contacto: c as Json }).eq("id", a.id);
@@ -87,8 +97,7 @@ for (const b of busquedas ?? []) {
   if (!ficha.success) continue;
   const totales = { calza: 0, advertencia: 0, fuera: 0 };
   for (const fuente of ficha.data.fuentes) {
-    const { data: avisos } = await db.from("avisos").select("id_externo").eq("fuente_id", fuente).neq("estado", "vendido");
-    const ids = (avisos ?? []).map((a) => a.id_externo);
+    const ids = (await todas((d, h) => db.from("avisos").select("id_externo").eq("fuente_id", fuente).neq("estado", "vendido").order("id").range(d, h))).map((a) => a.id_externo);
     for (let i = 0; i < ids.length; i += 150) {
       const r = await evaluarAvisos(db, fuente, b.id, ficha.data, ids.slice(i, i + 150), []);
       for (const k of Object.keys(totales) as (keyof typeof totales)[]) totales[k] += r.veredictos[k];

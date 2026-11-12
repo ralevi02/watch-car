@@ -140,12 +140,18 @@ for (const [fuente, externos] of tocados) {
 // ── La misma foto en otro auto (otro modelo, año o un precio muy distinto): posible foto robada ──
 // El mismo auto en dos portales no cuenta (eso es la deduplicación), ni las imágenes que se repiten
 // en muchos avisos (las genéricas de "sin foto" de los portales).
-const { data: conHash } = await db
-  .from("avisos")
-  .select("id, auto_id, foto_hash, anio, precio, primera_vez, senales")
-  .not("foto_hash", "is", null)
-  .neq("estado", "vendido");
-const lista = conHash ?? [];
+const lista: { id: string; auto_id: string | null; foto_hash: string | null; anio: number | null; precio: number | null; primera_vez: string; senales: string[] }[] = [];
+for (let desde = 0; ; desde += 1000) {
+  const { data } = await db
+    .from("avisos")
+    .select("id, auto_id, foto_hash, anio, precio, primera_vez, senales")
+    .not("foto_hash", "is", null)
+    .neq("estado", "vendido")
+    .order("id")
+    .range(desde, desde + 999);
+  lista.push(...(data ?? []));
+  if ((data?.length ?? 0) < 1000) break;
+}
 const vecinos = lista.map((x) => lista.filter((y) => y !== x && distanciaHash(x.foto_hash!, y.foto_hash!) <= 3).length);
 let repetidas = 0;
 for (let i = 0; i < lista.length; i++) {
