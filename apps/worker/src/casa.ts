@@ -31,7 +31,7 @@ const PROGRAMA: { fuente: Fuente; horas: string[]; env?: Record<string, string> 
   { fuente: "resumen", horas: Array.from({ length: 24 }, (_, h) => `${String(h).padStart(2, "0")}:02`) },
 ];
 
-type Tarea = { tipo: "pasada"; fuente: Fuente; pedidoId?: string; env?: Record<string, string> } | { tipo: "reconexion"; id: string };
+type Tarea = { tipo: "pasada"; fuente: Fuente; pedidoId?: string; busquedaId?: string; env?: Record<string, string> } | { tipo: "reconexion"; id: string };
 
 const cola: Tarea[] = [];
 const enCola = new Set<string>();
@@ -39,7 +39,7 @@ const disparados = new Set<string>();
 let actual: ChildProcess | null = null;
 let ocupado = false;
 
-const clave = (t: Tarea) => (t.tipo === "pasada" ? `pasada:${t.fuente}` : `reconexion:${t.id}`);
+const clave = (t: Tarea) => (t.tipo === "pasada" ? `pasada:${t.fuente}:${t.busquedaId ?? "todas"}` : `reconexion:${t.id}`);
 
 function encolar(t: Tarea) {
   if (enCola.has(clave(t))) return false;
@@ -71,14 +71,20 @@ function revisarPrograma() {
 }
 
 async function revisarPedidos() {
-  const { data: pedidos } = await db.from("corridas_pedidas").select("id, fuente").eq("estado", "pedida").order("pedida_en").limit(10);
+  const { data: pedidos } = await db.from("corridas_pedidas").select("id, fuente, busqueda_id").eq("estado", "pedida").order("pedida_en").limit(10);
   for (const p of pedidos ?? []) {
     if (p.fuente === "push") {
       await probarPush(p.id);
       continue;
     }
     if (!(PEDIBLES as readonly string[]).includes(p.fuente)) continue;
-    const t: Tarea = { tipo: "pasada", fuente: p.fuente as Fuente, pedidoId: p.id, env: { TIPO: "prueba", MANUAL: "1", ...(p.fuente === "facebook" ? BARRIDO_FACEBOOK : {}) } };
+    const t: Tarea = {
+      tipo: "pasada",
+      fuente: p.fuente as Fuente,
+      pedidoId: p.id,
+      busquedaId: p.busqueda_id ?? undefined,
+      env: { TIPO: "prueba", MANUAL: "1", ...(p.fuente === "facebook" ? BARRIDO_FACEBOOK : {}), ...(p.busqueda_id ? { BUSQUEDA_ID: p.busqueda_id } : {}) },
+    };
     if (encolar(t)) await db.from("corridas_pedidas").update({ estado: "corriendo", tomada_en: new Date().toISOString() }).eq("id", p.id);
     else await db.from("corridas_pedidas").update({ estado: "ok", terminada_en: new Date().toISOString(), error: "Ya estaba en cola" }).eq("id", p.id);
   }
@@ -137,7 +143,7 @@ async function avisarKuma(fuente: string, ok: boolean, msg: string) {
 
 async function ejecutar(t: Tarea) {
   if (t.tipo === "pasada") {
-    console.log(`Corriendo ${t.fuente}${t.pedidoId ? " (pedida desde la app)" : ""}`);
+    console.log(`Corriendo ${t.fuente}${t.pedidoId ? ` (pedida desde la app${t.busquedaId ? ", ficha nueva" : ""})` : ""}`);
     const limite = t.env?.FB_BARRIDO === "completo" ? 180 * 60_000 : 50 * 60_000;
     const codigo = await correr("pnpm", [SCRIPT[t.fuente] ?? "pasada"], { FUENTE: t.fuente, ...t.env }, limite);
     const ok = codigo === 0;

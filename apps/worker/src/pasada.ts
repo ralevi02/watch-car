@@ -35,6 +35,7 @@ import { enviarPush, leerModoAvisos, type Notificacion } from "./push.js";
 const FUENTE = process.env.FUENTE || "chileautos";
 const NOMBRE: Record<string, string> = { chileautos: "Chileautos", facebook: "Facebook", kavak: "Kavak", yapo: "Yapo", mercadolibre: "MercadoLibre", brunofritsch: "Bruno Fritsch" };
 const IP_RESIDENCIAL = process.env.IP_RESIDENCIAL === "1";
+const BUSQUEDA_ID = process.env.BUSQUEDA_ID;
 const TIPO = process.env.TIPO === "corta" || process.env.TIPO === "completa" ? process.env.TIPO : "prueba";
 const MAX_PAGINAS = Number(process.env.MAX_PAGINAS || 5);
 const DETALLES = Number(process.env.DETALLES || (FUENTE === "facebook" ? 25 : 5));
@@ -165,7 +166,7 @@ async function main() {
     const f = Seguimiento.safeParse(b.ficha);
     return f.success ? [{ id: b.id, nombre: b.nombre, alertas: b.alertas, ficha: f.data }] : [];
   });
-  const fichas = todas.filter((b) => b.ficha.fuentes.includes(FUENTE as Seguimiento["fuentes"][number]));
+  const fichas = todas.filter((b) => b.ficha.fuentes.includes(FUENTE as Seguimiento["fuentes"][number]) && (!BUSQUEDA_ID || b.id === BUSQUEDA_ID));
   const { count: compartidosPendientes } = await db.from("compartidos").select("id", { count: "exact", head: true }).eq("fuente_id", FUENTE).eq("estado", "pendiente");
   if (!fichas.length && !compartidosPendientes) {
     console.log(`No hay búsquedas activas con ${FUENTE} ni links compartidos pendientes.`);

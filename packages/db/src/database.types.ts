@@ -519,6 +519,7 @@ export type Database = {
       }
       corridas_pedidas: {
         Row: {
+          busqueda_id: string | null
           error: string | null
           estado: string
           fuente: string
@@ -528,6 +529,7 @@ export type Database = {
           tomada_en: string | null
         }
         Insert: {
+          busqueda_id?: string | null
           error?: string | null
           estado?: string
           fuente: string
@@ -537,6 +539,7 @@ export type Database = {
           tomada_en?: string | null
         }
         Update: {
+          busqueda_id?: string | null
           error?: string | null
           estado?: string
           fuente?: string
@@ -545,7 +548,15 @@ export type Database = {
           terminada_en?: string | null
           tomada_en?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "corridas_pedidas_busqueda_id_fkey"
+            columns: ["busqueda_id"]
+            isOneToOne: false
+            referencedRelation: "busquedas"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       cuentas_facebook: {
         Row: {

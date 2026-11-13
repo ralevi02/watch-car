@@ -18,8 +18,17 @@ export async function guardarSeguimiento(ficha: unknown): Promise<Resultado> {
   const { data, error } = await supabase.from("busquedas").insert({ nombre: f.data.nombre, ficha: f.data }).select("id").single();
   if (error) return { ok: false, error: error.message };
   await evaluarFichaContraTodo(supabase, data.id, f.data);
+  await buscarAlTiro(supabase, data.id, f.data);
   revalidatePath("/");
   return { ok: true };
+}
+
+/** Ficha nueva: el homelab la busca en sus fuentes sin esperar el horario. Las rápidas primero y Facebook (el barrido largo) al final. */
+async function buscarAlTiro(supabase: Awaited<ReturnType<typeof crearClienteServidor>>, busquedaId: string, ficha: Seguimiento) {
+  const orden = (f: string) => (f === "facebook" ? 1 : 0);
+  const fuentes = FUENTES_CORRIBLES.filter((f) => (ficha.fuentes as readonly string[]).includes(f)).sort((a, b) => orden(a) - orden(b));
+  const ahora = Date.now();
+  await supabase.from("corridas_pedidas").insert(fuentes.map((fuente, i) => ({ fuente, busqueda_id: busquedaId, pedida_en: new Date(ahora + i).toISOString() })));
 }
 
 export async function cambiarBusqueda(id: string, cambios: { activa?: boolean; alertas?: boolean }) {
