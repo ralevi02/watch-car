@@ -43,6 +43,7 @@ export async function enviarPush(db: ClienteDb, notis: Notificacion[]): Promise<
   if (error) return { enviadas: 0, error: `Supabase (suscripciones): ${error.message}` };
 
   let enviadas = 0;
+  const fallas = new Set<string>();
   for (const s of subs) {
     for (const n of notis) {
       try {
@@ -56,8 +57,9 @@ export async function enviarPush(db: ClienteDb, notis: Notificacion[]): Promise<
           await db.from("push_suscripciones").delete().eq("id", s.id);
           break;
         }
+        fallas.add(`HTTP ${status ?? "?"}: ${String((e as { body?: string }).body ?? (e as Error).message).slice(0, 120)}`);
       }
     }
   }
-  return { enviadas };
+  return { enviadas, ...(fallas.size ? { error: `El servicio de push rechazó el envío (${[...fallas].join("; ")})` } : {}) };
 }

@@ -221,6 +221,18 @@ export async function correrAhora(fuente: FuenteCorrible | "todas"): Promise<Res
   return error ? { ok: false, error: error.message } : { ok: true };
 }
 
+/** Pide al homelab una notificación de prueba a todos los teléfonos suscritos. */
+export async function probarAvisos(): Promise<{ ok: true; id: string } | { ok: false; error: string }> {
+  if (!(await esDueno())) return { ok: false, error: "Esta cuenta no tiene acceso a Radar." };
+  const { data, error } = await (await crearClienteServidor()).from("corridas_pedidas").insert({ fuente: "push" }).select("id").single();
+  return error ? { ok: false, error: error.message } : { ok: true, id: data.id };
+}
+
+export async function estadoPruebaAvisos(id: string): Promise<{ estado: string; error: string | null }> {
+  const { data } = await (await crearClienteServidor()).from("corridas_pedidas").select("estado, error").eq("id", z.string().uuid().parse(id)).maybeSingle();
+  return { estado: data?.estado ?? "pedida", error: data?.error ?? null };
+}
+
 /** Qué fuentes tienen una corrida en cola o en curso (en GitHub Actions o pedida al homelab). */
 export async function leerCorridas(): Promise<Partial<Record<FuenteCorrible, EstadoCorrida>>> {
   const supabase = await crearClienteServidor();

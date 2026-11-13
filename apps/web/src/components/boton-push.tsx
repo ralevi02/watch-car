@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { borrarSuscripcion, guardarSuscripcion } from "@/app/(app)/acciones";
+import { borrarSuscripcion, estadoPruebaAvisos, guardarSuscripcion, probarAvisos } from "@/app/(app)/acciones";
 import { Interruptor } from "@/components/ui/interruptor";
 
 const aBytes = (b64: string) => {
@@ -16,6 +16,7 @@ type Estado = "cargando" | "no-soportado" | "bloqueado" | "activo" | "inactivo";
 export function BotonPush() {
   const [estado, setEstado] = useState<Estado>("cargando");
   const [error, setError] = useState<string | null>(null);
+  const [prueba, setPrueba] = useState<string | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -51,6 +52,19 @@ export function BotonPush() {
     }
   }
 
+  async function mandarPrueba() {
+    setPrueba("Pidiendo al homelab…");
+    const r = await probarAvisos();
+    if (!r.ok) return setPrueba(r.error);
+    for (let i = 0; i < 20; i++) {
+      await new Promise((listo) => setTimeout(listo, 3000));
+      const e = await estadoPruebaAvisos(r.id);
+      if (e.estado === "ok") return setPrueba("Enviada. Si no aparece en unos segundos, revisa que el teléfono permita las notificaciones de Chrome.");
+      if (e.estado === "error") return setPrueba(`No se pudo mandar: ${e.error ?? "error desconocido"}`);
+    }
+    setPrueba("El homelab no la tomó en un minuto: puede estar apagado o sin conexión.");
+  }
+
   return (
     <>
       <div className="lista-ios">
@@ -71,6 +85,14 @@ export function BotonPush() {
             : "Autos nuevos que calzan, bajas de precio y cuando un portal bloquea la búsqueda."}
         {error && <span className="block text-destructive">{error}</span>}
       </p>
+      {estado === "activo" && (
+        <div className="lista-ios">
+          <button type="button" className="fila-ios w-full text-left text-primary" onClick={mandarPrueba} disabled={prueba === "Pidiendo al homelab…"}>
+            Mandar una prueba
+          </button>
+        </div>
+      )}
+      {prueba && <p className="pie-grupo">{prueba}</p>}
     </>
   );
 }

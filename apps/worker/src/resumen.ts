@@ -1,7 +1,8 @@
 /**
  * Resumen diario de avisos (cuando en la app se elige "Un resumen al día"):
  * una sola notificación con lo nuevo que calza y las bajas de precio desde el
- * resumen anterior. Corre cada hora en GitHub Actions y solo manda a la hora elegida.
+ * resumen anterior. Corre cada hora en el homelab (y de respaldo en GitHub Actions, cuyo cron se atrasa
+ * horas): manda en la primera corrida desde la hora elegida, una vez al día.
  *
  * También avisa si una fuente lleva muchas horas sin traer avisos y, los
  * domingos, manda el resumen de la semana por ficha.
@@ -76,7 +77,7 @@ if (minutosSinLatido > 30 && (!alertaCasa?.en || Date.now() - new Date(alertaCas
 // ── 2. Resumen de la semana: el domingo a la hora de los avisos (en cualquier modo) ──
 const semanal = await leerAjuste<{ en?: string }>("semanal_enviado");
 const haceUnaSemana = Date.now() - 7 * 86_400_000;
-if ((ahoraChile.getDay() === 0 && horaChile === hora && (!semanal?.en || new Date(semanal.en).getTime() < Date.now() - 5 * 86_400_000)) || process.env.SEMANAL === "1") {
+if ((ahoraChile.getDay() === 0 && horaChile >= hora && (!semanal?.en || new Date(semanal.en).getTime() < Date.now() - 5 * 86_400_000)) || process.env.SEMANAL === "1") {
   const { data: fichas } = await db.from("busquedas").select("id, nombre").eq("activa", true);
   const lineas: string[] = [];
   for (const b of fichas ?? []) {
@@ -109,7 +110,7 @@ if ((ahoraChile.getDay() === 0 && horaChile === hora && (!semanal?.en || new Dat
 
 // ── Recordatorios de "Mi auto": el día 1 del mes de la revisión técnica, y en marzo el permiso y el SOAP ──
 const MES_REVISION: Record<string, number> = { "9": 1, "0": 2, "1": 4, "2": 5, "3": 6, "4": 7, "5": 8, "6": 9, "7": 10, "8": 11 };
-if (ahoraChile.getDate() === 1 && horaChile === hora) {
+if (ahoraChile.getDate() === 1 && horaChile >= hora) {
   const mio = await leerAjuste<{ patente?: string }>("mi_auto");
   const { data: comprado } = await db.from("marcas").select("auto_id").eq("contacto", "comprado").limit(1).maybeSingle();
   const yaEsteMes = (await leerAjuste<{ mes?: string }>("recordatorio_mes"))?.mes === `${ahoraChile.getFullYear()}-${ahoraChile.getMonth() + 1}`;
@@ -128,14 +129,16 @@ if (ahoraChile.getDate() === 1 && horaChile === hora) {
   }
 }
 
-// ── 3. Resumen del día (solo en modo resumen, a la hora elegida) ──
-if (!FORZAR && (modo !== "resumen" || horaChile !== hora)) {
-  console.log(`Resumen del día: nada que hacer (modo ${modo}, hora elegida ${hora}, ahora son las ${horaChile}).`);
+// ── 3. Resumen del día (solo en modo resumen, desde la hora elegida, una vez al día) ──
+const diaChile = (d: Date) => d.toLocaleDateString("en-CA", { timeZone: "America/Santiago" });
+const { data: ultimo } = await db.from("ajustes").select("valor").eq("clave", "resumen_enviado").maybeSingle();
+const ultimoEn = (ultimo?.valor as { en?: string } | null)?.en;
+const yaHoy = Boolean(ultimoEn && diaChile(new Date(ultimoEn)) === diaChile(new Date()));
+if (!FORZAR && (modo !== "resumen" || horaChile < hora || yaHoy)) {
+  console.log(`Resumen del día: nada que hacer (modo ${modo}, hora elegida ${hora}, ahora son las ${horaChile}${yaHoy ? ", ya se mandó hoy" : ""}).`);
   process.exit(0);
 }
-
-const { data: ultimo } = await db.from("ajustes").select("valor").eq("clave", "resumen_enviado").maybeSingle();
-const desde = (ultimo?.valor as { en?: string } | null)?.en ?? new Date(Date.now() - 24 * 3600_000).toISOString();
+const desde = ultimoEn ?? new Date(Date.now() - 24 * 3600_000).toISOString();
 
 // Lo nuevo que calza o entra con advertencia, sin descartados.
 const { data: nuevos } = await db

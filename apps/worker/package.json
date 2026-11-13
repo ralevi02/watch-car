@@ -15,6 +15,7 @@
     "reevaluar": "tsx src/reevaluar.ts",
     "prueba-busqueda-fb": "tsx src/prueba-busqueda-fb.ts",
     "resumen": "tsx src/resumen.ts",
+    "probar-push": "tsx src/probar-push.ts",
     "remates": "tsx src/remates.ts",
     "fotos-ia": "tsx src/fotos-ia.ts"
   },

@@ -14,8 +14,8 @@ import { clienteServicio } from "@radar/db";
 
 const db = clienteServicio();
 const PEDIBLES = ["chileautos", "facebook", "kavak", "yapo", "mercadolibre", "brunofritsch", "remates"] as const;
-type Fuente = (typeof PEDIBLES)[number] | "fotos-ia";
-const SCRIPT: Partial<Record<Fuente, string>> = { remates: "remates", "fotos-ia": "fotos-ia" };
+type Fuente = (typeof PEDIBLES)[number] | "fotos-ia" | "resumen";
+const SCRIPT: Partial<Record<Fuente, string>> = { remates: "remates", "fotos-ia": "fotos-ia", resumen: "resumen" };
 const BARRIDO_FACEBOOK = { FB_BARRIDO: "completo", MAX_PAGINAS: "80", DETALLES: "40" };
 
 const PROGRAMA: { fuente: Fuente; horas: string[]; env?: Record<string, string> }[] = [
@@ -28,6 +28,7 @@ const PROGRAMA: { fuente: Fuente; horas: string[]; env?: Record<string, string> 
   { fuente: "mercadolibre", horas: ["12:20", "19:50"] },
   { fuente: "facebook", horas: ["07:30"], env: BARRIDO_FACEBOOK },
   { fuente: "facebook", horas: ["13:00", "20:30"], env: { MAX_PAGINAS: "4", DETALLES: "8" } },
+  { fuente: "resumen", horas: Array.from({ length: 24 }, (_, h) => `${String(h).padStart(2, "0")}:02`) },
 ];
 
 type Tarea = { tipo: "pasada"; fuente: Fuente; pedidoId?: string; env?: Record<string, string> } | { tipo: "reconexion"; id: string };
@@ -72,6 +73,10 @@ function revisarPrograma() {
 async function revisarPedidos() {
   const { data: pedidos } = await db.from("corridas_pedidas").select("id, fuente").eq("estado", "pedida").order("pedida_en").limit(10);
   for (const p of pedidos ?? []) {
+    if (p.fuente === "push") {
+      await probarPush(p.id);
+      continue;
+    }
     if (!(PEDIBLES as readonly string[]).includes(p.fuente)) continue;
     const t: Tarea = { tipo: "pasada", fuente: p.fuente as Fuente, pedidoId: p.id, env: { TIPO: "prueba", MANUAL: "1", ...(p.fuente === "facebook" ? BARRIDO_FACEBOOK : {}) } };
     if (encolar(t)) await db.from("corridas_pedidas").update({ estado: "corriendo", tomada_en: new Date().toISOString() }).eq("id", p.id);
@@ -85,6 +90,18 @@ async function revisarPedidos() {
     .order("creada_en")
     .limit(3);
   for (const r of recs ?? []) encolar({ tipo: "reconexion", id: r.id });
+}
+
+/** La prueba de notificaciones no usa el navegador: corre al tiro, sin esperar la cola. */
+async function probarPush(id: string) {
+  await db.from("corridas_pedidas").update({ estado: "corriendo", tomada_en: new Date().toISOString() }).eq("id", id);
+  const hijo = spawn("pnpm", ["probar-push"], { env: process.env, stdio: ["ignore", "pipe", "inherit"] });
+  let salida = "";
+  hijo.stdout.on("data", (d) => (salida += d));
+  const codigo = await new Promise<number>((listo) => hijo.on("exit", (c) => listo(c ?? 1)));
+  const linea = salida.trim().split("\n").at(-1) ?? "";
+  const ok = codigo === 0 && /^Enviadas: [1-9]/.test(linea) && !linea.includes("(");
+  await db.from("corridas_pedidas").update({ estado: ok ? "ok" : "error", terminada_en: new Date().toISOString(), error: ok ? null : linea || `código ${codigo}` }).eq("id", id);
 }
 
 function matar(hijo: ChildProcess, senal: NodeJS.Signals) {

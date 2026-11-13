@@ -63,6 +63,8 @@ export interface AvisoNormalizado {
   /** Qué vende el aviso; lo que no es un auto queda fuera. */
   tipo?: "auto" | "repuesto" | "accesorio" | "otro";
   marca?: string;
+  /** Solo se usa si la IA no dejó marca ni modelo. */
+  titulo?: string;
   /** Modelo según la normalización, ej. "V40" o "V40 Cross Country". */
   modelo?: string;
   /** Campos que la normalización marcó como dudosos. */
@@ -82,12 +84,13 @@ const mismaMarca = (a: string, b: string) => compactar(a).includes(compactar(b))
 
 /**
  * Los portales rellenan con otras marcas (Facebook en las búsquedas por precio, Kavak
- * con sus "recomendados"): un aviso es de la ficha si nombra la marca o el código del modelo.
+ * con sus "recomendados"): un aviso es de la ficha si nombra la marca, el modelo o su código.
  */
 export function nombraLaFicha(titulo: string, s: Pick<Seguimiento, "marca" | "modelo" | "modeloPortal" | "alias">): boolean {
   const t = compactar(titulo);
-  const codigos = [s.modelo, s.modeloPortal ?? "", ...s.alias].flatMap((x) => x.split(/\s+/)).filter((p) => /\d/.test(p));
-  return [s.marca, ...codigos].map(compactar).some((c) => c.length >= 2 && t.includes(c));
+  const nombres = [s.modelo, s.modeloPortal ?? "", ...s.alias];
+  const codigos = nombres.flatMap((x) => x.split(/\s+/)).filter((p) => /\d/.test(p));
+  return [s.marca, ...nombres, ...codigos].map(compactar).some((c) => c.length >= 2 && t.includes(c));
 }
 
 const fmt = (n: number) => n.toLocaleString("es-CL");
@@ -110,6 +113,7 @@ export function avisoDesdeFila(x: {
   return {
     tipo: TIPOS_AVISO.find((t) => t === x.tipo) ?? (x.titulo ? pareceNoAuto(x.titulo) : undefined),
     marca: x.marca || undefined,
+    titulo: x.titulo ?? undefined,
     modelo: x.modelo ?? undefined,
     porConfirmar: x.por_confirmar ?? undefined,
     anio: x.anio ?? undefined,
@@ -149,6 +153,7 @@ export function evaluar(aviso: AvisoNormalizado, s: Seguimiento): Veredicto {
   // Bajo un millón no hay auto usado: es un repuesto o un precio de mentira ($1, $100.000).
   if (aviso.precio !== undefined && aviso.precio < 1_000_000) return { tipo: "fuera", motivos: [`Precio $${fmt(aviso.precio)}: no es el precio de un auto`] };
   if (aviso.marca && !mismaMarca(aviso.marca, s.marca)) return { tipo: "fuera", motivos: [`Es ${aviso.marca}, no ${s.marca}`] };
+  if (!aviso.marca && !aviso.modelo && aviso.titulo && !nombraLaFicha(aviso.titulo, s)) return { tipo: "fuera", motivos: [`No es un ${s.marca} ${s.modelo}`] };
   if (aviso.modelo) {
     // La duda de modelo es casi siempre "¿base o Cross Country?". Solo importa
     // si la ficha pide el Cross Country; si acepta el modelo base, calza igual.

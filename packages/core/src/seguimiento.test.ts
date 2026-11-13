@@ -130,3 +130,15 @@ test("un aviso es de la ficha si nombra la marca o el código del modelo", () =>
   assert.equal(nombraLaFicha("V-40 T4 2017", EJEMPLO_V40CC), true);
   assert.equal(nombraLaFicha("2019 Suzuki Swift", EJEMPLO_V40CC), false);
 });
+
+test("sin marca ni modelo de la IA, decide el título", () => {
+  assert.equal(evaluar({ titulo: "Chevrolet otro", anio: 2018, km: 90000, precio: 13000000 }, EJEMPLO_V40CC).tipo, "fuera");
+  assert.equal(evaluar({ titulo: "Volvo V40 2018", anio: 2018, km: 90000, precio: 13000000 }, EJEMPLO_V40CC).tipo, "calza");
+});
+
+test("el modelo sin números también cuenta", () => {
+  const xv = { marca: "Subaru", modelo: "XV", modeloPortal: "XV", alias: ["Crosstrek"] };
+  assert.equal(nombraLaFicha("XV 2.0 2019 impecable", xv), true);
+  assert.equal(nombraLaFicha("Crosstrek 2020", xv), true);
+  assert.equal(nombraLaFicha("Mazda CX-5 2019", xv), false);
+});
