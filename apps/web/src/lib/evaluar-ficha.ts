@@ -1,4 +1,5 @@
 import { avisoDesdeFila, casiCalza, evaluar, type Seguimiento } from "@radar/core";
+import { FUENTES_CORRIBLES } from "@/lib/github";
 import type { crearClienteServidor } from "@/lib/supabase/server";
 
 type Cliente = Awaited<ReturnType<typeof crearClienteServidor>>;
@@ -25,4 +26,12 @@ export async function evaluarFichaContraTodo(supabase: Cliente, busquedaId: stri
       if ((avisos?.length ?? 0) < PAGINA) break;
     }
   }
+}
+
+/** Ficha nueva: el homelab la busca en sus fuentes sin esperar el horario. Las rápidas primero y Facebook (el barrido largo) al final. */
+export async function buscarAlTiro(supabase: Cliente, busquedaId: string, ficha: Seguimiento) {
+  const orden = (f: string) => (f === "facebook" ? 1 : 0);
+  const fuentes = FUENTES_CORRIBLES.filter((f) => (ficha.fuentes as readonly string[]).includes(f)).sort((a, b) => orden(a) - orden(b));
+  const ahora = Date.now();
+  await supabase.from("corridas_pedidas").insert(fuentes.map((fuente, i) => ({ fuente, busqueda_id: busquedaId, pedida_en: new Date(ahora + i).toISOString() })));
 }

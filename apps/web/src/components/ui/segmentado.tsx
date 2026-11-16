@@ -29,10 +29,10 @@ export function Segmentado<T extends string>({
           role="radio"
           aria-checked={o.id === valor}
           onClick={() => onCambio(o.id)}
-          className={cn("relative z-10 truncate px-1 text-[14px] transition-colors", o.id === valor ? "font-semibold text-foreground" : "font-medium text-muted-foreground")}
+          className={cn("relative z-10 truncate px-0.5 text-[14px] transition-colors", o.id === valor ? "font-semibold text-foreground" : "font-medium text-muted-foreground")}
         >
           {o.etiqueta}
-          {o.cuenta !== undefined && o.cuenta > 0 && <span className="ml-1 text-tenue">{o.cuenta}</span>}
+          {o.cuenta !== undefined && o.cuenta > 0 && <span className="ml-1 text-[12px] tabular-nums text-tenue">{o.cuenta}</span>}
         </button>
       ))}
     </div>

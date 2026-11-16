@@ -1,10 +1,11 @@
 "use client";
 
-import { Columns3, Download, GalleryHorizontalEnd, Handshake, LoaderCircle, Mic, Route, Sparkles, SlidersHorizontal, LayoutGrid, Link2, List, Map as IconoMapa, MoreHorizontal, RectangleHorizontal, Search, Star, Trash2, Waves, X } from "lucide-react";
+import { ArrowDownRight, Columns3, Download, GalleryHorizontalEnd, Handshake, LoaderCircle, Mic, Route, Sparkles, SlidersHorizontal, LayoutGrid, Link2, List, Map as IconoMapa, MoreHorizontal, RectangleHorizontal, Search, Star, Trash2, Waves, X } from "lucide-react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { AvisoFuentes } from "@/components/aviso-fuentes";
 import { DetalleAuto } from "@/components/detalle-auto";
 import { Encabezado } from "@/components/encabezado";
 import { FilaEsqueleto, FilaResultado } from "@/components/fila-resultado";
@@ -17,6 +18,7 @@ import { useAlmacen } from "@/lib/almacen";
 import type { Filtro, ResultadoAuto } from "@/lib/datos";
 import { type Afinar, afinar, cuantosFiltros, FILTROS, filtrar, type Orden, ORDENES, ordenar, SEGMENTOS } from "@/lib/filtros";
 import { distanciaDeCasa } from "@/lib/lugares";
+import { fichaDe, puntaje } from "@/lib/puntaje";
 import { FiltrosActivos, FiltrosHoja } from "@/components/filtros-hoja";
 import { CompararHoja } from "@/components/comparar-hoja";
 import { ConvieneHoja } from "@/components/conviene-hoja";
@@ -28,7 +30,7 @@ import { rutaDeVisitas } from "@/lib/ruta";
 import { iniciarVisita } from "@/lib/visto";
 import { cn } from "@/lib/utils";
 
-const TITULO_FILTRO: Partial<Record<Filtro, string>> = { favoritos: "Guardados", descartados: "Descartados", casi: "Casi calzan", contacto: "En contacto" };
+const TITULO_FILTRO: Partial<Record<Filtro, string>> = { bajo: "Bajaron de precio", favoritos: "Guardados", descartados: "Descartados", casi: "Casi calzan", contacto: "En contacto" };
 
 // Leaflet necesita el navegador: el mapa se carga solo si lo eliges.
 const MapaAutos = dynamic(() => import("@/components/mapa-autos").then((m) => m.MapaAutos), {
@@ -201,7 +203,9 @@ export function VistaResultados() {
   const distancia = (r: ResultadoAuto) => distanciaDeCasa(r, casa)?.km ?? null;
   const base = afinar(datos?.resultados ?? [], afinados, distancia);
   const baseCasi = afinar(datos?.casi ?? [], afinados, distancia);
-  const filtrados = filtrar(base, filtro, laBusqueda, texto, baseCasi);
+  const fichas = datos?.busquedas ?? [];
+  const puntuar = (r: ResultadoAuto) => puntaje(r, fichaDe(r, fichas, laBusqueda), distancia(r));
+  const filtrados = filtrar(base, filtro, laBusqueda, texto, baseCasi, puntuar);
   const visibles = ordenar(filtrados.visibles, orden, distancia);
   const cuentas = filtrados.cuentas;
   const [rapida, setRapida] = useState(false);
@@ -274,6 +278,9 @@ export function VistaResultados() {
                 <button type="button" onClick={() => cambiar(filtro === "descartados" ? "todos" : "descartados", busqueda)} className="flex w-full items-center justify-between px-4 py-3 text-left active:bg-presion">
                   {filtro === "descartados" ? "Ver todos" : "Ver descartados"} <Trash2 className="size-[18px] text-suave" strokeWidth={1.8} />
                 </button>
+                <button type="button" onClick={() => cambiar(filtro === "bajo" ? "todos" : "bajo", busqueda)} className="flex w-full items-center justify-between border-t border-separador px-4 py-3 text-left active:bg-presion">
+                  {filtro === "bajo" ? "Ver todos" : `Bajaron de precio${cuentas.bajo ? ` (${cuentas.bajo})` : ""}`} <ArrowDownRight className="size-[18px] text-suave" strokeWidth={1.8} />
+                </button>
                 <button type="button" onClick={() => cambiar(filtro === "casi" ? "todos" : "casi", busqueda)} className="flex w-full items-center justify-between border-t border-separador px-4 py-3 text-left active:bg-presion">
                   {filtro === "casi" ? "Ver todos" : `Casi calzan${cuentas.casi ? ` (${cuentas.casi})` : ""}`} <Waves className="size-[18px] text-suave" strokeWidth={1.8} />
                 </button>
@@ -301,6 +308,7 @@ export function VistaResultados() {
 
       <Pantalla>
         <div className="flex flex-col gap-3 px-5">
+          <AvisoFuentes />
           <div className="-mt-1 flex min-h-9 items-center gap-3">
           {busquedas.length > 1 && (
             <label className="relative flex min-w-0 items-center gap-1 text-[15px] font-medium text-muted-foreground">

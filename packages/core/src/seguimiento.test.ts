@@ -1,6 +1,6 @@
 import { strict as assert } from "node:assert";
 import { test } from "node:test";
-import { casiCalza, EJEMPLO_V40CC, evaluar, nombraLaFicha, modeloCalza, modeloCanonico, pareceNoAuto } from "./index.ts";
+import { casiCalza, EJEMPLO_V40CC, evaluar, nombraLaFicha, preferenciasDe, tienePreferencia, modeloCalza, modeloCanonico, pareceNoAuto } from "./index.ts";
 
 test("evalúa km, precio y motor contra la ficha", () => {
   assert.deepEqual(evaluar({ anio: 2018, km: 90000, precio: 13000000, motor: "T4" }, EJEMPLO_V40CC), { tipo: "calza" });
@@ -141,4 +141,12 @@ test("el modelo sin números también cuenta", () => {
   assert.equal(nombraLaFicha("XV 2.0 2019 impecable", xv), true);
   assert.equal(nombraLaFicha("Crosstrek 2020", xv), true);
   assert.equal(nombraLaFicha("Mazda CX-5 2019", xv), false);
+});
+
+test("saca las preferencias de las notas si no hay", () => {
+  assert.deepEqual(preferenciasDe({ preferencias: [], notas: "Preferencia por versiones altas (Inscription, R-Design, Momentum Plus)" }), ["Inscription", "R-Design", "Momentum"]);
+  assert.deepEqual(preferenciasDe({ preferencias: [], notas: "Versión 2.0i preferente" }), ["2.0i"]);
+  assert.deepEqual(preferenciasDe({ preferencias: ["T5"], notas: "Inscription" }), ["T5"]);
+  assert.equal(tienePreferencia("2019 Volvo V40 T4 R-DESIGN AUTO", ["r-design"]), true);
+  assert.equal(tienePreferencia("2021 Subaru Xv 2.0I AWD CVT", ["2.0i"]), true);
 });

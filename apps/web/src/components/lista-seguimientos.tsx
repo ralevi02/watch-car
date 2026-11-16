@@ -6,8 +6,10 @@ import Link from "next/link";
 import { useState } from "react";
 import { borrarBusqueda, cambiarBusqueda } from "@/app/(app)/acciones";
 import { Chat } from "@/components/chat";
+import { EditarFicha } from "@/components/editar-ficha";
 import { Encabezado } from "@/components/encabezado";
 import { FichaCard } from "@/components/ficha-card";
+import { MercadoFicha } from "@/components/mercado-ficha";
 import { MiAuto } from "@/components/mi-auto";
 import { Pantalla } from "@/components/pantalla";
 import { SugerenciasFicha } from "@/components/sugerencias-ficha";
@@ -41,7 +43,7 @@ function resumen(f: Seguimiento) {
 const pedirAlternativas = (b: Busqueda) =>
   `Propón 3 alternativas parecidas a mi ficha «${b.nombre}» (${resumen(b.ficha) || "sin límites"}${b.ficha.caja !== "cualquiera" ? `, caja ${b.ficha.caja === "automatica" ? "automática" : "manual"}` : ""}), que se vendan usadas en Chile y sean confiables. Para cada una dime en una línea por qué, y pregúntame cuál quiero seguir para armar la ficha.`;
 
-function DetalleFicha({ b, onCerrar, onAlternativas }: { b: Busqueda; onCerrar: () => void; onAlternativas: () => void }) {
+function DetalleFicha({ b, onCerrar, onAlternativas, onEditar }: { b: Busqueda; onCerrar: () => void; onAlternativas: () => void; onEditar: () => void }) {
   const { cambiar, refrescar } = useAlmacen();
   const ajustar = (cambios: { activa?: boolean; alertas?: boolean }) => {
     cambiar((d) => ({ ...d, busquedas: d.busquedas.map((x) => (x.id === b.id ? { ...x, ...cambios } : x)) }));
@@ -50,6 +52,13 @@ function DetalleFicha({ b, onCerrar, onAlternativas }: { b: Busqueda; onCerrar: 
   return (
     <div className="flex flex-col gap-6 px-4 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
       <FichaCard ficha={b.ficha} />
+      <button type="button" onClick={onEditar} className="presionable -mt-3 h-12 rounded-[14px] bg-card text-[15px] font-semibold">
+        Editar ficha
+      </button>
+      <section>
+        <h3 className="titulo-grupo">Cómo se mueve el precio</h3>
+        <MercadoFicha busquedaId={b.id} />
+      </section>
       <SugerenciasFicha id={b.id} ficha={b.ficha} />
       <button type="button" onClick={onAlternativas} className="presionable h-12 rounded-[14px] bg-card text-[15px] font-semibold">
         Buscar alternativas parecidas
@@ -104,6 +113,8 @@ export function ListaSeguimientos() {
   const [inicial, setInicial] = useState<string | undefined>(undefined);
   const [abierta, setAbierta] = useState<string | null>(null);
   const actual = busquedas.find((b) => b.id === abierta);
+  const [editando, setEditando] = useState<string | null>(null);
+  const aEditar = busquedas.find((b) => b.id === editando);
 
   return (
     <>
@@ -195,8 +206,21 @@ export function ListaSeguimientos() {
               setInicial(pedirAlternativas(actual));
               setNueva(true);
             }}
+            onEditar={() => {
+              setAbierta(null);
+              setEditando(actual.id);
+            }}
           />
         )}
+      </Hoja>
+
+      <Hoja
+        abierta={Boolean(aEditar)}
+        onCerrar={() => setEditando(null)}
+        titulo="Editar ficha"
+        izquierda={<button type="button" onClick={() => setEditando(null)}>Cancelar</button>}
+      >
+        {aEditar && <EditarFicha key={aEditar.id} id={aEditar.id} ficha={aEditar.ficha} onListo={() => setEditando(null)} />}
       </Hoja>
     </>
   );

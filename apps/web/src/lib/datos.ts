@@ -27,7 +27,7 @@ export async function leerBusquedas() {
   });
 }
 
-export type Filtro = "todos" | "nuevos" | "bajo" | "advertencia" | "favoritos" | "descartados" | "casi" | "contacto";
+export type Filtro = "todos" | "calza" | "nuevos" | "bajo" | "advertencia" | "favoritos" | "descartados" | "casi" | "contacto";
 
 export interface EnlaceAviso {
   id: string;
@@ -447,11 +447,13 @@ export interface Ajustes {
   casa: { comuna: string } | null;
   /** Datos del auto comprado (para "Mi auto"). */
   miAuto: { kmActual?: number; fechaCompra?: string; patente?: string } | null;
+  /** Último latido del worker del homelab. */
+  latidoCasa: string | null;
 }
 
 export async function leerAjustes(): Promise<Ajustes> {
   const supabase = await crearClienteServidor();
-  const { data } = await supabase.from("ajustes").select("clave, valor").in("clave", ["avisos", "casa", "mi_auto"]);
+  const { data } = await supabase.from("ajustes").select("clave, valor").in("clave", ["avisos", "casa", "mi_auto", "latido_casa"]);
   const de = (clave: string) => data?.find((x) => x.clave === clave)?.valor as Record<string, unknown> | undefined;
   const avisos = de("avisos") ?? {};
   const casa = de("casa");
@@ -459,6 +461,7 @@ export async function leerAjustes(): Promise<Ajustes> {
     avisos: { modo: avisos.modo === "resumen" ? "resumen" : "inmediato", hora: typeof avisos.hora === "number" ? avisos.hora : 20 },
     casa: typeof casa?.comuna === "string" && casa.comuna ? { comuna: casa.comuna } : null,
     miAuto: (de("mi_auto") as Ajustes["miAuto"]) ?? null,
+    latidoCasa: typeof de("latido_casa")?.en === "string" ? (de("latido_casa")!.en as string) : null,
   };
 }
 

@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { leerBusquedas, type Visita } from "@/lib/datos";
 import type { TablesUpdate } from "@radar/db";
-import { evaluarFichaContraTodo } from "@/lib/evaluar-ficha";
+import { buscarAlTiro, evaluarFichaContraTodo } from "@/lib/evaluar-ficha";
 import { crearClienteServidor } from "@/lib/supabase/server";
 
 type Resultado = { ok: true } | { ok: false; error: string };
@@ -150,9 +150,14 @@ export async function actualizarFicha(busquedaId: string, ficha: unknown): Promi
   if (!f.success) return { ok: false, error: "La ficha no es válida" };
   const supabase = await crearClienteServidor();
   const id = Id.parse(busquedaId);
-  const { error } = await supabase.from("busquedas").update({ ficha: f.data }).eq("id", id);
+  const { data: antes } = await supabase.from("busquedas").select("ficha").eq("id", id).single();
+  const { error } = await supabase.from("busquedas").update({ ficha: f.data, nombre: f.data.nombre }).eq("id", id);
   if (error) return { ok: false, error: error.message };
   await evaluarFichaContraTodo(supabase, id, f.data);
+  // Si cambió lo que se busca (otro modelo, otro nombre en los portales), el homelab la busca al tiro.
+  const previa = Seguimiento.safeParse(antes?.ficha);
+  const clave = (x: Seguimiento) => JSON.stringify([x.marca, x.modelo, x.modeloPortal, x.alias, x.fuentes]);
+  if (!previa.success || clave(previa.data) !== clave(f.data)) await buscarAlTiro(supabase, id, f.data);
   revalidatePath("/");
   return { ok: true };
 }

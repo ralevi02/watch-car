@@ -1,13 +1,13 @@
 import type { Filtro, ResultadoAuto } from "@/lib/datos";
 
-/** Las cuatro vistas del control segmentado; Guardados y Descartados van en el menú. */
+/** Las vistas del control segmentado; Guardados, Descartados y Bajaron van en el menú. */
 export const SEGMENTOS: { id: Filtro; etiqueta: string }[] = [
   { id: "todos", etiqueta: "Todos" },
+  { id: "calza", etiqueta: "Calzan" },
   { id: "nuevos", etiqueta: "Nuevos" },
-  { id: "bajo", etiqueta: "Bajaron" },
   { id: "advertencia", etiqueta: "Revisar" },
 ];
-export const FILTROS: Filtro[] = ["todos", "nuevos", "bajo", "advertencia", "favoritos", "descartados", "casi", "contacto"];
+export const FILTROS: Filtro[] = ["todos", "calza", "nuevos", "bajo", "advertencia", "favoritos", "descartados", "casi", "contacto"];
 
 const bajo = (r: ResultadoAuto) => r.precio !== null && r.precioInicial !== null && r.precio < r.precioInicial;
 
@@ -29,6 +29,8 @@ function pasa(r: ResultadoAuto, filtro: Filtro) {
       return !descartado && Boolean(r.marca?.contacto) && r.marca?.contacto !== "comprado";
     case "casi":
       return !descartado;
+    case "calza":
+      return !descartado && r.veredicto === "calza";
     case "nuevos":
       return !descartado && r.nuevo;
     case "bajo":
@@ -50,16 +52,18 @@ function coincide(r: ResultadoAuto, texto: string) {
     .every((t) => donde.includes(t));
 }
 
-/** `casi` son los que quedaron fuera por poco: solo se ven con el filtro "casi". */
-export function filtrar(todos: ResultadoAuto[], filtro: Filtro, busqueda?: string, texto = "", casi: ResultadoAuto[] = []) {
+/** `casi` son los que quedaron fuera por poco: solo se ven con el filtro "casi". `puntuar` ordena: los mejores primero. */
+export function filtrar(todos: ResultadoAuto[], filtro: Filtro, busqueda?: string, texto = "", casi: ResultadoAuto[] = [], puntuar: (r: ResultadoAuto) => number = () => 0) {
   const base = filtro === "casi" ? casi : todos;
   const deLaBusqueda = base.flatMap((r) => paraBusqueda(r, busqueda) ?? []).filter((r) => coincide(r, texto));
+  const puntos = new Map(deLaBusqueda.map((r) => [r.autoId, puntuar(r)]));
   const visibles = deLaBusqueda
     .filter((r) => pasa(r, filtro))
     .sort(
       (x, y) =>
         Number(y.marca?.estado === "favorito") - Number(x.marca?.estado === "favorito") ||
         Number(y.veredicto === "calza") - Number(x.veredicto === "calza") ||
+        puntos.get(y.autoId)! - puntos.get(x.autoId)! ||
         (x.precio ?? Infinity) - (y.precio ?? Infinity),
     );
   const cuentas = Object.fromEntries(FILTROS.map((f) => [f, deLaBusqueda.filter((r) => pasa(r, f)).length])) as Record<Filtro, number>;
@@ -87,7 +91,7 @@ export interface Afinar {
 }
 
 export const ORDENES: { id: Orden; etiqueta: string }[] = [
-  { id: "recomendado", etiqueta: "Recomendado" },
+  { id: "recomendado", etiqueta: "Mejores primero" },
   { id: "precio", etiqueta: "Precio más bajo" },
   { id: "-precio", etiqueta: "Precio más alto" },
   { id: "km", etiqueta: "Menos km" },
@@ -117,7 +121,7 @@ export function afinar(lista: ResultadoAuto[], f: Afinar, distancia: (r: Resulta
   });
 }
 
-/** Ordena según lo elegido; "recomendado" deja el orden de siempre (guardados, calzan, precio). */
+/** Ordena según lo elegido; "recomendado" deja el de filtrar (guardados, calzan y los mejores primero). */
 export function ordenar(lista: ResultadoAuto[], orden: Orden, distancia: (r: ResultadoAuto) => number | null): ResultadoAuto[] {
   if (orden === "recomendado") return lista;
   const ultimo = (x: number | null, asc: boolean) => (x === null ? (asc ? Infinity : -Infinity) : x);

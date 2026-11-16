@@ -1,4 +1,4 @@
-import type { Seguimiento } from "@radar/core";
+import { preferenciasDe, type Seguimiento } from "@radar/core";
 
 type Rango = Seguimiento["anio"];
 
@@ -55,6 +55,7 @@ export function FichaCard({ ficha, pie }: { ficha: Seguimiento; pie?: React.Reac
       {ficha.caja !== "cualquiera" && <Fila etiqueta="Caja">{ficha.caja === "automatica" ? "Automática" : "Manual"}</Fila>}
       <Fila etiqueta="Zona">{ficha.regiones.length ? `${ficha.regiones.join(", ")} (el resto, con aviso)` : "Todo Chile"}</Fila>
       <Fila etiqueta="Portales">{ficha.fuentes.length === 5 ? "Todos" : ficha.fuentes.map((f) => NOMBRE_FUENTE[f]).join(", ")}</Fila>
+      {preferenciasDe(ficha).length > 0 && <Fila etiqueta="Prefieres">{preferenciasDe(ficha).join(", ")}</Fila>}
       {ficha.notas && <Fila etiqueta="Notas">{ficha.notas}</Fila>}
       {pie && <div className="px-4 py-3">{pie}</div>}
     </div>

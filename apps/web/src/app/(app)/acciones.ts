@@ -7,7 +7,7 @@ import { z } from "zod";
 import { esDueno } from "@/lib/datos";
 import { corridasActivas, FUENTES_CORRIBLES, github, REPO, tokenGithub, type EstadoCorrida, type FuenteCorrible } from "@/lib/github";
 import { crearClienteServidor } from "@/lib/supabase/server";
-import { evaluarFichaContraTodo } from "@/lib/evaluar-ficha";
+import { buscarAlTiro, evaluarFichaContraTodo } from "@/lib/evaluar-ficha";
 
 type Resultado = { ok: true } | { ok: false; error: string };
 
@@ -23,13 +23,6 @@ export async function guardarSeguimiento(ficha: unknown): Promise<Resultado> {
   return { ok: true };
 }
 
-/** Ficha nueva: el homelab la busca en sus fuentes sin esperar el horario. Las rápidas primero y Facebook (el barrido largo) al final. */
-async function buscarAlTiro(supabase: Awaited<ReturnType<typeof crearClienteServidor>>, busquedaId: string, ficha: Seguimiento) {
-  const orden = (f: string) => (f === "facebook" ? 1 : 0);
-  const fuentes = FUENTES_CORRIBLES.filter((f) => (ficha.fuentes as readonly string[]).includes(f)).sort((a, b) => orden(a) - orden(b));
-  const ahora = Date.now();
-  await supabase.from("corridas_pedidas").insert(fuentes.map((fuente, i) => ({ fuente, busqueda_id: busquedaId, pedida_en: new Date(ahora + i).toISOString() })));
-}
 
 export async function cambiarBusqueda(id: string, cambios: { activa?: boolean; alertas?: boolean }) {
   const supabase = await crearClienteServidor();

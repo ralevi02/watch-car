@@ -51,6 +51,10 @@ export const Seguimiento = z.object({
   fuentes: z.array(Fuente).default(["chileautos", "facebook", "mercadolibre", "kavak", "yapo", "brunofritsch"]),
   frecuenciaHoras: z.number().int().min(1).max(24).default(3),
   notas: z.string().optional().describe("Cualquier criterio que no calce en los campos anteriores"),
+  preferencias: z
+    .array(z.string())
+    .default([])
+    .describe("Versiones o detalles que prefiere, ej: ['Inscription', '2.0i']. Suben en el orden de Resultados, no dejan fuera a nadie"),
 });
 export type Seguimiento = z.infer<typeof Seguimiento>;
 
@@ -81,6 +85,20 @@ export interface AvisoNormalizado {
 
 const compactar = (x: string) => x.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f\s-]+/g, "");
 const mismaMarca = (a: string, b: string) => compactar(a).includes(compactar(b)) || compactar(b).includes(compactar(a));
+
+const VERSIONES = ["inscription", "r-design", "momentum", "summum", "kinetic", "limited", "comfort", "dynamic", "premium", "luxury", "advance", "exclusive", "sport", "gt", "gts", "eyesight", "titanium", "highline", "comfortline", "sense"];
+
+/** Lo que prefieres de una ficha: lo que escribiste en preferencias o, si no hay, las versiones que nombran las notas. */
+export function preferenciasDe(s: { preferencias?: string[]; notas?: string }): string[] {
+  if (s.preferencias?.length) return s.preferencias;
+  const notas = s.notas ?? "";
+  const versiones = VERSIONES.flatMap((v) => new RegExp(`(?:^|[^a-z])(${v})(?:[^a-z]|$)`, "i").exec(notas)?.[1] ?? []);
+  const motores = notas.match(/\b\d\.\d ?[a-z]{0,3}\b|\bt\d\b/gi) ?? [];
+  return [...new Set([...versiones, ...motores.map((m) => m.replace(/\s+/g, ""))])];
+}
+
+/** Si el aviso tiene algo de lo que prefieres (en el título o la versión). */
+export const tienePreferencia = (texto: string, preferencias: string[]) => preferencias.some((p) => compactar(texto).includes(compactar(p)));
 
 /**
  * Los portales rellenan con otras marcas (Facebook en las búsquedas por precio, Kavak

@@ -23,6 +23,9 @@ const REGIONES: [codigo: string, nombre: string, patron: RegExp][] = [
 ];
 const CODIGOS = new Set(REGIONES.map(([c]) => c));
 
+/** Los nombres, de norte a sur, como los guarda la ficha. */
+export const NOMBRES_REGIONES = REGIONES.map(([, nombre]) => nombre);
+
 export function regionDe(texto: string | null | undefined): string | undefined {
   if (!texto) return undefined;
   const codigo = texto.match(/(?:,|\()\s*([A-Z]{2})\s*\)?\s*$/)?.[1] ?? texto.trim().match(/^([A-Z]{2})\b/)?.[1];
