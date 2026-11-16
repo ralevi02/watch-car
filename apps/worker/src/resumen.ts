@@ -32,12 +32,18 @@ const guardarAjuste = async (clave: string, valor: Json) => {
   if (process.env.PUSH_SECO !== "1") await db.from("ajustes").upsert({ clave, valor, actualizado_en: new Date().toISOString() });
 };
 
+// Facebook sin ninguna cuenta conectada tiene su propio recordatorio (1c), más claro que "fuente caída".
+const { data: cuentasFb } = await db.from("cuentas_facebook").select("estado, ultima_ok");
+const { data: fuenteFb } = await db.from("fuentes").select("activa").eq("id", "facebook").maybeSingle();
+const facebookDesconectado = Boolean(fuenteFb?.activa && cuentasFb?.length && !cuentasFb.some((c) => c.estado === "activa"));
+
 // ── 1. Fuente caída: una fuente activa que lleva muchas horas sin traer avisos (se avisa una vez al día) ──
 const UMBRAL_HORAS: Record<string, number> = { chileautos: 12, facebook: 30, remates: 50 };
 const { data: fuentes } = await db.from("fuentes").select("id, nombre, activa").eq("activa", true);
 const alertadas = (await leerAjuste<Record<string, string>>("alerta_fuentes")) ?? {};
 const caidas: string[] = [];
 for (const f of fuentes ?? []) {
+  if (f.id === "facebook" && facebookDesconectado) continue;
   const { data: ultima } = await db.from("pasadas").select("inicio").eq("fuente_id", f.id).eq("estado", "ok").gt("avisos_vistos", 0).order("inicio", { ascending: false }).limit(1).maybeSingle();
   // Una fuente que nunca trajo nada (MercadoLibre sin conectar, por ejemplo) no se reporta como caída.
   if (!ultima) continue;
@@ -72,6 +78,24 @@ if (minutosSinLatido > 30 && (!alertaCasa?.en || Date.now() - new Date(alertaCas
   ]);
   await guardarAjuste("alerta_casa", { en: new Date().toISOString() });
   console.log(`Homelab sin latido hace ${Math.round(minutosSinLatido)} min.`);
+}
+
+// ── 1c. Facebook desconectado: se recuerda cada día (de día) hasta que se reconecte ──
+const recordatorioFb = await leerAjuste<{ en?: string }>("recordatorio_facebook");
+if (facebookDesconectado && horaChile >= 9 && horaChile <= 21 && (!recordatorioFb?.en || Date.now() - new Date(recordatorioFb.en).getTime() > 20 * 3_600_000)) {
+  const ultimaOk = (cuentasFb ?? []).map((c) => c.ultima_ok).filter((x): x is string => Boolean(x)).sort().at(-1);
+  const desde = ultimaOk ? new Date(ultimaOk).toLocaleDateString("es-CL", { timeZone: "America/Santiago", weekday: "long", day: "numeric", month: "long" }) : null;
+  await enviarPush(db, [
+    {
+      titulo: "Facebook sigue desconectado",
+      cuerpo: `${desde ? `No busca desde el ${desde}. ` : ""}Reconéctalo en Fuentes, con Tailscale prendido en el teléfono.`,
+      url: APP_URL ? `${APP_URL}/fuentes` : undefined,
+      etiqueta: "facebook-desconectado",
+      tipo: "sistema",
+    },
+  ]);
+  await guardarAjuste("recordatorio_facebook", { en: new Date().toISOString() });
+  console.log("Recordatorio: Facebook sigue desconectado.");
 }
 
 // ── 2. Resumen de la semana: el domingo a la hora de los avisos (en cualquier modo) ──

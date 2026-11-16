@@ -17,6 +17,7 @@ const PEDIBLES = ["chileautos", "facebook", "kavak", "yapo", "mercadolibre", "br
 type Fuente = (typeof PEDIBLES)[number] | "fotos-ia" | "resumen";
 const SCRIPT: Partial<Record<Fuente, string>> = { remates: "remates", "fotos-ia": "fotos-ia", resumen: "resumen" };
 const BARRIDO_FACEBOOK = { FB_BARRIDO: "completo", MAX_PAGINAS: "80", DETALLES: "40" };
+const tandaFacebook = (k: number) => ({ ...BARRIDO_FACEBOOK, FB_TANDA: `${k}/3`, DETALLES: "14" });
 
 const PROGRAMA: { fuente: Fuente; horas: string[]; env?: Record<string, string> }[] = [
   { fuente: "chileautos", horas: ["08:23", "11:23", "14:23", "17:23", "20:23", "23:23"], env: { MAX_PAGINAS: "5", DETALLES: "5" } },
@@ -26,7 +27,9 @@ const PROGRAMA: { fuente: Fuente; horas: string[]; env?: Record<string, string> 
   { fuente: "kavak", horas: ["12:10", "19:40"] },
   { fuente: "yapo", horas: ["12:15", "19:45"] },
   { fuente: "mercadolibre", horas: ["12:20", "19:50"] },
-  { fuente: "facebook", horas: ["07:30"], env: BARRIDO_FACEBOOK },
+  { fuente: "facebook", horas: ["07:30"], env: tandaFacebook(1) },
+  { fuente: "facebook", horas: ["10:45"], env: tandaFacebook(2) },
+  { fuente: "facebook", horas: ["16:30"], env: tandaFacebook(3) },
   { fuente: "facebook", horas: ["13:00", "20:30"], env: { MAX_PAGINAS: "4", DETALLES: "8" } },
   { fuente: "resumen", horas: Array.from({ length: 24 }, (_, h) => `${String(h).padStart(2, "0")}:02`) },
 ];
@@ -64,7 +67,7 @@ function revisarPrograma() {
     const marca = `${p.fuente}@${dia} ${hora}`;
     if (p.horas.includes(hora) && !disparados.has(marca)) {
       disparados.add(marca);
-      if (encolar({ tipo: "pasada", fuente: p.fuente, env: { TIPO: p.env === BARRIDO_FACEBOOK ? "completa" : "corta", ...p.env } })) console.log(`Programada: ${p.fuente} (${hora})`);
+      if (encolar({ tipo: "pasada", fuente: p.fuente, env: { TIPO: p.env?.FB_BARRIDO === "completo" ? "completa" : "corta", ...p.env } })) console.log(`Programada: ${p.fuente} (${hora})`);
     }
   }
   if (disparados.size > 500) disparados.clear();

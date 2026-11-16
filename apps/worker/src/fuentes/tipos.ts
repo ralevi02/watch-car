@@ -41,6 +41,8 @@ export interface ResultadoRecoleccion {
   capturas: string[];
   kb: number;
   ms: number;
+  /** Lo visto desde esta fecha en otras pasadas cuenta como visto en esta (las tandas de Facebook). */
+  vistosDesde?: string;
   /** Cuando una búsqueda sale vacía: qué mostraba la página. Se guarda en Supabase (privado), nunca en el log público. */
   diagnostico?: { url: string; titulo: string; texto: string; enlaces: number; muestraEnlaces: string[]; descartadas: string[]; captura?: Buffer; red?: string[]; vehiculos?: { url: string; enlaces: number }; muestraBusqueda?: string };
 }

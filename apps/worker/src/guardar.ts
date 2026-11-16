@@ -195,7 +195,7 @@ export async function guardarPasada(
     const previos = await leer(
       db
         .from("resultados")
-        .select("aviso_id, avisos!inner(id_externo, estado, veces_no_visto, fuente_id, titulo, url)")
+        .select("aviso_id, avisos!inner(id_externo, estado, veces_no_visto, fuente_id, titulo, url, ultima_vez)")
         .eq("busqueda_id", busquedaId)
         .eq("avisos.fuente_id", FUENTE)
         // Los "fuera" no son de esta búsqueda (la ficha se compara con todo lo guardado): que no salgan no dice nada.
@@ -205,7 +205,7 @@ export async function guardarPasada(
     );
     const vistos = new Set(ids);
     for (const p of previos) {
-      if (vistos.has(p.avisos.id_externo)) continue;
+      if (vistos.has(p.avisos.id_externo) || (r.vistosDesde && p.avisos.ultima_vez >= r.vistosDesde)) continue;
       const veces = p.avisos.veces_no_visto + 1;
       await escribir(
         db

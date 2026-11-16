@@ -56,6 +56,21 @@ export function planBusquedas(f: Seguimiento, completo: boolean): BusquedaFb[] {
   return [...directas, ...porAnio, ...porPrecio];
 }
 
+/**
+ * El barrido completo en tandas a lo largo del día ("2/3" = la segunda de tres): unas 60
+ * búsquedas seguidas parecen menos de una persona. Se reparten intercaladas para que cada
+ * tanda tenga de todo (lo más nuevo, por año y por precio).
+ */
+export function leerTanda(texto: string | undefined): { k: number; n: number } | undefined {
+  const m = texto?.match(/^(\d+)\/(\d+)$/);
+  if (!m) return undefined;
+  const k = Number(m[1]);
+  const n = Number(m[2]);
+  return k >= 1 && k <= n ? { k, n } : undefined;
+}
+
+export const tandaDelPlan = <T>(plan: T[], tanda?: { k: number; n: number }) => (tanda ? plan.filter((_, i) => i % tanda.n === tanda.k - 1) : plan);
+
 /** Años a buscar con el año en el texto: los de la ficha y uno antes (los que casi calzan), como mucho ocho. */
 function aniosDe(f: Seguimiento): number[] {
   const hasta = f.anio.maxConAdvertencia ?? f.anio.max ?? new Date().getFullYear();

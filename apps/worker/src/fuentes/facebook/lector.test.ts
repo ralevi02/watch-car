@@ -1,7 +1,7 @@
 import { strict as assert } from "node:assert";
 import { test } from "node:test";
 import { EJEMPLO_V40CC } from "@radar/core";
-import { consultas, detectarMuro, kmDeTexto, leerDetalle, leerTarjeta, planBusquedas, tramosDePrecio, urlBusqueda } from "./lector.js";
+import { consultas, detectarMuro, leerTanda, tandaDelPlan, kmDeTexto, leerDetalle, leerTarjeta, planBusquedas, tramosDePrecio, urlBusqueda } from "./lector.js";
 
 test("arma las consultas y la URL de búsqueda", () => {
   assert.deepEqual(consultas(EJEMPLO_V40CC), ["Volvo V40 Cross Country", "Volvo V40"]);
@@ -98,4 +98,13 @@ test("lee el km del bloque de información del vehículo", () => {
   const d = leerDetalle("2018 Volvo V40\n$12.990.000\nInformación sobre este vehículo\n87.500 km\nTransmisión automática");
   assert.equal(d.datos["Kilometraje"], "87.500 km");
   assert.equal(kmDeTexto(d.datos["Kilometraje"]!), 87500);
+});
+
+test("reparte el barrido en tandas intercaladas", () => {
+  assert.deepEqual(leerTanda("2/3"), { k: 2, n: 3 });
+  assert.equal(leerTanda("4/3"), undefined);
+  const plan = planBusquedas(EJEMPLO_V40CC, true);
+  const tandas = [1, 2, 3].map((k) => tandaDelPlan(plan, { k, n: 3 }));
+  assert.equal(tandas.flat().length, plan.length);
+  assert.ok(tandas.every((t) => Math.abs(t.length - plan.length / 3) < 1));
 });

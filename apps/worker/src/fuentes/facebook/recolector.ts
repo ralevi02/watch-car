@@ -2,7 +2,7 @@ import type { Page } from "patchright";
 import type { Seguimiento } from "@radar/core";
 import { capturar, pausa, scrollHumano, type Sesion } from "../../lib/navegador.js";
 import type { AvisoPortal, OpcionesRecoleccion, ResultadoRecoleccion } from "../tipos.js";
-import { detectarMuro, leerDetalle, leerTarjeta, planBusquedas, urlBusqueda, urlVehiculos } from "./lector.js";
+import { detectarMuro, leerDetalle, leerTanda, tandaDelPlan, leerTarjeta, planBusquedas, urlBusqueda, urlVehiculos } from "./lector.js";
 
 type Grilla = Awaited<ReturnType<typeof leerGrilla>>;
 /** Las fichas de una misma pasada comparten búsquedas: no se repite la misma URL. */
@@ -92,7 +92,9 @@ export async function recolectarFacebook(s: Sesion, ficha: Seguimiento, op: Opci
   let page = await abrirPestana();
 
   try {
-    const plan = planBusquedas(ficha, process.env.FB_BARRIDO === "completo").slice(0, maxBusquedas);
+    const completo = process.env.FB_BARRIDO === "completo";
+    const tanda = completo ? leerTanda(process.env.FB_TANDA) : undefined;
+    const plan = tandaDelPlan(planBusquedas(ficha, completo), tanda).slice(0, maxBusquedas);
     const urlDe = (b: (typeof plan)[number]) => urlBusqueda(ficha, b.consulta, op.ciudad, b.precio, b.orden);
     r.url = urlDe(plan[0]!);
     let cargadas = 0;
@@ -162,7 +164,11 @@ export async function recolectarFacebook(s: Sesion, ficha: Seguimiento, op: Opci
       }
     }
     // Solo el barrido completo cuenta como pasada entera: con el corto, lo que no salió no dejó de existir.
-    r.paginasTotales = planBusquedas(ficha, true).length;
+    // En tandas, la última cierra el día: cuenta como visto lo que salió en las anteriores.
+    if (tanda && tanda.k === tanda.n) {
+      r.paginasTotales = plan.length;
+      r.vistosDesde = new Date(Date.now() - 12 * 3_600_000).toISOString();
+    } else r.paginasTotales = planBusquedas(ficha, true).length;
   } catch (e) {
     if (e instanceof MuroFacebook) r.bloqueo = e.message;
     else r.errores.push(`Búsqueda: ${e instanceof Error ? e.message.split("\n")[0] : String(e)}`);
